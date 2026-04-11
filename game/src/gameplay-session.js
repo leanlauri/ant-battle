@@ -19,16 +19,18 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
   const remainingFood = antSystem.foods.filter((item) => !item.delivered).length;
   const heaviestFood = antSystem.foods.reduce((max, food) => Math.max(max, food.requiredCarriers), 1);
   const focusTarget = antSystem.foodSystem?.getFocusTarget?.();
+  const selectedNestHealth = antSystem.foodSystem?.getSelectedNestHealth?.();
+  const selectedNestLabel = antSystem.foodSystem?.getSelectedNestLabel?.() ?? 'Home Nest';
 
   return {
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
     terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${TERRAIN_CONFIG.maxHeight}, ${TERRAIN_CONFIG.maxHeight}].`,
     antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
-    selectedNestText: `Selected nest: ${antSystem.foodSystem?.getSelectedNestLabel?.() ?? 'Home Nest'}`,
+    selectedNestText: `Selected nest: ${selectedNestLabel}${selectedNestHealth ? `, HP ${selectedNestHealth.hp}/${selectedNestHealth.maxHp}${selectedNestHealth.collapsed ? ' (collapsed)' : ''}` : ''}`,
     focusText: focusTarget
       ? `Focus: x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
       : 'Focus: none',
-    battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyTotal} enemies still active.`,
+    battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down, ${antSystem.foodSystem?.getActiveEnemyNestCount?.() ?? 0} enemy nests still active.`,
     foodText: `Food: ${remainingFood} left, nest stored ${(antSystem.foodSystem?.nestStored ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
     buildText: `Build: ${buildInfo.value}`,
     playerAntCount: antSummary.playerTotal,

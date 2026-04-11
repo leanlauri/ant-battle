@@ -19,6 +19,7 @@ export const NEST_CONFIG = Object.freeze({
   queueRadius: 3.8,
   entranceRadius: 1.2,
   queueSlots: 6,
+  maxHp: 260,
   position: new THREE.Vector3(0, 0, 0),
 });
 
@@ -90,7 +91,7 @@ export const getNestPosition = () => {
 
 const createNestDefinition = ({ id, x, z, faction, label }) => {
   const position = new THREE.Vector3(x, sampleHeight(x, z), z);
-  return { id, faction, label, position };
+  return { id, faction, label, position, maxHp: NEST_CONFIG.maxHp, hp: NEST_CONFIG.maxHp, collapsed: false };
 };
 
 export const createNestDefinitions = () => ([
@@ -171,18 +172,21 @@ const createNestVisual = (nest) => {
   const pathMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: false, depthWrite: false });
 
   const mound = new THREE.Mesh(new THREE.ConeGeometry(NEST_CONFIG.radius * 1.25, NEST_CONFIG.radius * 1.3, 28, 1), nestMaterial);
+  mound.userData.baseColor = style.mound;
   mound.position.y = (NEST_CONFIG.radius * 1.3) * 0.5;
   mound.castShadow = true;
   mound.receiveShadow = true;
   group.add(mound);
 
   const moundBase = new THREE.Mesh(new THREE.CylinderGeometry(NEST_CONFIG.radius * 1.05, NEST_CONFIG.radius * 1.2, 0.18, 28), nestMaterial);
+  moundBase.userData.baseColor = style.mound;
   moundBase.position.y = 0.09;
   moundBase.castShadow = true;
   moundBase.receiveShadow = true;
   group.add(moundBase);
 
   const entrance = new THREE.Mesh(new THREE.CylinderGeometry(NEST_CONFIG.radius * 0.36, NEST_CONFIG.radius * 0.42, 0.14, 18), innerMaterial);
+  entrance.userData.baseColor = style.inner;
   entrance.position.set(0, 0.08, NEST_CONFIG.radius * 0.18);
   entrance.receiveShadow = true;
   group.add(entrance);
@@ -190,6 +194,7 @@ const createNestVisual = (nest) => {
   for (let i = 0; i < NEST_CONFIG.queueSlots; i += 1) {
     const angle = (i / NEST_CONFIG.queueSlots) * Math.PI * 2;
     const queueMarker = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.12, 12), queueMaterial);
+    queueMarker.userData.baseColor = 0xffd54f;
     const queueX = Math.cos(angle) * NEST_CONFIG.queueRadius;
     const queueZ = Math.sin(angle) * NEST_CONFIG.queueRadius;
     const queueWorldX = nest.position.x + queueX;
@@ -199,6 +204,7 @@ const createNestVisual = (nest) => {
     debugGroup.add(queueMarker);
 
     const entranceMarker = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.16, 12), entranceMaterial);
+    entranceMarker.userData.baseColor = 0x00e5ff;
     const entranceX = Math.cos(angle) * NEST_CONFIG.entranceRadius;
     const entranceZ = Math.sin(angle) * NEST_CONFIG.entranceRadius;
     const entranceWorldX = nest.position.x + entranceX;
@@ -218,6 +224,7 @@ const createNestVisual = (nest) => {
     new THREE.TorusGeometry(NEST_CONFIG.radius * 1.35, 0.12, 10, 48),
     new THREE.MeshBasicMaterial({ color: style.ring, transparent: true, opacity: nest.faction === FACTION.player ? 0.95 : 0.45 }),
   );
+  selectionRing.userData.baseColor = style.ring;
   selectionRing.rotation.x = Math.PI / 2;
   selectionRing.position.y = 0.26;
   selectionRing.visible = false;
@@ -312,6 +319,17 @@ export class FoodSystem {
 
   getSelectedNestLabel() {
     return this.getSelectedNest()?.label ?? 'No nest selected';
+  }
+
+  getSelectedNestHealth() {
+    const nest = this.getSelectedNest();
+    if (!nest) return null;
+    return {
+      id: nest.id,
+      hp: nest.hp,
+      maxHp: nest.maxHp,
+      collapsed: nest.collapsed,
+    };
   }
 
   setSelectedNest(nestId) {
@@ -437,6 +455,24 @@ export class FoodSystem {
     return true;
   }
 
+  damageNest(nestId, damage) {
+    const nest = this.getNestById(nestId);
+    if (!nest || nest.collapsed) return null;
+    nest.hp = Math.max(0, nest.hp - Math.max(0, damage));
+    if (nest.hp <= 0) nest.collapsed = true;
+    this.updateNestVisual();
+    return {
+      nestId: nest.id,
+      hp: nest.hp,
+      maxHp: nest.maxHp,
+      collapsed: nest.collapsed,
+    };
+  }
+
+  getActiveEnemyNestCount() {
+    return this.enemyNests.filter((nest) => !nest.collapsed).length;
+  }
+
   updateNestVisual() {
     for (const nest of this.nests) {
       const scale = computeNestScale(this.getNestStored(nest.id));
@@ -444,6 +480,12 @@ export class FoodSystem {
       nest.mesh.position.set(nest.position.x, nest.position.y, nest.position.z);
       const ring = nest.mesh?.userData?.selectionRing;
       if (ring) ring.scale.setScalar(scale);
+      nest.mesh.traverse((child) => {
+        if (!child.isMesh || !child.material?.color) return;
+        const ratio = nest.maxHp > 0 ? nest.hp / nest.maxHp : 0;
+        const shade = nest.collapsed ? 0.42 : THREE.MathUtils.lerp(0.68, 1, ratio);
+        child.material.color.setHex(child.userData.baseColor ?? (FACTION_STYLE[nest.faction] ?? FACTION_STYLE.player).mound).multiplyScalar(shade);
+      });
     }
   }
 

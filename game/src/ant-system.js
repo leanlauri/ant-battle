@@ -42,6 +42,8 @@ export const ANT_CONFIG = Object.freeze({
   fighterAttackRange: 0.95,
   fighterAttackDamage: 14,
   fighterAttackCooldown: 0.72,
+  fighterNestAttackRange: 2.1,
+  fighterNestAttackDamage: 4,
   workerHp: 28,
   fighterHp: 46,
 });
@@ -131,6 +133,22 @@ const findClosestHostileNestPosition = (ant, nestLookup) => {
     }
   }
   return bestNest?.position ?? null;
+};
+
+export const findSiegeTargetNest = (ant, nests, maxDistance = ANT_CONFIG.fighterSenseDistance) => {
+  if (ant.dead || ant.role !== ANT_ROLE.fighter) return null;
+
+  let bestNest = null;
+  let bestDistanceSq = maxDistance * maxDistance;
+  for (const nest of nests) {
+    if (nest.faction === ant.faction || nest.collapsed) continue;
+    const distanceSq = ant.position.distanceToSquared(nest.position);
+    if (distanceSq <= bestDistanceSq) {
+      bestNest = nest;
+      bestDistanceSq = distanceSq;
+    }
+  }
+  return bestNest;
 };
 
 const getAntPalette = (role, faction) => {
@@ -687,6 +705,8 @@ export class AntSystem {
     this.stats = {
       enemyAntsDefeated: 0,
       playerAntsLost: 0,
+      enemyNestsDestroyed: 0,
+      playerNestsLost: 0,
       maxPlayerAnts: this.ants.filter((ant) => ant.faction === ANT_FACTION.player && !ant.dead).length,
     };
 
@@ -771,7 +791,26 @@ export class AntSystem {
               }
             }
           } else {
-            ant.combatTargetId = null;
+            const siegeNest = findSiegeTargetNest(ant, this.nests);
+            if (siegeNest) {
+              ant.combatTargetId = siegeNest.id;
+              ant.target.set(siegeNest.position.x, 0, siegeNest.position.z);
+              const siegeDistance = ant.position.distanceTo(siegeNest.position);
+              if (siegeDistance <= ANT_CONFIG.fighterNestAttackRange) {
+                ant.action = 'attack-nest';
+                ant.desiredVelocity.setScalar(0);
+                if (ant.attackCooldownRemaining <= 0) {
+                  ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
+                  const damageResult = this.foodSystem.damageNest(siegeNest.id, ANT_CONFIG.fighterNestAttackDamage);
+                  if (damageResult?.collapsed) {
+                    if (siegeNest.faction === ANT_FACTION.enemy) this.stats.enemyNestsDestroyed += 1;
+                    if (siegeNest.faction === ANT_FACTION.player) this.stats.playerNestsLost += 1;
+                  }
+                }
+              }
+            } else {
+              ant.combatTargetId = null;
+            }
           }
         }
 
@@ -780,7 +819,7 @@ export class AntSystem {
           if (!food || food.delivered || food.carried) chooseNextAction(ant);
         }
 
-        if (ant.action !== 'attack') updateActionVelocity(ant, this.foodSystem, this.foods);
+        if (ant.action !== 'attack' && ant.action !== 'attack-nest') updateActionVelocity(ant, this.foodSystem, this.foods);
 
         if (ant.action === 'seek-food' && ant.targetFoodId != null) {
           const food = getFoodById(this.foods, ant.targetFoodId);
@@ -961,6 +1000,8 @@ export class AntSystem {
       workers,
       fighters,
       enemyAntsDefeated: this.stats.enemyAntsDefeated,
+      enemyNestsDestroyed: this.stats.enemyNestsDestroyed,
+      playerNestsLost: this.stats.playerNestsLost,
       playerAntsLost: this.stats.playerAntsLost,
       maxPlayerAnts: this.stats.maxPlayerAnts,
     };

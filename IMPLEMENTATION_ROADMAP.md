@@ -18,7 +18,7 @@ Goals:
 ### Current checkpoint
 - Current milestone: Milestone 4, Combat foundation
 - Current sprint: Sprint C
-- Current focus: basic enemy pressure, combat tuning, and preparing nest damage hooks
+- Current focus: wiring real victory / defeat triggers from battle state now that nest damage hooks exist
 
 ### Progress log
 - [x] Project docs baseline is authored in repo root (`ANT_BATTLE_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`, `COMBAT_AND_NEST_SPEC.md`, `UI_UX_SPEC.md`, `FACTION_AND_UNIT_SPEC.md`)
@@ -38,11 +38,13 @@ Goals:
 - [x] Per-ant HP, fighter-only melee targeting, death removal, and battle stats are implemented
 - [x] HUD and shell overlays now report enemy defeats and player losses
 - [x] Scout class was removed for now, simplifying the playable roster to worker + fighter
+- [x] Enemy fighter pressure was increased so enemy fighters push toward hostile nests more reliably
+- [x] Nest HP scaffolding and fighter-to-nest siege hooks are now implemented, with HUD visibility for nest health and destroyed enemy nests
 
 ### Next implementation slice
-1. Tune enemy fighter pressure so clashes happen more reliably without manual babysitting.
-2. Add nest HP scaffolding and fighter-to-nest siege hooks.
-3. Start wiring real victory / defeat triggers from battle state instead of debug buttons.
+1. Start wiring real victory / defeat triggers from battle state instead of debug buttons.
+2. Add nest collapse consequences, starting with active/collapsed state handling and colony shutdown rules.
+3. Add first-pass migration or immediate reassignment rules for ants from collapsed nests.
 
 ---
 

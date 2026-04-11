@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
-import { ANT_CONFIG, ANT_LOD, ANT_ROLE, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash } from '../src/ant-system.js';
+import { ANT_CONFIG, ANT_LOD, ANT_ROLE, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash } from '../src/ant-system.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
 describe('ant system helpers', () => {
@@ -57,6 +57,21 @@ describe('ant system helpers', () => {
     expect(ants.some((ant) => ant.faction === 'enemy')).toBe(true);
     expect(ants.some((ant) => ant.homeNestId === 'enemy-1')).toBe(true);
     expect(ants.some((ant) => ant.faction === 'enemy' && ant.role === ANT_ROLE.worker)).toBe(true);
+  });
+
+  test('fighters can select the nearest hostile active nest for siege', () => {
+    const fighter = createRandomAntStates(1)[0];
+    fighter.role = ANT_ROLE.fighter;
+    fighter.faction = 'player';
+    fighter.position.set(0, fighter.position.y, 0);
+
+    const nests = [
+      { id: 'enemy-1', faction: 'enemy', position: new THREE.Vector3(8, 0, 0), collapsed: false },
+      { id: 'enemy-2', faction: 'enemy', position: new THREE.Vector3(4, 0, 0), collapsed: true },
+      { id: 'player-1', faction: 'player', position: new THREE.Vector3(-2, 0, 0), collapsed: false },
+    ];
+
+    expect(findSiegeTargetNest(fighter, nests)?.id).toBe('enemy-1');
   });
 
   test('uses the requested starting class counts for the player colony', () => {
