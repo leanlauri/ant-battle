@@ -16,12 +16,23 @@ describe('ant system helpers', () => {
       expect(ant.position.y).toBeGreaterThanOrEqual(ant.radius - TERRAIN_CONFIG.maxHeight - 0.001);
       expect(ant.position.y).toBeLessThanOrEqual(ant.radius + TERRAIN_CONFIG.maxHeight + 0.001);
       expect(ANT_CONFIG.renderOffsetY).toBeLessThan(0);
-      expect([ANT_ROLE.scout, ANT_ROLE.forager, ANT_ROLE.worker]).toContain(ant.role);
+      expect([ANT_ROLE.scout, ANT_ROLE.worker, ANT_ROLE.fighter]).toContain(ant.role);
       expect(ant.faction).toBe('player');
       expect(ant.homeNestId).toBe('player-1');
       expect(ant.carryingFoodId).toBeNull();
       expect(ant.action).toBe('wander');
     }
+  });
+
+  test('spawns enemy ants when enemy nests exist', () => {
+    const nests = [
+      { id: 'player-1', faction: 'player', position: new THREE.Vector3(0, 0, 0) },
+      { id: 'enemy-1', faction: 'enemy', position: new THREE.Vector3(10, 0, 10) },
+    ];
+    const ants = createRandomAntStates(120, nests);
+
+    expect(ants.some((ant) => ant.faction === 'enemy')).toBe(true);
+    expect(ants.some((ant) => ant.homeNestId === 'enemy-1')).toBe(true);
   });
 
   test('slows brain cadence for distant ants', () => {

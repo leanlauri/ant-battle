@@ -23,7 +23,7 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
   return {
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
     terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${TERRAIN_CONFIG.maxHeight}, ${TERRAIN_CONFIG.maxHeight}].`,
-    antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, roles S/F/W ${antSummary.scouts}/${antSummary.foragers}/${antSummary.workers}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
+    antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes S/W/F ${antSummary.scouts}/${antSummary.workers}/${antSummary.fighters}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
     selectedNestText: `Selected nest: ${antSystem.foodSystem?.getSelectedNestLabel?.() ?? 'Home Nest'}`,
     focusText: focusTarget
       ? `Focus: x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
@@ -198,7 +198,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
       foodSystem = new FoodSystem({ scene });
       pheromoneSystem = new PheromoneSystem();
-      antSystem = new AntSystem({ scene, camera, foodSystem, pheromoneSystem, foods: foodSystem.items, count: 200 });
+      antSystem = new AntSystem({ scene, camera, foodSystem, pheromoneSystem, foods: foodSystem.items, nests: foodSystem.nests, count: 200 });
       setDebugVisualsVisible(debugVisualsVisible);
       publishHud();
 
