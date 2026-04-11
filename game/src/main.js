@@ -55,6 +55,7 @@ const refs = {
   battleInfo: document.getElementById('battleInfo'),
   foodInfo: document.getElementById('foodInfo'),
   buildInfo: document.getElementById('buildInfo'),
+  upgradeCards: document.getElementById('upgradeCards'),
   debugVisualsToggle: document.getElementById('debugVisualsToggle'),
   debugWinButton: document.getElementById('debugWinButton'),
   debugLoseButton: document.getElementById('debugLoseButton'),
@@ -77,6 +78,38 @@ const app = {
   lastHudSummary: null,
 };
 
+const renderUpgradeCards = (summary) => {
+  if (!refs.upgradeCards) return;
+  refs.upgradeCards.replaceChildren();
+  const options = summary?.upgradeOptions ?? [];
+  if (!options.length) {
+    const empty = document.createElement('div');
+    empty.className = 'upgradeCardCopy';
+    empty.textContent = 'Select a player nest to see upgrades.';
+    refs.upgradeCards.appendChild(empty);
+    return;
+  }
+
+  for (const option of options) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'upgradeCard';
+    button.disabled = !!option.disabled;
+    button.dataset.upgradeId = option.id;
+    button.innerHTML = `
+      <div class="upgradeCardTitle">
+        <span>${option.label}</span>
+        <span>${option.cost.toFixed(0)} food</span>
+      </div>
+      <div class="upgradeCardCopy">${option.description}</div>
+    `;
+    button.addEventListener('click', () => {
+      gameplaySession.applyUpgrade(option.id);
+    });
+    refs.upgradeCards.appendChild(button);
+  }
+};
+
 const gameplaySession = createGameplaySession({
   mount: refs.gameCanvasHost,
   onNestSelected: () => {},
@@ -97,6 +130,7 @@ const gameplaySession = createGameplaySession({
     refs.battleInfo.textContent = summary?.battleText ?? 'Battle: 0 enemy down, 0 player lost, 0 enemies still active.';
     refs.foodInfo.textContent = summary?.foodText ?? 'Food: --';
     refs.buildInfo.textContent = summary?.buildText ?? 'Build: --';
+    renderUpgradeCards(summary);
     refs.titleBuildBadge.textContent = summary?.buildText ?? 'Build: --';
     if (refs.hud && refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
   },

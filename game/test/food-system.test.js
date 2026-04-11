@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
 import { Scene } from 'three';
-import { COLONY, FACTION, FOOD_CONFIG, NEST_CONFIG, createFoodItems, createNestDefinitions, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor, getNestPosition } from '../src/food-system.js';
+import { COLONY, FACTION, FOOD_CONFIG, NEST_CONFIG, UPGRADE_CONFIG, createFoodItems, createNestDefinitions, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor, getNestPosition } from '../src/food-system.js';
 import { FoodSystem } from '../src/food-system.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
@@ -134,5 +134,19 @@ describe('food system helpers', () => {
     system.setFocusTarget(new THREE.Vector3(12, 0, -8));
     expect(system.getFocusTarget()?.x).toBeCloseTo(12);
     expect(system.focusMarker.visible).toBe(true);
+  });
+
+  test('offers nest-local upgrade options and spends food for repair', () => {
+    const system = new FoodSystem({ scene: new Scene(), count: 0 });
+    system.nestStored = 20;
+    system.damageNest('player-1', 80);
+
+    const options = system.getUpgradeOptions('player-1');
+    expect(options).toHaveLength(3);
+    expect(options.find((option) => option.id === UPGRADE_CONFIG.repairNest.id)?.disabled).toBe(false);
+
+    const repaired = system.repairNest('player-1', UPGRADE_CONFIG.repairNest.repairHp, UPGRADE_CONFIG.repairNest.cost);
+    expect(repaired).toBe(true);
+    expect(system.nestStored).toBe(20 - UPGRADE_CONFIG.repairNest.cost);
   });
 });

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { AntSystem } from './ant-system.js';
-import { FOOD_CONFIG, FoodSystem } from './food-system.js';
+import { FOOD_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
 import { PheromoneSystem } from './pheromone-system.js';
 import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount } from './terrain.js';
 
@@ -32,6 +32,8 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
       : 'Focus: none',
     battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down, ${antSystem.foodSystem?.getActiveEnemyNestCount?.() ?? 0} enemy nests still active.`,
     foodText: `Food: ${remainingFood} left, nest stored ${(antSystem.foodSystem?.nestStored ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
+    selectedNestStored: antSystem.foodSystem?.getSelectedNestStored?.() ?? 0,
+    upgradeOptions: antSystem.foodSystem?.getUpgradeOptions?.() ?? [],
     buildText: `Build: ${buildInfo.value}`,
     playerAntCount: antSummary.playerTotal,
     maxPlayerAntCount: antSummary.maxPlayerAnts,
@@ -279,5 +281,28 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     start,
     stop,
     setDebugVisualsVisible,
+    applyUpgrade: (upgradeId) => {
+      if (!foodSystem || !antSystem) return false;
+      const nest = foodSystem.getSelectedNest();
+      if (!nest || nest.faction !== 'player' || nest.collapsed) return false;
+
+      let applied = false;
+      if (upgradeId === UPGRADE_CONFIG.repairNest.id) {
+        applied = foodSystem.repairNest(nest.id, UPGRADE_CONFIG.repairNest.repairHp, UPGRADE_CONFIG.repairNest.cost);
+      } else if (upgradeId === UPGRADE_CONFIG.spawnWorkers.id) {
+        if (foodSystem.spendNestFood(nest.id, UPGRADE_CONFIG.spawnWorkers.cost)) {
+          antSystem.spawnAntBatch({ nestId: nest.id, role: 'worker', count: UPGRADE_CONFIG.spawnWorkers.count });
+          applied = true;
+        }
+      } else if (upgradeId === UPGRADE_CONFIG.spawnFighters.id) {
+        if (foodSystem.spendNestFood(nest.id, UPGRADE_CONFIG.spawnFighters.cost)) {
+          antSystem.spawnAntBatch({ nestId: nest.id, role: 'fighter', count: UPGRADE_CONFIG.spawnFighters.count });
+          applied = true;
+        }
+      }
+
+      if (applied) publishHud();
+      return applied;
+    },
   };
 };

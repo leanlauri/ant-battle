@@ -356,6 +356,48 @@
       flex-wrap: wrap;
       gap: 8px;
     }
+    .upgradePanel {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(22, 49, 77, 0.08);
+    }
+    .upgradeTitle {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink-soft);
+    }
+    .upgradeCards {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .upgradeCard {
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(22, 49, 77, 0.12);
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 8px 18px rgba(19, 49, 77, 0.08);
+    }
+    .upgradeCard:disabled {
+      opacity: 0.58;
+      cursor: default;
+      transform: none;
+      box-shadow: none;
+    }
+    .upgradeCardTitle {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 800;
+    }
+    .upgradeCardCopy {
+      margin-top: 4px;
+      color: var(--ink-soft);
+      font-size: 12px;
+    }
     #fatalOverlay {
       display: none;
       align-items: center;
@@ -480,6 +522,10 @@
           <div class="hudRow" id="battleInfo">Battle: 0 enemy down, 0 player lost, 0 enemies still active.</div>
           <div class="hudRow" id="foodInfo">Food: --</div>
           <div class="hudRow" id="buildInfo">Build: --</div>
+          <div class="upgradePanel">
+            <div class="upgradeTitle">Nest upgrades</div>
+            <div id="upgradeCards" class="upgradeCards"></div>
+          </div>
           <label class="hudRow hudToggle">
             <input id="debugVisualsToggle" type="checkbox" />
             <span>Debug visuals</span>

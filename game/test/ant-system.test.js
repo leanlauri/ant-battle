@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
-import { ANT_CONFIG, ANT_LOD, ANT_ROLE, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash, resolveNestCollapse } from '../src/ant-system.js';
-import { COLONY } from '../src/food-system.js';
+import { ANT_CONFIG, ANT_LOD, ANT_ROLE, AntSystem, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash, resolveNestCollapse } from '../src/ant-system.js';
+import { COLONY, FoodSystem } from '../src/food-system.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
 describe('ant system helpers', () => {
@@ -207,5 +207,24 @@ describe('ant system helpers', () => {
 
     expect(playerWorker.children[0].material.color.getHex()).not.toBe(enemyWorker.children[0].material.color.getHex());
     expect(enemyWorker.children[0].material.color.getHex()).not.toBe(enemyWorkerBeta.children[0].material.color.getHex());
+  });
+
+  test('can spawn an ant batch at a nest for upgrades', () => {
+    const scene = new THREE.Scene();
+    const foodSystem = new FoodSystem({ scene, count: 0 });
+    const camera = new THREE.PerspectiveCamera();
+    const pheromoneSystem = {
+      update() {},
+      deposit() {},
+      sample() { return new THREE.Vector3(); },
+    };
+    const antSystem = new AntSystem({ scene, camera, foodSystem, pheromoneSystem, foods: foodSystem.items, nests: foodSystem.nests, count: 80 });
+    const before = antSystem.ants.length;
+
+    const spawned = antSystem.spawnAntBatch({ nestId: 'player-1', role: ANT_ROLE.worker, count: 4 });
+
+    expect(spawned).toBe(4);
+    expect(antSystem.ants).toHaveLength(before + 4);
+    expect(antSystem.ants.slice(-4).every((ant) => ant.homeNestId === 'player-1' && ant.role === ANT_ROLE.worker)).toBe(true);
   });
 });

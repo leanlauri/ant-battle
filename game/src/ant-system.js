@@ -767,6 +767,8 @@ export class AntSystem {
     this.nests = nests;
     this.nestLookup = new Map(nests.map((nest) => [nest.id, nest]));
     this.ants = createRandomAntStates(count, nests);
+    this.nextAntId = this.ants.reduce((max, ant) => Math.max(max, ant.id), -1) + 1;
+    this.maxRenderAnts = Math.max(count, 320);
     this.meshes = [];
     this.frustum = new THREE.Frustum();
     this.projectionMatrix = new THREE.Matrix4();
@@ -805,8 +807,8 @@ export class AntSystem {
     const frontGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorFrontRadius, 8, 6);
     const rearMaterial = new THREE.MeshToonMaterial({ color: 0xffffff });
     const frontMaterial = new THREE.MeshToonMaterial({ color: 0xffffff });
-    this.farRearInstances = new THREE.InstancedMesh(rearGeometry, rearMaterial, this.ants.length);
-    this.farFrontInstances = new THREE.InstancedMesh(frontGeometry, frontMaterial, this.ants.length);
+    this.farRearInstances = new THREE.InstancedMesh(rearGeometry, rearMaterial, this.maxRenderAnts);
+    this.farFrontInstances = new THREE.InstancedMesh(frontGeometry, frontMaterial, this.maxRenderAnts);
     for (const instanced of [this.farRearInstances, this.farFrontInstances]) {
       instanced.castShadow = true;
       instanced.receiveShadow = true;
@@ -823,6 +825,35 @@ export class AntSystem {
       scene.add(mesh);
       this.meshes.push(mesh);
     }
+  }
+
+  spawnAntBatch({ nestId, role, count }) {
+    const nest = this.nestLookup.get(nestId);
+    if (!nest || nest.collapsed || count <= 0) return 0;
+
+    for (let i = 0; i < count; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = randomRange(1.2, 4.6);
+      const x = clampToTerrainBounds(nest.position.x + Math.cos(angle) * distance, TERRAIN_CONFIG.width);
+      const z = clampToTerrainBounds(nest.position.z + Math.sin(angle) * distance, TERRAIN_CONFIG.depth);
+      const ant = createAntState(this.nextAntId, x, z, {
+        faction: nest.faction,
+        colonyId: nest.colonyId,
+        homeNestId: nest.id,
+        role,
+      });
+      this.nextAntId += 1;
+      this.ants.push(ant);
+
+      const mesh = createAntVisual(ant.role, ant.colonyId);
+      mesh.position.copy(ant.position);
+      mesh.rotation.y = Math.atan2(ant.heading.x, ant.heading.z);
+      mesh.userData.baseY = ANT_CONFIG.renderOffsetY;
+      this.scene.add(mesh);
+      this.meshes.push(mesh);
+    }
+
+    return count;
   }
 
   spawnGroundSplat(position, colonyId, scale = 1) {

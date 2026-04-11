@@ -16,9 +16,9 @@ Goals:
 ## Execution status
 
 ### Current checkpoint
-- Current milestone: Milestone 4, Combat foundation
-- Current sprint: Sprint C
-- Current focus: milestone wrap-up, combat cleanup, and planning the next progression slice
+- Current milestone: Milestone 6, Upgrade cards and economy loop
+- Current sprint: Sprint D
+- Current focus: player-facing nest upgrades now that repair and first unit-purchase cards exist, then enemy colony production and level differentiation
 
 ### Progress log
 - [x] Project docs baseline is authored in repo root (`ANT_BATTLE_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`, `COMBAT_AND_NEST_SPEC.md`, `UI_UX_SPEC.md`, `FACTION_AND_UNIT_SPEC.md`)
@@ -42,11 +42,12 @@ Goals:
 - [x] Nest HP scaffolding and fighter-to-nest siege hooks are now implemented, with HUD visibility for nest health and destroyed enemy nests
 - [x] Real victory / defeat triggers now come from battle state instead of only debug buttons
 - [x] Nest collapse consequences now apply a first-pass colony loss and immediate reassignment model for surviving ants
+- [x] Selected nests now expose a first upgrade-card skeleton, including food-based nest repair and worker/fighter batch purchases
 
 ### Next implementation slice
-1. Tune collapse aftermath so reassigned colonies read clearly and do not feel too abrupt.
-2. Replace remaining debug-heavy battle controls with more game-facing level logic.
-3. Start the next milestone work on clearer level objectives and progression differentiation.
+1. Replace remaining debug-heavy battle controls with more game-facing level logic and cleaner selected-nest economy feedback.
+2. Add enemy colony production so food stores translate into systemic enemy growth too.
+3. Start seeded level differentiation work so progression feels less like one tuned sandbox.
 
 ---
 

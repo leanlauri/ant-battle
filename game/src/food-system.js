@@ -23,6 +23,12 @@ export const NEST_CONFIG = Object.freeze({
   position: new THREE.Vector3(0, 0, 0),
 });
 
+export const UPGRADE_CONFIG = Object.freeze({
+  repairNest: Object.freeze({ id: 'repair-nest', cost: 10, repairHp: 70, label: 'Repair Nest' }),
+  spawnWorkers: Object.freeze({ id: 'spawn-workers', cost: 12, count: 6, label: 'Call Workers' }),
+  spawnFighters: Object.freeze({ id: 'spawn-fighters', cost: 16, count: 3, label: 'Call Fighters' }),
+});
+
 export const FACTION = Object.freeze({
   player: 'player',
   enemy: 'enemy',
@@ -359,6 +365,62 @@ export class FoodSystem {
       maxHp: nest.maxHp,
       collapsed: nest.collapsed,
     };
+  }
+
+  getSelectedNestStored() {
+    const nest = this.getSelectedNest();
+    if (!nest) return 0;
+    return this.getNestStored(nest.id);
+  }
+
+  spendNestFood(nestId, amount) {
+    const available = this.getNestStored(nestId);
+    if (available < amount) return false;
+    this.nestStoredById.set(nestId, Math.max(0, available - amount));
+    this.updateNestVisual();
+    return true;
+  }
+
+  repairNest(nestId, hpAmount, foodCost = 0) {
+    const nest = this.getNestById(nestId);
+    if (!nest || nest.collapsed || nest.hp >= nest.maxHp) return false;
+    if (foodCost > 0 && !this.spendNestFood(nestId, foodCost)) return false;
+    nest.hp = Math.min(nest.maxHp, nest.hp + hpAmount);
+    this.updateNestVisual();
+    return true;
+  }
+
+  getUpgradeOptions(nestId = this.selectedNestId) {
+    const nest = this.getNestById(nestId);
+    if (!nest || nest.faction !== FACTION.player || nest.collapsed) return [];
+    const stored = this.getNestStored(nest.id);
+    const needsRepair = nest.hp < nest.maxHp;
+    return [
+      {
+        id: UPGRADE_CONFIG.repairNest.id,
+        label: UPGRADE_CONFIG.repairNest.label,
+        description: needsRepair ? `Restore ${UPGRADE_CONFIG.repairNest.repairHp} HP.` : 'Nest already at full health.',
+        cost: UPGRADE_CONFIG.repairNest.cost,
+        affordable: needsRepair && stored >= UPGRADE_CONFIG.repairNest.cost,
+        disabled: !needsRepair || stored < UPGRADE_CONFIG.repairNest.cost,
+      },
+      {
+        id: UPGRADE_CONFIG.spawnWorkers.id,
+        label: UPGRADE_CONFIG.spawnWorkers.label,
+        description: `Spawn ${UPGRADE_CONFIG.spawnWorkers.count} worker ants at this nest.`,
+        cost: UPGRADE_CONFIG.spawnWorkers.cost,
+        affordable: stored >= UPGRADE_CONFIG.spawnWorkers.cost,
+        disabled: stored < UPGRADE_CONFIG.spawnWorkers.cost,
+      },
+      {
+        id: UPGRADE_CONFIG.spawnFighters.id,
+        label: UPGRADE_CONFIG.spawnFighters.label,
+        description: `Spawn ${UPGRADE_CONFIG.spawnFighters.count} fighter ants at this nest.`,
+        cost: UPGRADE_CONFIG.spawnFighters.cost,
+        affordable: stored >= UPGRADE_CONFIG.spawnFighters.cost,
+        disabled: stored < UPGRADE_CONFIG.spawnFighters.cost,
+      },
+    ];
   }
 
   setSelectedNest(nestId) {
