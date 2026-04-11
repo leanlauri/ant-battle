@@ -36,6 +36,8 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
     playerAntCount: antSummary.playerTotal,
     maxPlayerAntCount: antSummary.maxPlayerAnts,
     enemyAntsDefeated: antSummary.enemyAntsDefeated,
+    enemyNestsDestroyed: antSummary.enemyNestsDestroyed,
+    playerNestsLost: antSummary.playerNestsLost,
   };
 };
 
@@ -54,7 +56,7 @@ const refreshBuildIdFromGitHub = async (buildInfo) => {
   }
 };
 
-export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNestSelected, onFocusAssigned }) => {
+export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNestSelected, onFocusAssigned, onBattleResolved }) => {
   let renderer = null;
   let scene = null;
   let camera = null;
@@ -73,6 +75,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let accumulator = 0;
   let clock = null;
   let debugVisualsVisible = false;
+  let battleResolved = false;
   const buildInfo = createBuildInfo();
 
   const publishHud = () => {
@@ -117,6 +120,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     antSystem = null;
     debugVisualsGroup = null;
     clock = null;
+    battleResolved = false;
     mount.replaceChildren();
     onHudUpdate?.(null);
   };
@@ -132,12 +136,20 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     controls.update();
 
     let substeps = 0;
-    while (accumulator >= fixedStep && substeps < maxSubsteps) {
+    while (!battleResolved && accumulator >= fixedStep && substeps < maxSubsteps) {
       pheromoneSystem.update(fixedStep);
       foodSystem.update(fixedStep);
       antSystem.update(fixedStep);
       accumulator -= fixedStep;
       substeps += 1;
+    }
+
+    const outcome = antSystem.getOutcome?.();
+    if (outcome && !battleResolved) {
+      battleResolved = true;
+      const summary = formatHudSummary({ terrain, antSystem, buildInfo });
+      onHudUpdate?.(summary);
+      onBattleResolved?.(outcome, summary);
     }
 
     publishHud();

@@ -163,6 +163,20 @@ const getAntPalette = (role, faction) => {
 
 const getHomeNestPosition = (ant, nestLookup) => nestLookup.get(ant.homeNestId)?.position ?? NEST_CONFIG.position;
 
+const findNearestFriendlyActiveNest = (ant, nests, excludeNestId = null) => {
+  let bestNest = null;
+  let bestDistanceSq = Number.POSITIVE_INFINITY;
+  for (const nest of nests) {
+    if (nest.faction !== ant.faction || nest.collapsed || nest.id === excludeNestId) continue;
+    const distanceSq = ant.position.distanceToSquared(nest.position);
+    if (distanceSq < bestDistanceSq) {
+      bestDistanceSq = distanceSq;
+      bestNest = nest;
+    }
+  }
+  return bestNest;
+};
+
 export const createAntVisual = (role = ANT_ROLE.worker, faction = ANT_FACTION.player) => {
   const group = new THREE.Group();
   const palette = getAntPalette(role, faction);
@@ -677,6 +691,33 @@ const clearAntAssignments = (ant, foodSystem, foods) => {
   ant.combatTargetId = null;
 };
 
+export const resolveNestCollapse = (collapsedNest, ants, nests) => {
+  const affectedAnts = ants.filter((ant) => !ant.dead && ant.homeNestId === collapsedNest.id);
+  if (!affectedAnts.length) return { killedIds: [], reassignedIds: [] };
+
+  const killCount = Math.min(
+    affectedAnts.length,
+    Math.max(1, Math.floor(affectedAnts.length / 3)),
+  );
+  const sorted = [...affectedAnts].sort((a, b) => a.id - b.id);
+  const killed = sorted.slice(0, killCount);
+  const survivors = sorted.slice(killCount);
+  const killedIds = killed.map((ant) => ant.id);
+  const reassignedIds = [];
+
+  for (const ant of survivors) {
+    const fallbackNest = findNearestFriendlyActiveNest(ant, nests, collapsedNest.id);
+    if (fallbackNest) {
+      ant.homeNestId = fallbackNest.id;
+      reassignedIds.push(ant.id);
+    } else {
+      killedIds.push(ant.id);
+    }
+  }
+
+  return { killedIds, reassignedIds };
+};
+
 export class AntSystem {
   constructor({ scene, camera, foodSystem, pheromoneSystem, foods = [], nests = [], count = ANT_CONFIG.count } = {}) {
     this.scene = scene;
@@ -709,6 +750,7 @@ export class AntSystem {
       playerNestsLost: 0,
       maxPlayerAnts: this.ants.filter((ant) => ant.faction === ANT_FACTION.player && !ant.dead).length,
     };
+    this.outcome = null;
 
     const rearGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorRearRadius, 8, 6);
     const frontGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorFrontRadius, 8, 6);
@@ -802,9 +844,29 @@ export class AntSystem {
                 if (ant.attackCooldownRemaining <= 0) {
                   ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
                   const damageResult = this.foodSystem.damageNest(siegeNest.id, ANT_CONFIG.fighterNestAttackDamage);
-                  if (damageResult?.collapsed) {
+                  if (damageResult?.justCollapsed) {
                     if (siegeNest.faction === ANT_FACTION.enemy) this.stats.enemyNestsDestroyed += 1;
                     if (siegeNest.faction === ANT_FACTION.player) this.stats.playerNestsLost += 1;
+                    const collapseResult = resolveNestCollapse(siegeNest, this.ants, this.nests);
+                    const killedAntIds = new Set(collapseResult.killedIds);
+                    for (const collapsedAnt of this.ants) {
+                      if (!killedAntIds.has(collapsedAnt.id)) continue;
+                      if (!collapsedAnt.dead) {
+                        clearAntAssignments(collapsedAnt, this.foodSystem, this.foods);
+                        collapsedAnt.dead = true;
+                        collapsedAnt.velocity.setScalar(0);
+                        collapsedAnt.desiredVelocity.setScalar(0);
+                        collapsedAnt.action = 'dead';
+                        if (collapsedAnt.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
+                        if (collapsedAnt.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
+                      }
+                    }
+                    for (const reassignedAnt of this.ants) {
+                      if (!collapseResult.reassignedIds.includes(reassignedAnt.id)) continue;
+                      clearAntAssignments(reassignedAnt, this.foodSystem, this.foods);
+                      reassignedAnt.action = 'wander';
+                      reassignedAnt.nestApproachStage = 'queue';
+                    }
                   }
                 }
               }
@@ -947,6 +1009,13 @@ export class AntSystem {
       this.ants.filter((ant) => ant.faction === ANT_FACTION.player && !ant.dead).length,
     );
 
+    if (!this.outcome) {
+      const activeEnemyNests = this.foodSystem.getActiveEnemyNestCount();
+      const activePlayerNests = this.foodSystem.getActivePlayerNestCount();
+      if (activeEnemyNests === 0) this.outcome = 'victory';
+      else if (activePlayerNests === 0) this.outcome = 'defeat';
+    }
+
     this.farRearInstances.count = this.farInstanceCount;
     this.farFrontInstances.count = this.farInstanceCount;
     this.farRearInstances.instanceMatrix.needsUpdate = true;
@@ -961,6 +1030,10 @@ export class AntSystem {
 
   getBattleStats() {
     return { ...this.stats };
+  }
+
+  getOutcome() {
+    return this.outcome;
   }
 
   getSummary() {

@@ -458,6 +458,7 @@ export class FoodSystem {
   damageNest(nestId, damage) {
     const nest = this.getNestById(nestId);
     if (!nest || nest.collapsed) return null;
+    const wasCollapsed = nest.collapsed;
     nest.hp = Math.max(0, nest.hp - Math.max(0, damage));
     if (nest.hp <= 0) nest.collapsed = true;
     this.updateNestVisual();
@@ -466,11 +467,20 @@ export class FoodSystem {
       hp: nest.hp,
       maxHp: nest.maxHp,
       collapsed: nest.collapsed,
+      justCollapsed: nest.collapsed && !wasCollapsed,
     };
   }
 
+  getActiveNestCount(faction) {
+    return this.nests.filter((nest) => nest.faction === faction && !nest.collapsed).length;
+  }
+
   getActiveEnemyNestCount() {
-    return this.enemyNests.filter((nest) => !nest.collapsed).length;
+    return this.getActiveNestCount(FACTION.enemy);
+  }
+
+  getActivePlayerNestCount() {
+    return this.getActiveNestCount(FACTION.player);
   }
 
   updateNestVisual() {

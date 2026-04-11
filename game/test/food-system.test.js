@@ -93,8 +93,11 @@ describe('food system helpers', () => {
     const destroyed = system.damageNest('enemy-1', NEST_CONFIG.maxHp);
 
     expect(damaged?.hp).toBe(NEST_CONFIG.maxHp - 25);
+    expect(damaged?.justCollapsed).toBe(false);
     expect(destroyed?.collapsed).toBe(true);
+    expect(destroyed?.justCollapsed).toBe(true);
     expect(system.getActiveEnemyNestCount()).toBe(1);
+    expect(system.getActivePlayerNestCount()).toBe(1);
   });
 
   test('keeps selection on the player nest and records focus targets', () => {

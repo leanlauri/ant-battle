@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
-import { ANT_CONFIG, ANT_LOD, ANT_ROLE, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash } from '../src/ant-system.js';
+import { ANT_CONFIG, ANT_LOD, ANT_ROLE, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash, resolveNestCollapse } from '../src/ant-system.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
 describe('ant system helpers', () => {
@@ -72,6 +72,26 @@ describe('ant system helpers', () => {
     ];
 
     expect(findSiegeTargetNest(fighter, nests)?.id).toBe('enemy-1');
+  });
+
+  test('nest collapse kills part of the colony and reassigns survivors when possible', () => {
+    const ants = createRandomAntStates(3);
+    ants[0].homeNestId = 'enemy-1';
+    ants[0].faction = 'enemy';
+    ants[1].homeNestId = 'enemy-1';
+    ants[1].faction = 'enemy';
+    ants[2].homeNestId = 'enemy-1';
+    ants[2].faction = 'enemy';
+
+    const nests = [
+      { id: 'enemy-1', faction: 'enemy', position: new THREE.Vector3(0, 0, 0), collapsed: true },
+      { id: 'enemy-2', faction: 'enemy', position: new THREE.Vector3(10, 0, 0), collapsed: false },
+    ];
+
+    const result = resolveNestCollapse(nests[0], ants, nests);
+
+    expect(result.killedIds).toHaveLength(1);
+    expect(result.reassignedIds).toHaveLength(2);
   });
 
   test('uses the requested starting class counts for the player colony', () => {
