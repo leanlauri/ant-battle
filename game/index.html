@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:," />
+  <title>Ants Experiment</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      overflow: hidden;
+      background: linear-gradient(180deg, #e4edf7 0%, #cfdcec 100%);
+      color: #16314d;
+      font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    canvas { display: block; }
+    #hud {
+      position: fixed;
+      left: 12px;
+      top: 12px;
+      z-index: 10;
+      border-radius: 12px;
+      background: rgba(246, 250, 255, 0.84);
+      box-shadow: 0 10px 30px rgba(19, 49, 77, 0.12);
+      backdrop-filter: blur(8px);
+      max-width: min(340px, calc(100vw - 24px));
+      overflow: hidden;
+    }
+    #hud summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      user-select: none;
+    }
+    #hud summary::-webkit-details-marker { display: none; }
+    #hudTitle {
+      font-size: 16px;
+      font-weight: 800;
+    }
+    #hudHint {
+      font-size: 12px;
+      opacity: 0.75;
+    }
+    #hudBody {
+      padding: 0 12px 12px;
+      border-top: 1px solid rgba(22, 49, 77, 0.08);
+    }
+    .hudRow { margin-top: 6px; }
+    .hudToggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #fatalOverlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      padding: 24px;
+      z-index: 20;
+      text-align: center;
+      color: #16314d;
+      background: rgba(240, 246, 255, 0.96);
+    }
+    #fatalTitle {
+      font-size: 32px;
+      font-weight: 800;
+    }
+    #fatalMessage {
+      max-width: 720px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <details id="hud">
+    <summary>
+      <span id="hudTitle">Ants Prototype</span>
+      <span id="hudHint">tap to collapse</span>
+    </summary>
+    <div id="hudBody">
+      <div class="hudRow" id="axisInfo">Axes: +X right, +Y up, +Z forward.</div>
+      <div class="hudRow" id="cameraInfo">Camera: booting…</div>
+      <div class="hudRow" id="meshInfo">Terrain: --</div>
+      <div class="hudRow" id="antInfo">Ants: --</div>
+      <div class="hudRow" id="foodInfo">Food: --</div>
+      <div class="hudRow" id="buildInfo">Build: --</div>
+      <label class="hudRow hudToggle">
+        <input id="debugVisualsToggle" type="checkbox" />
+        <span>Debug visuals</span>
+      </label>
+    </div>
+  </details>
+  <div id="fatalOverlay">
+    <div id="fatalTitle">Renderer startup failed</div>
+    <div id="fatalMessage">The 3D scene could not start.</div>
+  </div>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.182.0/build/three.module.js",
+        "three/": "https://unpkg.com/three@0.182.0/"
+      }
+    }
+  </script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
