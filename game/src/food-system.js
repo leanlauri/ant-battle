@@ -29,6 +29,14 @@ export const UPGRADE_CONFIG = Object.freeze({
   spawnFighters: Object.freeze({ id: 'spawn-fighters', cost: 16, count: 3, label: 'Call Fighters' }),
 });
 
+export const ENEMY_ECONOMY_CONFIG = Object.freeze({
+  productionCooldownMin: 6,
+  productionCooldownMax: 10,
+  workerBatch: Object.freeze({ cost: 10, count: 4 }),
+  fighterBatch: Object.freeze({ cost: 14, count: 2 }),
+  fighterPressureThreshold: 12,
+});
+
 export const FACTION = Object.freeze({
   player: 'player',
   enemy: 'enemy',

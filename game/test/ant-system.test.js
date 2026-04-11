@@ -227,4 +227,24 @@ describe('ant system helpers', () => {
     expect(antSystem.ants).toHaveLength(before + 4);
     expect(antSystem.ants.slice(-4).every((ant) => ant.homeNestId === 'player-1' && ant.role === ANT_ROLE.worker)).toBe(true);
   });
+
+  test('reports live roster counts for a specific nest', () => {
+    const scene = new THREE.Scene();
+    const foodSystem = new FoodSystem({ scene, count: 0 });
+    const camera = new THREE.PerspectiveCamera();
+    const pheromoneSystem = {
+      update() {},
+      deposit() {},
+      sample() { return new THREE.Vector3(); },
+    };
+    const antSystem = new AntSystem({ scene, camera, foodSystem, pheromoneSystem, foods: foodSystem.items, nests: foodSystem.nests, count: 80 });
+    antSystem.spawnAntBatch({ nestId: 'enemy-1', role: ANT_ROLE.worker, count: 2 });
+    antSystem.spawnAntBatch({ nestId: 'enemy-1', role: ANT_ROLE.fighter, count: 1 });
+
+    const roster = antSystem.getNestRosterSummary('enemy-1');
+
+    expect(roster.workers).toBeGreaterThanOrEqual(2);
+    expect(roster.fighters).toBeGreaterThanOrEqual(1);
+    expect(roster.total).toBe(roster.workers + roster.fighters);
+  });
 });

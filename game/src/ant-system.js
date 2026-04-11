@@ -856,6 +856,21 @@ export class AntSystem {
     return count;
   }
 
+  getNestRosterSummary(nestId) {
+    let workers = 0;
+    let fighters = 0;
+    let total = 0;
+
+    for (const ant of this.ants) {
+      if (ant.dead || ant.homeNestId !== nestId) continue;
+      total += 1;
+      if (ant.role === ANT_ROLE.worker) workers += 1;
+      else if (ant.role === ANT_ROLE.fighter) fighters += 1;
+    }
+
+    return { nestId, total, workers, fighters };
+  }
+
   spawnGroundSplat(position, colonyId, scale = 1) {
     const group = new THREE.Group();
     const splatCount = 2 + Math.floor(Math.random() * 3);

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { AntSystem } from './ant-system.js';
-import { FOOD_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
+import { ENEMY_ECONOMY_CONFIG, FOOD_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
 import { PheromoneSystem } from './pheromone-system.js';
 import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount } from './terrain.js';
 
@@ -26,12 +26,12 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
     terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${TERRAIN_CONFIG.maxHeight}, ${TERRAIN_CONFIG.maxHeight}].`,
     antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
-    selectedNestText: `Selected nest: ${selectedNestLabel}${selectedNestHealth ? `, HP ${selectedNestHealth.hp}/${selectedNestHealth.maxHp}${selectedNestHealth.collapsed ? ' (collapsed)' : ''}` : ''}`,
+    selectedNestText: `Selected nest: ${selectedNestLabel}${selectedNestHealth ? `, HP ${selectedNestHealth.hp}/${selectedNestHealth.maxHp}${selectedNestHealth.collapsed ? ' (collapsed)' : ''}` : ''}, stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}`,
     focusText: focusTarget
       ? `Focus: x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
       : 'Focus: none',
     battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down, ${antSystem.foodSystem?.getActiveEnemyNestCount?.() ?? 0} enemy nests still active.`,
-    foodText: `Food: ${remainingFood} left, nest stored ${(antSystem.foodSystem?.nestStored ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
+    foodText: `Food: ${remainingFood} left, selected nest stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
     selectedNestStored: antSystem.foodSystem?.getSelectedNestStored?.() ?? 0,
     upgradeOptions: antSystem.foodSystem?.getUpgradeOptions?.() ?? [],
     buildText: `Build: ${buildInfo.value}`,
@@ -79,6 +79,44 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let debugVisualsVisible = false;
   let battleResolved = false;
   const buildInfo = createBuildInfo();
+  const enemyProductionCooldowns = new Map();
+
+  const randomEnemyProductionCooldown = () => THREE.MathUtils.lerp(
+    ENEMY_ECONOMY_CONFIG.productionCooldownMin,
+    ENEMY_ECONOMY_CONFIG.productionCooldownMax,
+    Math.random(),
+  );
+
+  const runEnemyProduction = (dt) => {
+    if (!foodSystem || !antSystem) return;
+
+    for (const nest of foodSystem.nests) {
+      if (nest.faction !== 'enemy' || nest.collapsed) continue;
+
+      const cooldown = (enemyProductionCooldowns.get(nest.id) ?? randomEnemyProductionCooldown()) - dt;
+      if (cooldown > 0) {
+        enemyProductionCooldowns.set(nest.id, cooldown);
+        continue;
+      }
+
+      const stored = foodSystem.getNestStored(nest.id);
+      const roster = antSystem.getNestRosterSummary(nest.id);
+      let produced = false;
+
+      const shouldSpawnFighters = stored >= ENEMY_ECONOMY_CONFIG.fighterBatch.cost
+        && (roster.fighters < 2 || roster.workers - roster.fighters >= ENEMY_ECONOMY_CONFIG.fighterPressureThreshold);
+
+      if (shouldSpawnFighters && foodSystem.spendNestFood(nest.id, ENEMY_ECONOMY_CONFIG.fighterBatch.cost)) {
+        antSystem.spawnAntBatch({ nestId: nest.id, role: 'fighter', count: ENEMY_ECONOMY_CONFIG.fighterBatch.count });
+        produced = true;
+      } else if (stored >= ENEMY_ECONOMY_CONFIG.workerBatch.cost && foodSystem.spendNestFood(nest.id, ENEMY_ECONOMY_CONFIG.workerBatch.cost)) {
+        antSystem.spawnAntBatch({ nestId: nest.id, role: 'worker', count: ENEMY_ECONOMY_CONFIG.workerBatch.count });
+        produced = true;
+      }
+
+      enemyProductionCooldowns.set(nest.id, produced ? randomEnemyProductionCooldown() : 2.5);
+    }
+  };
 
   const publishHud = () => {
     if (!terrain || !antSystem) return;
@@ -123,6 +161,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     debugVisualsGroup = null;
     clock = null;
     battleResolved = false;
+    enemyProductionCooldowns.clear();
     mount.replaceChildren();
     onHudUpdate?.(null);
   };
@@ -141,6 +180,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     while (!battleResolved && accumulator >= fixedStep && substeps < maxSubsteps) {
       pheromoneSystem.update(fixedStep);
       foodSystem.update(fixedStep);
+      runEnemyProduction(fixedStep);
       antSystem.update(fixedStep);
       accumulator -= fixedStep;
       substeps += 1;

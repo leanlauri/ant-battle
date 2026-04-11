@@ -43,11 +43,12 @@ Goals:
 - [x] Real victory / defeat triggers now come from battle state instead of only debug buttons
 - [x] Nest collapse consequences now apply a first-pass colony loss and immediate reassignment model for surviving ants
 - [x] Selected nests now expose a first upgrade-card skeleton, including food-based nest repair and worker/fighter batch purchases
+- [x] Enemy nests now convert stored food into new worker/fighter batches over time, and selected-nest HUD feedback now shows local stored food more clearly
 
 ### Next implementation slice
-1. Replace remaining debug-heavy battle controls with more game-facing level logic and cleaner selected-nest economy feedback.
-2. Add enemy colony production so food stores translate into systemic enemy growth too.
-3. Start seeded level differentiation work so progression feels less like one tuned sandbox.
+1. Replace remaining debug-heavy battle controls with more game-facing level logic.
+2. Start seeded level differentiation work so progression feels less like one tuned sandbox.
+3. Expand the upgrade economy beyond repair/basic reinforcements so nests diverge strategically.
 
 ---
 
