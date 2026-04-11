@@ -7,7 +7,7 @@ describe('ant system helpers', () => {
   test('creates the starting colony within the terrain bounds', () => {
     const ants = createRandomAntStates(ANT_CONFIG.count);
 
-    expect(ants).toHaveLength(PLAYER_STARTING_COUNTS.scouts + PLAYER_STARTING_COUNTS.workers + PLAYER_STARTING_COUNTS.fighters);
+    expect(ants).toHaveLength(PLAYER_STARTING_COUNTS.workers + PLAYER_STARTING_COUNTS.fighters);
     for (const ant of ants) {
       expect(ant.position.x).toBeGreaterThanOrEqual(-TERRAIN_CONFIG.width / 2);
       expect(ant.position.x).toBeLessThanOrEqual(TERRAIN_CONFIG.width / 2);
@@ -16,7 +16,7 @@ describe('ant system helpers', () => {
       expect(ant.position.y).toBeGreaterThanOrEqual(ant.radius - TERRAIN_CONFIG.maxHeight - 0.001);
       expect(ant.position.y).toBeLessThanOrEqual(ant.radius + TERRAIN_CONFIG.maxHeight + 0.001);
       expect(ANT_CONFIG.renderOffsetY).toBeLessThan(0);
-      expect([ANT_ROLE.scout, ANT_ROLE.worker, ANT_ROLE.fighter]).toContain(ant.role);
+      expect([ANT_ROLE.worker, ANT_ROLE.fighter]).toContain(ant.role);
       expect(ant.faction).toBe('player');
       expect(ant.homeNestId).toBe('player-1');
       expect(ant.carryingFoodId).toBeNull();
@@ -25,7 +25,6 @@ describe('ant system helpers', () => {
   });
 
   test('assigns role-specific HP budgets', () => {
-    expect(getMaxHpForRole(ANT_ROLE.scout)).toBeLessThan(getMaxHpForRole(ANT_ROLE.worker));
     expect(getMaxHpForRole(ANT_ROLE.worker)).toBeLessThan(getMaxHpForRole(ANT_ROLE.fighter));
   });
 
@@ -63,7 +62,6 @@ describe('ant system helpers', () => {
   test('uses the requested starting class counts for the player colony', () => {
     const ants = createRandomAntStates();
 
-    expect(ants.filter((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.scout)).toHaveLength(PLAYER_STARTING_COUNTS.scouts);
     expect(ants.filter((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.worker)).toHaveLength(PLAYER_STARTING_COUNTS.workers);
     expect(ants.filter((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.fighter)).toHaveLength(PLAYER_STARTING_COUNTS.fighters);
   });

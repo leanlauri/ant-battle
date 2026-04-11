@@ -43,7 +43,7 @@ test('boots through title, level select, gameplay, and shell victory flow', asyn
   await expect(page.locator('#gameplayHud')).toBeVisible();
   await expect(page.locator('#gameplayLevelLabel')).toContainText('Level 1');
   await expect(page.locator('#antInfo')).toContainText('Ants:');
-  await expect(page.locator('#antInfo')).toContainText('classes S/W/F');
+  await expect(page.locator('#antInfo')).toContainText('classes W/F');
   await expect(page.locator('#antCountValue')).toHaveText('25');
   await expect(page.locator('#selectedNestInfo')).toContainText('Selected nest: Home Nest');
   await expect(page.locator('#battleInfo')).toContainText('Battle:');

@@ -23,7 +23,7 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
   return {
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
     terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${TERRAIN_CONFIG.maxHeight}, ${TERRAIN_CONFIG.maxHeight}].`,
-    antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes S/W/F ${antSummary.scouts}/${antSummary.workers}/${antSummary.fighters}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
+    antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
     selectedNestText: `Selected nest: ${antSystem.foodSystem?.getSelectedNestLabel?.() ?? 'Home Nest'}`,
     focusText: focusTarget
       ? `Focus: x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`

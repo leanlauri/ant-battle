@@ -42,17 +42,15 @@ export const ANT_CONFIG = Object.freeze({
   fighterAttackRange: 0.95,
   fighterAttackDamage: 14,
   fighterAttackCooldown: 0.72,
-  scoutHp: 20,
   workerHp: 28,
   fighterHp: 46,
 });
 
 export const ANT_LOD = Object.freeze({ near: 'near', mid: 'mid', far: 'far' });
-export const ANT_ROLE = Object.freeze({ scout: 'scout', worker: 'worker', fighter: 'fighter' });
+export const ANT_ROLE = Object.freeze({ worker: 'worker', fighter: 'fighter' });
 export const ANT_FACTION = Object.freeze({ player: 'player', enemy: 'enemy' });
 export const PLAYER_STARTING_COUNTS = Object.freeze({
-  scouts: 10,
-  workers: 10,
+  workers: 20,
   fighters: 5,
 });
 
@@ -62,7 +60,6 @@ const cellCoord = (value, size) => Math.floor(value / size);
 const cellKey = (x, z) => `${x},${z}`;
 
 export const getMaxHpForRole = (role) => {
-  if (role === ANT_ROLE.scout) return ANT_CONFIG.scoutHp;
   if (role === ANT_ROLE.fighter) return ANT_CONFIG.fighterHp;
   return ANT_CONFIG.workerHp;
 };
@@ -112,27 +109,23 @@ export const querySpatialHash = (grid, x, z, cellSize = ANT_CONFIG.cellSize) => 
 
 const chooseRole = () => {
   const roll = Math.random();
-  if (roll < 0.26) return ANT_ROLE.scout;
-  if (roll < 0.74) return ANT_ROLE.worker;
+  if (roll < 0.68) return ANT_ROLE.worker;
   return ANT_ROLE.fighter;
 };
 
 const chooseEnemyRole = () => {
   const roll = Math.random();
-  if (roll < 0.22) return ANT_ROLE.scout;
-  if (roll < 0.58) return ANT_ROLE.worker;
+  if (roll < 0.62) return ANT_ROLE.worker;
   return ANT_ROLE.fighter;
 };
 
 const getAntPalette = (role, faction) => {
   if (faction === ANT_FACTION.enemy) {
     if (role === ANT_ROLE.fighter) return { body: 0x7d364d, accent: 0x4d1225 };
-    if (role === ANT_ROLE.scout) return { body: 0xb9759b, accent: 0x6b2a4b };
     return { body: 0xd18aa9, accent: 0x7c3455 };
   }
 
   if (role === ANT_ROLE.fighter) return { body: 0x5b3a22, accent: 0x29a354 };
-  if (role === ANT_ROLE.scout) return { body: 0x69824b, accent: 0xc4f06b };
   return { body: 0x4f6f2f, accent: 0xa6ee5a };
 };
 
@@ -161,11 +154,6 @@ export const createAntVisual = (role = ANT_ROLE.worker, faction = ANT_FACTION.pl
     abdomen.scale.multiplyScalar(1.08);
     thorax.scale.set(1.08, 1.04, 1.12);
     head.scale.setScalar(1.18);
-  } else if (role === ANT_ROLE.scout) {
-    abdomen.scale.set(0.84, 0.72, 1.12);
-    thorax.scale.set(0.84, 0.88, 1.04);
-    head.scale.set(0.88, 0.88, 0.92);
-    group.scale.set(0.96, 0.94, 1.04);
   }
 
   const legGeometry = new THREE.CapsuleGeometry(0.03, 0.4, 2, 6);
@@ -282,7 +270,6 @@ const spawnPlayerStartingColony = (playerNest, startId = 0) => {
   const ants = [];
   let nextId = startId;
   const roleGroups = [
-    [ANT_ROLE.scout, PLAYER_STARTING_COUNTS.scouts],
     [ANT_ROLE.worker, PLAYER_STARTING_COUNTS.workers],
     [ANT_ROLE.fighter, PLAYER_STARTING_COUNTS.fighters],
   ];
@@ -317,16 +304,16 @@ const chooseNextAction = (ant) => {
   ant.assistingFoodId = null;
   ant.queuedNestSlot = null;
   ant.nestApproachStage = 'queue';
-  if (Math.random() < ANT_CONFIG.idleChance && ant.role !== ANT_ROLE.scout) {
+  if (Math.random() < ANT_CONFIG.idleChance && ant.role !== ANT_ROLE.fighter) {
     ant.action = 'idle';
     ant.desiredVelocity.setScalar(0);
     return;
   }
   ant.action = 'wander';
-  const jitter = ant.role === ANT_ROLE.scout ? ANT_CONFIG.wanderJitter * 1.7 : ANT_CONFIG.wanderJitter;
+  const jitter = ant.role === ANT_ROLE.fighter ? ANT_CONFIG.wanderJitter * 0.85 : ANT_CONFIG.wanderJitter;
   const angle = Math.atan2(ant.heading.z, ant.heading.x) + randomRange(-jitter, jitter);
   ant.heading.set(Math.cos(angle), 0, Math.sin(angle)).normalize();
-  const distance = ant.role === ANT_ROLE.worker ? randomRange(2.5, 6) : randomRange(4, 10);
+  const distance = ant.role === ANT_ROLE.worker ? randomRange(2.5, 6) : randomRange(4, 9);
   ant.target.set(
     clampToTerrainBounds(ant.position.x + ant.heading.x * distance, TERRAIN_CONFIG.width),
     0,
@@ -374,13 +361,13 @@ const chooseFocusAction = (ant, focusTarget) => {
 
   direction.normalize();
   ant.heading.copy(direction);
-  const speedFactor = ant.role === ANT_ROLE.scout ? 1.08 : ant.role === ANT_ROLE.worker ? 1 : 0.92;
+  const speedFactor = ant.role === ANT_ROLE.worker ? 1 : 0.92;
   ant.desiredVelocity.copy(direction).multiplyScalar(ANT_CONFIG.speed * speedFactor);
 };
 
 const choosePatrolAction = (ant, homeNestPosition) => {
   ant.action = 'patrol';
-  const patrolRadius = ant.role === ANT_ROLE.scout ? randomRange(8, 16) : ant.role === ANT_ROLE.fighter ? randomRange(5, 11) : randomRange(4, 8);
+  const patrolRadius = ant.role === ANT_ROLE.fighter ? randomRange(5, 11) : randomRange(4, 8);
   const angle = Math.random() * Math.PI * 2;
   ant.target.set(
     clampToTerrainBounds(homeNestPosition.x + Math.cos(angle) * patrolRadius, TERRAIN_CONFIG.width),
@@ -391,7 +378,7 @@ const choosePatrolAction = (ant, homeNestPosition) => {
   if (direction.lengthSq() <= 0.0001) return;
   direction.normalize();
   ant.heading.copy(direction);
-  const speedFactor = ant.role === ANT_ROLE.scout ? 1.02 : ant.role === ANT_ROLE.fighter ? 0.94 : 0.9;
+  const speedFactor = ant.role === ANT_ROLE.fighter ? 0.94 : 0.9;
   ant.desiredVelocity.copy(direction).multiplyScalar(ANT_CONFIG.speed * speedFactor);
 };
 
@@ -421,30 +408,6 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
       chooseFocusAction(ant, colonyFocusTarget);
       return;
     }
-    choosePatrolAction(ant, homeNestPosition);
-    return;
-  }
-
-  if (ant.role === ANT_ROLE.scout) {
-    if (ant.faction === ANT_FACTION.player && colonyFocusTarget) {
-      chooseFocusAction(ant, colonyFocusTarget);
-      return;
-    }
-
-    const pheromoneVector = pheromoneSystem.sample('food', ant.position);
-    if (pheromoneVector.lengthSq() > 0.0001) {
-      pheromoneVector.normalize();
-      ant.action = 'follow-pheromone';
-      ant.heading.lerp(pheromoneVector, 0.5).normalize();
-      ant.target.set(
-        clampToTerrainBounds(ant.position.x + ant.heading.x * 8, TERRAIN_CONFIG.width),
-        0,
-        clampToTerrainBounds(ant.position.z + ant.heading.z * 8, TERRAIN_CONFIG.depth),
-      );
-      ant.desiredVelocity.copy(ant.heading).multiplyScalar(ANT_CONFIG.speed * ANT_CONFIG.foodPheromoneInfluence * 1.04);
-      return;
-    }
-
     choosePatrolAction(ant, homeNestPosition);
     return;
   }
@@ -931,7 +894,6 @@ export class AntSystem {
     let mid = 0;
     let far = 0;
     let fullMesh = 0;
-    let scouts = 0;
     let workers = 0;
     let fighters = 0;
     for (let i = 0; i < this.ants.length; i += 1) {
@@ -943,8 +905,7 @@ export class AntSystem {
       else if (ant.lodBand === ANT_LOD.mid) mid += 1;
       else far += 1;
       if (this.meshes[i]?.visible) fullMesh += 1;
-      if (ant.role === ANT_ROLE.scout) scouts += 1;
-      else if (ant.role === ANT_ROLE.worker) workers += 1;
+      if (ant.role === ANT_ROLE.worker) workers += 1;
       else fighters += 1;
     }
     return {
@@ -960,7 +921,6 @@ export class AntSystem {
       far,
       fullMesh,
       impostor: this.farInstanceCount,
-      scouts,
       workers,
       fighters,
       enemyAntsDefeated: this.stats.enemyAntsDefeated,

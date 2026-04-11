@@ -27,15 +27,15 @@ Each ant tracks:
 ## Roles
 
 Current roles:
-- `scout`
-- `forager`
 - `worker`
+- `fighter`
 
-Roles are simple biases, not fully separate behavior trees yet.
+These are still lightweight behavior classes rather than full behavior trees.
 
 At the moment they mainly affect:
-- wandering tendencies
-- how strongly ants behave as explorers vs practical workers
+- food-gathering vs combat priority
+- movement tendencies
+- HP and combat capability
 
 ## Core behavior loop
 

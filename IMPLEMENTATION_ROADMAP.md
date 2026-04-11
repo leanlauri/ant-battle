@@ -33,10 +33,11 @@ Goals:
 - [x] End-to-end smoke flow covers title → level select → gameplay → shell victory unlock
 - [x] Player nest ownership, enemy nest identity, selection ring, and focus marker are implemented
 - [x] Top-right ant count now reflects player ownership and gameplay HUD shows selected nest + focus target
-- [x] Ant classes now use worker / scout / fighter naming with class-specific visuals and behavior hooks
+- [x] Ant classes now use worker / fighter naming with class-specific visuals and behavior hooks
 - [x] Enemy nests seed enemy-tinted ants so faction ownership is visible on the battlefield
 - [x] Per-ant HP, fighter-only melee targeting, death removal, and battle stats are implemented
 - [x] HUD and shell overlays now report enemy defeats and player losses
+- [x] Scout class was removed for now, simplifying the playable roster to worker + fighter
 
 ### Next implementation slice
 1. Tune enemy fighter pressure so clashes happen more reliably without manual babysitting.
@@ -181,7 +182,6 @@ Replace vague role flavor with true gameplay classes.
 
 ### Deliverables
 - worker class behavior
-- scout class behavior
 - fighter class behavior
 - visual differentiation between classes
 - player faction tinting
@@ -260,7 +260,7 @@ Turn food into player-facing decisions.
 ### Deliverables
 - nest-local food thresholds
 - 3-option upgrade card presentation
-- spawn worker/scout/fighter batches
+- spawn worker/fighter batches
 - approx 20-ant batch default
 - upgrade availability tied to selected nest
 
