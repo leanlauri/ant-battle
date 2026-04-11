@@ -258,13 +258,14 @@ export class FoodSystem {
     this.scene = scene;
     this.items = createFoodItems(count);
     this.meshes = [];
-    this.nestStored = 0;
+    this.nestStoredById = new Map();
     this.nests = createNestDefinitions().map((nest) => ({
       ...nest,
       mesh: createNestVisual(nest),
     }));
     this.playerNest = this.nests.find((nest) => nest.faction === FACTION.player);
     this.enemyNests = this.nests.filter((nest) => nest.faction === FACTION.enemy);
+    for (const nest of this.nests) this.nestStoredById.set(nest.id, 0);
     this.nestPosition = this.playerNest.position.clone();
     this.nestMesh = this.playerNest.mesh;
     this.selectedNestId = this.playerNest.id;
@@ -286,6 +287,23 @@ export class FoodSystem {
       scene.add(mesh);
       this.meshes.push(mesh);
     }
+  }
+
+  get nestStored() {
+    return this.getNestStored(this.playerNest?.id);
+  }
+
+  set nestStored(value) {
+    if (!this.playerNest) return;
+    this.nestStoredById.set(this.playerNest.id, value);
+  }
+
+  getNestStored(nestId) {
+    return this.nestStoredById.get(nestId) ?? 0;
+  }
+
+  getNestById(nestId) {
+    return this.nests.find((nest) => nest.id === nestId) ?? null;
   }
 
   getSelectedNest() {
@@ -362,36 +380,39 @@ export class FoodSystem {
     return true;
   }
 
-  reserveNestSlot(antId, antPosition) {
+  reserveNestSlot(antId, antPosition, nestId = this.playerNest.id) {
     if (this.queueAssignments.has(antId)) return this.queueAssignments.get(antId);
+    const nest = this.getNestById(nestId) ?? this.playerNest;
+    const nestPosition = nest.position;
     const candidates = [];
     for (let i = 0; i < NEST_CONFIG.queueSlots; i += 1) {
-      const occupied = [...this.queueAssignments.values()].some((slot) => slot.index === i);
+      const occupied = [...this.queueAssignments.values()].some((slot) => slot.index === i && slot.nestId === nest.id);
       if (occupied) continue;
       const angle = (i / NEST_CONFIG.queueSlots) * Math.PI * 2;
       const queuePosition = new THREE.Vector3(
-        this.nestPosition.x + Math.cos(angle) * NEST_CONFIG.queueRadius,
+        nestPosition.x + Math.cos(angle) * NEST_CONFIG.queueRadius,
         sampleHeight(
-          this.nestPosition.x + Math.cos(angle) * NEST_CONFIG.queueRadius,
-          this.nestPosition.z + Math.sin(angle) * NEST_CONFIG.queueRadius,
+          nestPosition.x + Math.cos(angle) * NEST_CONFIG.queueRadius,
+          nestPosition.z + Math.sin(angle) * NEST_CONFIG.queueRadius,
         ),
-        this.nestPosition.z + Math.sin(angle) * NEST_CONFIG.queueRadius,
+        nestPosition.z + Math.sin(angle) * NEST_CONFIG.queueRadius,
       );
       const entrancePosition = new THREE.Vector3(
-        this.nestPosition.x + Math.cos(angle) * NEST_CONFIG.entranceRadius,
+        nestPosition.x + Math.cos(angle) * NEST_CONFIG.entranceRadius,
         sampleHeight(
-          this.nestPosition.x + Math.cos(angle) * NEST_CONFIG.entranceRadius,
-          this.nestPosition.z + Math.sin(angle) * NEST_CONFIG.entranceRadius,
+          nestPosition.x + Math.cos(angle) * NEST_CONFIG.entranceRadius,
+          nestPosition.z + Math.sin(angle) * NEST_CONFIG.entranceRadius,
         ),
-        this.nestPosition.z + Math.sin(angle) * NEST_CONFIG.entranceRadius,
+        nestPosition.z + Math.sin(angle) * NEST_CONFIG.entranceRadius,
       );
-      candidates.push({ index: i, queuePosition, entrancePosition, distanceSq: antPosition.distanceToSquared(queuePosition) });
+      candidates.push({ nestId: nest.id, index: i, queuePosition, entrancePosition, distanceSq: antPosition.distanceToSquared(queuePosition) });
     }
     candidates.sort((a, b) => a.distanceSq - b.distanceSq);
     const chosen = candidates[0] ?? {
+      nestId: nest.id,
       index: 0,
-      queuePosition: this.nestPosition.clone(),
-      entrancePosition: this.nestPosition.clone(),
+      queuePosition: nestPosition.clone(),
+      entrancePosition: nestPosition.clone(),
     };
     this.queueAssignments.set(antId, chosen);
     return chosen;
@@ -401,7 +422,7 @@ export class FoodSystem {
     this.queueAssignments.delete(antId);
   }
 
-  dropFoodInNest(foodId, antId) {
+  dropFoodInNest(foodId, antId, nestId = this.playerNest.id) {
     const food = this.items.find((item) => item.id === foodId);
     if (!food || !food.carried || food.carriedBy !== antId) return false;
     food.delivered = true;
@@ -410,7 +431,7 @@ export class FoodSystem {
     food.claimedBy = null;
     food.supportAntIds = [];
     food.regrowAt = randomRange(FOOD_CONFIG.regrowDelayMin, FOOD_CONFIG.regrowDelayMax);
-    this.nestStored += food.weight;
+    this.nestStoredById.set(nestId, this.getNestStored(nestId) + food.weight);
     this.releaseNestSlot(antId);
     this.updateNestVisual();
     return true;
@@ -418,7 +439,7 @@ export class FoodSystem {
 
   updateNestVisual() {
     for (const nest of this.nests) {
-      const scale = nest.id === this.playerNest.id ? computeNestScale(this.nestStored) : 1;
+      const scale = computeNestScale(this.getNestStored(nest.id));
       nest.mesh.scale.set(scale, 1 + (scale - 1) * 1.4, scale);
       nest.mesh.position.set(nest.position.x, nest.position.y, nest.position.z);
       const ring = nest.mesh?.userData?.selectionRing;

@@ -72,6 +72,20 @@ describe('food system helpers', () => {
     expect(nests.filter((nest) => nest.faction === FACTION.enemy)).toHaveLength(2);
   });
 
+  test('reserves queue slots and stores food against the requested nest', () => {
+    const system = new FoodSystem({ scene: new Scene(), count: 1 });
+    const food = system.items[0];
+
+    system.pickUpFood(food.id, 77);
+    const slot = system.reserveNestSlot(77, new THREE.Vector3(0, 0, 0), 'enemy-1');
+    const dropped = system.dropFoodInNest(food.id, 77, 'enemy-1');
+
+    expect(slot.nestId).toBe('enemy-1');
+    expect(dropped).toBe(true);
+    expect(system.getNestStored('enemy-1')).toBeGreaterThan(0);
+    expect(system.nestStored).toBe(0);
+  });
+
   test('keeps selection on the player nest and records focus targets', () => {
     const system = new FoodSystem({ scene: new Scene(), count: 0 });
 

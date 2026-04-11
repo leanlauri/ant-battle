@@ -143,6 +143,8 @@ const getAntPalette = (role, faction) => {
   return { body: 0x4f6f2f, accent: 0xa6ee5a };
 };
 
+const getHomeNestPosition = (ant, nestLookup) => nestLookup.get(ant.homeNestId)?.position ?? NEST_CONFIG.position;
+
 export const createAntVisual = (role = ANT_ROLE.worker, faction = ANT_FACTION.player) => {
   const group = new THREE.Group();
   const palette = getAntPalette(role, faction);
@@ -413,7 +415,7 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
   ant.brainInterval = getBrainIntervalForDistance(distanceToCamera);
   ant.logicInterval = getLogicIntervalForDistance(distanceToCamera);
 
-  const homeNestPosition = nestLookup.get(ant.homeNestId)?.position ?? NEST_CONFIG.position;
+  const homeNestPosition = getHomeNestPosition(ant, nestLookup);
 
   if (ant.carryingFoodId != null) return;
 
@@ -690,8 +692,8 @@ export class AntSystem {
 
     const rearGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorRearRadius, 8, 6);
     const frontGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorFrontRadius, 8, 6);
-    const rearMaterial = new THREE.MeshToonMaterial({ color: 0x5c3017 });
-    const frontMaterial = new THREE.MeshToonMaterial({ color: 0x47210f });
+    const rearMaterial = new THREE.MeshToonMaterial({ color: 0xffffff });
+    const frontMaterial = new THREE.MeshToonMaterial({ color: 0xffffff });
     this.farRearInstances = new THREE.InstancedMesh(rearGeometry, rearMaterial, this.ants.length);
     this.farFrontInstances = new THREE.InstancedMesh(frontGeometry, frontMaterial, this.ants.length);
     for (const instanced of [this.farRearInstances, this.farFrontInstances]) {
@@ -787,9 +789,10 @@ export class AntSystem {
             const pickedUp = this.foodSystem.pickUpFood(food.id, ant.id);
             if (pickedUp) {
               ant.carryingFoodId = food.id;
-              ant.queuedNestSlot = this.foodSystem.reserveNestSlot(ant.id, ant.position);
+              const homeNestPosition = getHomeNestPosition(ant, this.nestLookup);
+              ant.queuedNestSlot = this.foodSystem.reserveNestSlot(ant.id, ant.position, ant.homeNestId);
               ant.nestApproachStage = 'queue';
-              chooseCarryToNestAction(ant, getCarryApproachTarget(ant, this.foodSystem.nestPosition));
+              chooseCarryToNestAction(ant, getCarryApproachTarget(ant, homeNestPosition));
             }
           }
         }
@@ -806,11 +809,12 @@ export class AntSystem {
         }
 
         if (ant.action === 'carry-food' && ant.carryingFoodId != null) {
-          ant.queuedNestSlot ??= this.foodSystem.reserveNestSlot(ant.id, ant.position);
-          const approachTarget = getCarryApproachTarget(ant, this.foodSystem.nestPosition);
+          const homeNestPosition = getHomeNestPosition(ant, this.nestLookup);
+          ant.queuedNestSlot ??= this.foodSystem.reserveNestSlot(ant.id, ant.position, ant.homeNestId);
+          const approachTarget = getCarryApproachTarget(ant, homeNestPosition);
           ant.target.set(approachTarget.x, 0, approachTarget.z);
-          if (ant.position.distanceTo(this.foodSystem.nestPosition) <= NEST_CONFIG.dropoffDistance) {
-            const dropped = this.foodSystem.dropFoodInNest(ant.carryingFoodId, ant.id);
+          if (ant.position.distanceTo(homeNestPosition) <= NEST_CONFIG.dropoffDistance) {
+            const dropped = this.foodSystem.dropFoodInNest(ant.carryingFoodId, ant.id, ant.homeNestId);
             if (dropped) {
               ant.carryingFoodId = null;
               ant.targetFoodId = null;
@@ -825,7 +829,7 @@ export class AntSystem {
         const isCarrierGroup = ant.action === 'carry-food' || ant.action === 'assist-carry';
         const shouldSeparate = ant.lodBand !== ANT_LOD.far && !isCarrierGroup;
         if (shouldSeparate) {
-          const yielded = applyNestYield(ant, this.spatialHash, this.foodSystem.nestPosition);
+          const yielded = applyNestYield(ant, this.spatialHash, getHomeNestPosition(ant, this.nestLookup));
           if (!yielded) applySeparation(ant, this.spatialHash);
         }
         ant.logicCooldown = ant.logicInterval;
@@ -892,6 +896,9 @@ export class AntSystem {
         this.farRearInstances.setMatrixAt(this.farInstanceCount, this.tmpMatrix);
         this.tmpMatrix.compose(this.tmpFrontPosition, this.tmpQuaternion.identity(), this.tmpScale);
         this.farFrontInstances.setMatrixAt(this.farInstanceCount, this.tmpMatrix);
+        const palette = getAntPalette(ant.role, ant.faction);
+        this.farRearInstances.setColorAt(this.farInstanceCount, new THREE.Color(palette.body));
+        this.farFrontInstances.setColorAt(this.farInstanceCount, new THREE.Color(palette.accent));
         this.farInstanceCount += 1;
       }
     }
@@ -905,6 +912,8 @@ export class AntSystem {
     this.farFrontInstances.count = this.farInstanceCount;
     this.farRearInstances.instanceMatrix.needsUpdate = true;
     this.farFrontInstances.instanceMatrix.needsUpdate = true;
+    if (this.farRearInstances.instanceColor) this.farRearInstances.instanceColor.needsUpdate = true;
+    if (this.farFrontInstances.instanceColor) this.farFrontInstances.instanceColor.needsUpdate = true;
   }
 
   setFocusTarget(target) {
