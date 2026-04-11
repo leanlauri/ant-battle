@@ -28,9 +28,12 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
     focusText: focusTarget
       ? `Focus: x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
       : 'Focus: none',
+    battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyTotal} enemies still active.`,
     foodText: `Food: ${remainingFood} left, nest stored ${(antSystem.foodSystem?.nestStored ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
     buildText: `Build: ${buildInfo.value}`,
     playerAntCount: antSummary.playerTotal,
+    maxPlayerAntCount: antSummary.maxPlayerAnts,
+    enemyAntsDefeated: antSummary.enemyAntsDefeated,
   };
 };
 

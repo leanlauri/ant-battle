@@ -38,6 +38,13 @@ export const ANT_CONFIG = Object.freeze({
   legStrideSpeed: 2.4,
   legMoveThreshold: 0.08,
   legCarryMinRatio: 0.22,
+  fighterSenseDistance: 12,
+  fighterAttackRange: 0.95,
+  fighterAttackDamage: 14,
+  fighterAttackCooldown: 0.72,
+  scoutHp: 20,
+  workerHp: 28,
+  fighterHp: 46,
 });
 
 export const ANT_LOD = Object.freeze({ near: 'near', mid: 'mid', far: 'far' });
@@ -48,6 +55,12 @@ const clampToTerrainBounds = (value, extent, padding = 1) => THREE.MathUtils.cla
 const randomRange = (min, max) => min + Math.random() * (max - min);
 const cellCoord = (value, size) => Math.floor(value / size);
 const cellKey = (x, z) => `${x},${z}`;
+
+export const getMaxHpForRole = (role) => {
+  if (role === ANT_ROLE.scout) return ANT_CONFIG.scoutHp;
+  if (role === ANT_ROLE.fighter) return ANT_CONFIG.fighterHp;
+  return ANT_CONFIG.workerHp;
+};
 
 export const getLodBandForDistance = (distanceToCamera) => {
   if (distanceToCamera > ANT_CONFIG.farDistance) return ANT_LOD.far;
@@ -200,32 +213,42 @@ const animateAntLegs = (mesh, ant) => {
   }
 };
 
-export const createAntState = (id, x, z, overrides = {}) => ({
-  id,
-  faction: ANT_FACTION.player,
-  homeNestId: 'player-1',
-  role: chooseRole(),
-  radius: ANT_CONFIG.bodyRadius,
-  position: new THREE.Vector3(x, sampleHeight(x, z) + ANT_CONFIG.bodyRadius, z),
-  velocity: new THREE.Vector3(),
-  desiredVelocity: new THREE.Vector3(),
-  heading: new THREE.Vector3(1, 0, 0),
-  action: 'wander',
-  target: new THREE.Vector3(x, 0, z),
-  targetFoodId: null,
-  carryingFoodId: null,
-  assistingFoodId: null,
-  queuedNestSlot: null,
-  nestApproachStage: 'queue',
-  brainCooldown: Math.random() * 0.6,
-  brainInterval: ANT_CONFIG.closeBrainInterval,
-  logicCooldown: Math.random() * ANT_CONFIG.closeLogicInterval,
-  logicInterval: ANT_CONFIG.closeLogicInterval,
-  gaitPhase: Math.random() * Math.PI * 2,
-  visible: true,
-  lodBand: ANT_LOD.near,
-  ...overrides,
-});
+export const createAntState = (id, x, z, overrides = {}) => {
+  const role = overrides.role ?? chooseRole();
+  const maxHp = overrides.maxHp ?? getMaxHpForRole(role);
+
+  return {
+    id,
+    faction: ANT_FACTION.player,
+    homeNestId: 'player-1',
+    role,
+    radius: ANT_CONFIG.bodyRadius,
+    position: new THREE.Vector3(x, sampleHeight(x, z) + ANT_CONFIG.bodyRadius, z),
+    velocity: new THREE.Vector3(),
+    desiredVelocity: new THREE.Vector3(),
+    heading: new THREE.Vector3(1, 0, 0),
+    action: 'wander',
+    target: new THREE.Vector3(x, 0, z),
+    targetFoodId: null,
+    carryingFoodId: null,
+    assistingFoodId: null,
+    queuedNestSlot: null,
+    nestApproachStage: 'queue',
+    brainCooldown: Math.random() * 0.6,
+    brainInterval: ANT_CONFIG.closeBrainInterval,
+    logicCooldown: Math.random() * ANT_CONFIG.closeLogicInterval,
+    logicInterval: ANT_CONFIG.closeLogicInterval,
+    gaitPhase: Math.random() * Math.PI * 2,
+    hp: maxHp,
+    maxHp,
+    attackCooldownRemaining: 0,
+    combatTargetId: null,
+    dead: false,
+    visible: true,
+    lodBand: ANT_LOD.near,
+    ...overrides,
+  };
+};
 
 const spawnAroundNest = (nest, rolePicker, count, startId = 0) => {
   const ants = [];
@@ -581,6 +604,47 @@ const attachHelperToFood = (ant, food, supportIndex) => {
   }
 };
 
+export const findCombatTarget = (ant, ants, maxDistance = ANT_CONFIG.fighterSenseDistance) => {
+  if (ant.dead || ant.role !== ANT_ROLE.fighter) return null;
+
+  let bestTarget = null;
+  let bestDistanceSq = maxDistance * maxDistance;
+  for (const other of ants) {
+    if (other === ant || other.dead || other.faction === ant.faction) continue;
+    const distanceSq = ant.position.distanceToSquared(other.position);
+    if (distanceSq > bestDistanceSq) continue;
+
+    const priority = other.role === ANT_ROLE.fighter ? 2 : 1;
+    const currentPriority = bestTarget?.role === ANT_ROLE.fighter ? 2 : 1;
+    if (!bestTarget || priority > currentPriority || (priority === currentPriority && distanceSq < bestDistanceSq)) {
+      bestTarget = other;
+      bestDistanceSq = distanceSq;
+    }
+  }
+
+  return bestTarget;
+};
+
+const clearAntAssignments = (ant, foodSystem, foods) => {
+  if (ant.assistingFoodId != null) foodSystem.leaveCarry(ant.assistingFoodId, ant.id);
+  if (ant.carryingFoodId != null) {
+    const carriedFood = getFoodById(foods, ant.carryingFoodId);
+    if (carriedFood) {
+      carriedFood.carried = false;
+      carriedFood.carriedBy = null;
+      carriedFood.claimedBy = null;
+      carriedFood.supportAntIds = [];
+      carriedFood.position.set(ant.position.x, sampleHeight(ant.position.x, ant.position.z) + FOOD_CONFIG.size * carriedFood.sizeScale * 0.55, ant.position.z);
+    }
+  }
+  if (ant.queuedNestSlot) foodSystem.releaseNestSlot(ant.id);
+  ant.targetFoodId = null;
+  ant.carryingFoodId = null;
+  ant.assistingFoodId = null;
+  ant.queuedNestSlot = null;
+  ant.combatTargetId = null;
+};
+
 export class AntSystem {
   constructor({ scene, camera, foodSystem, pheromoneSystem, foods = [], nests = [], count = ANT_CONFIG.count } = {}) {
     this.scene = scene;
@@ -606,6 +670,11 @@ export class AntSystem {
     this.spatialHash = new Map();
     this.farInstanceCount = 0;
     this.focusTarget = null;
+    this.stats = {
+      enemyAntsDefeated: 0,
+      playerAntsLost: 0,
+      maxPlayerAnts: this.ants.filter((ant) => ant.faction === ANT_FACTION.player && !ant.dead).length,
+    };
 
     const rearGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorRearRadius, 8, 6);
     const frontGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorFrontRadius, 8, 6);
@@ -636,12 +705,19 @@ export class AntSystem {
     this.camera.matrixWorldInverse.copy(this.camera.matrixWorld).invert();
     this.projectionMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.projectionMatrix);
-    this.spatialHash = buildSpatialHash(this.ants);
+    this.spatialHash = buildSpatialHash(this.ants.filter((ant) => !ant.dead));
     this.farInstanceCount = 0;
 
     for (let i = 0; i < this.ants.length; i += 1) {
       const ant = this.ants[i];
       const mesh = this.meshes[i];
+
+      if (ant.dead) {
+        mesh.visible = false;
+        ant.visible = false;
+        continue;
+      }
+
       const distanceToCamera = ant.position.distanceTo(this.cameraWorldPosition);
 
       ant.lodBand = getLodBandForDistance(distanceToCamera);
@@ -655,13 +731,42 @@ export class AntSystem {
       }
 
       ant.logicCooldown -= dt;
+      ant.attackCooldownRemaining = Math.max(0, ant.attackCooldownRemaining - dt);
       if (ant.logicCooldown <= 0) {
+        if (ant.role === ANT_ROLE.fighter) {
+          const target = findCombatTarget(ant, this.ants);
+          if (target) {
+            ant.combatTargetId = target.id;
+            ant.target.set(target.position.x, 0, target.position.z);
+            const targetDistance = ant.position.distanceTo(target.position);
+            if (targetDistance <= ANT_CONFIG.fighterAttackRange) {
+              ant.action = 'attack';
+              ant.desiredVelocity.setScalar(0);
+              if (ant.attackCooldownRemaining <= 0) {
+                ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
+                target.hp -= ANT_CONFIG.fighterAttackDamage;
+                if (target.hp <= 0 && !target.dead) {
+                  target.dead = true;
+                  clearAntAssignments(target, this.foodSystem, this.foods);
+                  target.velocity.setScalar(0);
+                  target.desiredVelocity.setScalar(0);
+                  target.action = 'dead';
+                  if (target.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
+                  if (target.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
+                }
+              }
+            }
+          } else {
+            ant.combatTargetId = null;
+          }
+        }
+
         if (ant.action === 'seek-food' && ant.targetFoodId != null) {
           const food = getFoodById(this.foods, ant.targetFoodId);
           if (!food || food.delivered || food.carried) chooseNextAction(ant);
         }
 
-        updateActionVelocity(ant, this.foodSystem, this.foods);
+        if (ant.action !== 'attack') updateActionVelocity(ant, this.foodSystem, this.foods);
 
         if (ant.action === 'seek-food' && ant.targetFoodId != null) {
           const food = getFoodById(this.foods, ant.targetFoodId);
@@ -779,6 +884,11 @@ export class AntSystem {
       }
     }
 
+    this.stats.maxPlayerAnts = Math.max(
+      this.stats.maxPlayerAnts,
+      this.ants.filter((ant) => ant.faction === ANT_FACTION.player && !ant.dead).length,
+    );
+
     this.farRearInstances.count = this.farInstanceCount;
     this.farFrontInstances.count = this.farInstanceCount;
     this.farRearInstances.instanceMatrix.needsUpdate = true;
@@ -787,6 +897,10 @@ export class AntSystem {
 
   setFocusTarget(target) {
     this.focusTarget = target ? target.clone() : null;
+  }
+
+  getBattleStats() {
+    return { ...this.stats };
   }
 
   getSummary() {
@@ -801,6 +915,7 @@ export class AntSystem {
     let fighters = 0;
     for (let i = 0; i < this.ants.length; i += 1) {
       const ant = this.ants[i];
+      if (ant.dead) continue;
       if (ant.visible) visible += 1;
       if (ant.action === 'idle') idle += 1;
       if (ant.lodBand === ANT_LOD.near) near += 1;
@@ -812,12 +927,13 @@ export class AntSystem {
       else fighters += 1;
     }
     return {
-      total: this.ants.length,
-      playerTotal: this.ants.filter((ant) => ant.faction === ANT_FACTION.player).length,
+      total: this.ants.filter((ant) => !ant.dead).length,
+      playerTotal: this.ants.filter((ant) => ant.faction === ANT_FACTION.player && !ant.dead).length,
+      enemyTotal: this.ants.filter((ant) => ant.faction === ANT_FACTION.enemy && !ant.dead).length,
       visible,
-      active: this.ants.length - idle,
+      active: this.ants.filter((ant) => !ant.dead).length - idle,
       idle,
-      carrying: this.ants.filter((ant) => ant.carryingFoodId != null).length,
+      carrying: this.ants.filter((ant) => ant.carryingFoodId != null && !ant.dead).length,
       near,
       mid,
       far,
@@ -826,6 +942,9 @@ export class AntSystem {
       scouts,
       workers,
       fighters,
+      enemyAntsDefeated: this.stats.enemyAntsDefeated,
+      playerAntsLost: this.stats.playerAntsLost,
+      maxPlayerAnts: this.stats.maxPlayerAnts,
     };
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
-import { ANT_CONFIG, ANT_LOD, ANT_ROLE, buildSpatialHash, createAntVisual, createRandomAntStates, getBrainIntervalForDistance, getLodBandForDistance, querySpatialHash } from '../src/ant-system.js';
+import { ANT_CONFIG, ANT_LOD, ANT_ROLE, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash } from '../src/ant-system.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
 describe('ant system helpers', () => {
@@ -22,6 +22,30 @@ describe('ant system helpers', () => {
       expect(ant.carryingFoodId).toBeNull();
       expect(ant.action).toBe('wander');
     }
+  });
+
+  test('assigns role-specific HP budgets', () => {
+    expect(getMaxHpForRole(ANT_ROLE.scout)).toBeLessThan(getMaxHpForRole(ANT_ROLE.worker));
+    expect(getMaxHpForRole(ANT_ROLE.worker)).toBeLessThan(getMaxHpForRole(ANT_ROLE.fighter));
+  });
+
+  test('fighters prefer nearby enemy fighters as combat targets', () => {
+    const fighter = createRandomAntStates(1)[0];
+    fighter.role = ANT_ROLE.fighter;
+    fighter.faction = 'player';
+    fighter.position.set(0, fighter.position.y, 0);
+
+    const enemyWorker = createRandomAntStates(1)[0];
+    enemyWorker.role = ANT_ROLE.worker;
+    enemyWorker.faction = 'enemy';
+    enemyWorker.position.set(1.4, enemyWorker.position.y, 0);
+
+    const enemyFighter = createRandomAntStates(1)[0];
+    enemyFighter.role = ANT_ROLE.fighter;
+    enemyFighter.faction = 'enemy';
+    enemyFighter.position.set(2.2, enemyFighter.position.y, 0);
+
+    expect(findCombatTarget(fighter, [fighter, enemyWorker, enemyFighter])?.role).toBe(ANT_ROLE.fighter);
   });
 
   test('spawns enemy ants when enemy nests exist', () => {

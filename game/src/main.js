@@ -52,6 +52,7 @@ const refs = {
   antInfo: document.getElementById('antInfo'),
   selectedNestInfo: document.getElementById('selectedNestInfo'),
   focusInfo: document.getElementById('focusInfo'),
+  battleInfo: document.getElementById('battleInfo'),
   foodInfo: document.getElementById('foodInfo'),
   buildInfo: document.getElementById('buildInfo'),
   debugVisualsToggle: document.getElementById('debugVisualsToggle'),
@@ -88,6 +89,7 @@ const gameplaySession = createGameplaySession({
     refs.antInfo.textContent = summary?.antText ?? 'Ants: --';
     refs.selectedNestInfo.textContent = summary?.selectedNestText ?? 'Selected nest: Home Nest';
     refs.focusInfo.textContent = summary?.focusText ?? 'Focus: none';
+    refs.battleInfo.textContent = summary?.battleText ?? 'Battle: 0 enemy down, 0 player lost, 0 enemies still active.';
     refs.foodInfo.textContent = summary?.foodText ?? 'Food: --';
     refs.buildInfo.textContent = summary?.buildText ?? 'Build: --';
     refs.titleBuildBadge.textContent = summary?.buildText ?? 'Build: --';
@@ -178,7 +180,7 @@ const openVictory = async () => {
 
   const nextLevel = Math.min(TOTAL_LEVELS, app.currentLevel + 1);
   refs.victoryLevelLabel.textContent = `Level ${app.currentLevel} complete`;
-  refs.victorySummary.textContent = `You reached ${app.lastHudSummary?.playerAntCount ?? 0} ants in this shell build. Level ${nextLevel <= TOTAL_LEVELS ? nextLevel : app.currentLevel} is now available.`;
+  refs.victorySummary.textContent = `You reached ${app.lastHudSummary?.maxPlayerAntCount ?? app.lastHudSummary?.playerAntCount ?? 0} player ants and defeated ${app.lastHudSummary?.enemyAntsDefeated ?? 0} enemies. Level ${nextLevel <= TOTAL_LEVELS ? nextLevel : app.currentLevel} is now available.`;
   refs.nextLevelButton.disabled = app.currentLevel >= TOTAL_LEVELS;
   refs.nextLevelButton.textContent = app.currentLevel >= TOTAL_LEVELS ? 'Campaign Complete' : `Play Level ${nextLevel}`;
   await changeScreen(APP_SCREEN.victory);
@@ -186,7 +188,7 @@ const openVictory = async () => {
 
 const openDefeat = async () => {
   refs.defeatLevelLabel.textContent = `Level ${app.currentLevel} failed`;
-  refs.defeatSummary.textContent = `Max ants on field in this run: ${app.lastHudSummary?.playerAntCount ?? 0}. Try again or head back to level select.`;
+  refs.defeatSummary.textContent = `Max player ants: ${app.lastHudSummary?.maxPlayerAntCount ?? app.lastHudSummary?.playerAntCount ?? 0}. Enemies defeated: ${app.lastHudSummary?.enemyAntsDefeated ?? 0}. Try again or head back to level select.`;
   await changeScreen(APP_SCREEN.defeat);
 };
 
