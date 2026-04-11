@@ -32,10 +32,21 @@ describe('food system helpers', () => {
 
   test('finds carried food that still needs helper ants', () => {
     const foods = [
-      { id: 1, position: new THREE.Vector3(3, 0, 0), carried: true, delivered: false, supportAntIds: [10], requiredCarriers: 3 },
-      { id: 2, position: new THREE.Vector3(5, 0, 0), carried: true, delivered: false, supportAntIds: [10, 11, 12], requiredCarriers: 3 },
+      { id: 1, position: new THREE.Vector3(3, 0, 0), carried: true, carriedByColonyId: COLONY.player, delivered: false, supportAntIds: [10], requiredCarriers: 3 },
+      { id: 2, position: new THREE.Vector3(5, 0, 0), carried: true, carriedByColonyId: COLONY.enemyAlpha, delivered: false, supportAntIds: [10, 11, 12], requiredCarriers: 3 },
     ];
-    expect(findNearestCarryAssistFood(foods, new THREE.Vector3(0, 0, 0), 6)?.id).toBe(1);
+    expect(findNearestCarryAssistFood(foods, new THREE.Vector3(0, 0, 0), COLONY.player, 6)?.id).toBe(1);
+    expect(findNearestCarryAssistFood(foods, new THREE.Vector3(0, 0, 0), COLONY.enemyBeta, 6)).toBeNull();
+  });
+
+  test('carry helpers cannot join food hauled by another colony', () => {
+    const system = new FoodSystem({ scene: new Scene(), count: 1 });
+    const food = system.items[0];
+
+    system.pickUpFood(food.id, 77, COLONY.player);
+
+    expect(system.joinCarry(food.id, 88, COLONY.enemyAlpha)).toBe(false);
+    expect(system.joinCarry(food.id, 99, COLONY.player)).toBe(true);
   });
 
   test('carry factor improves with more ant support', () => {

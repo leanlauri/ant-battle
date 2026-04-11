@@ -508,7 +508,7 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
 
   if (ant.assistingFoodId != null) {
     const assistedFood = getFoodById(foods, ant.assistingFoodId);
-    if (assistedFood && assistedFood.carried && !assistedFood.delivered) {
+    if (assistedFood && assistedFood.carried && !assistedFood.delivered && assistedFood.carriedByColonyId === ant.colonyId) {
       chooseAssistCarryAction(ant, assistedFood);
       return;
     }
@@ -522,7 +522,7 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
     }
   }
 
-  const assistFood = findNearestCarryAssistFood(foods, ant.position, FOOD_CONFIG.senseDistance);
+  const assistFood = findNearestCarryAssistFood(foods, ant.position, ant.colonyId, FOOD_CONFIG.senseDistance);
   if (assistFood) {
     chooseAssistCarryAction(ant, assistFood);
     return;
@@ -569,7 +569,7 @@ const updateActionVelocity = (ant, foodSystem, foods) => {
 
   if (ant.action === 'assist-carry' && ant.assistingFoodId != null) {
     const food = getFoodById(foods, ant.assistingFoodId);
-    if (!food || !food.carried || food.delivered) {
+    if (!food || !food.carried || food.delivered || food.carriedByColonyId !== ant.colonyId) {
       chooseNextAction(ant);
       return;
     }
@@ -697,7 +697,7 @@ export const findCombatTarget = (ant, ants, maxDistance = ANT_CONFIG.fighterSens
     const distanceSq = ant.position.distanceToSquared(other.position);
     if (distanceSq > senseDistance * senseDistance) continue;
 
-    const priority = other.role === ANT_ROLE.fighter ? 2 : 1;
+    const priority = other.carryingFoodId != null ? 3 : other.role === ANT_ROLE.fighter ? 2 : 1;
     if (!bestTarget || priority > bestPriority || (priority === bestPriority && distanceSq < bestDistanceSq)) {
       bestTarget = other;
       bestDistanceSq = distanceSq;
@@ -715,7 +715,9 @@ const clearAntAssignments = (ant, foodSystem, foods) => {
     if (carriedFood) {
       carriedFood.carried = false;
       carriedFood.carriedBy = null;
+      carriedFood.carriedByColonyId = null;
       carriedFood.claimedBy = null;
+      carriedFood.claimedByColonyId = null;
       carriedFood.supportAntIds = [];
       carriedFood.position.set(ant.position.x, sampleHeight(ant.position.x, ant.position.z) + FOOD_CONFIG.size * carriedFood.sizeScale * 0.55, ant.position.z);
     }
@@ -1094,8 +1096,8 @@ export class AntSystem {
         if (ant.action === 'seek-food' && ant.targetFoodId != null) {
           const food = getFoodById(this.foods, ant.targetFoodId);
           if (food && ant.position.distanceTo(food.position) <= FOOD_CONFIG.pickupDistance) {
-            this.foodSystem.claimFood(food.id, ant.id);
-            const pickedUp = this.foodSystem.pickUpFood(food.id, ant.id);
+            this.foodSystem.claimFood(food.id, ant.id, ant.colonyId);
+            const pickedUp = this.foodSystem.pickUpFood(food.id, ant.id, ant.colonyId);
             if (pickedUp) {
               ant.carryingFoodId = food.id;
               const homeNestPosition = getHomeNestPosition(ant, this.nestLookup);
@@ -1111,7 +1113,7 @@ export class AntSystem {
           if (!food || !food.carried || food.delivered) {
             chooseNextAction(ant);
           } else if (ant.position.distanceTo(food.position) <= ANT_CONFIG.assistCarryDistance * 1.15) {
-            this.foodSystem.joinCarry(food.id, ant.id);
+            this.foodSystem.joinCarry(food.id, ant.id, ant.colonyId);
           } else {
             this.foodSystem.leaveCarry(food.id, ant.id);
           }

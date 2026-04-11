@@ -84,7 +84,9 @@ export const createFoodItems = (count = FOOD_CONFIG.count) => {
       weight: profile.weight,
       requiredCarriers: profile.requiredCarriers,
       claimedBy: null,
+      claimedByColonyId: null,
       carriedBy: null,
+      carriedByColonyId: null,
       supportAntIds: [],
       delivered: false,
       carried: false,
@@ -133,12 +135,13 @@ export const findNearestFood = (foods, position, maxDistance = FOOD_CONFIG.sense
   return nearest;
 };
 
-export const findNearestCarryAssistFood = (foods, position, maxDistance = FOOD_CONFIG.senseDistance) => {
+export const findNearestCarryAssistFood = (foods, position, colonyId, maxDistance = FOOD_CONFIG.senseDistance) => {
   let nearest = null;
   let nearestDistanceSq = maxDistance * maxDistance;
 
   for (const food of foods) {
     if (!food.carried || food.delivered) continue;
+    if (colonyId != null && food.carriedByColonyId != null && food.carriedByColonyId !== colonyId) continue;
     if ((food.supportAntIds?.length ?? 0) >= food.requiredCarriers) continue;
     const distanceSq = position.distanceToSquared(food.position);
     if (distanceSq <= nearestDistanceSq) {
@@ -394,16 +397,18 @@ export class FoodSystem {
     return hits[0]?.nest ?? null;
   }
 
-  claimFood(foodId, antId) {
+  claimFood(foodId, antId, colonyId = null) {
     const food = this.items.find((item) => item.id === foodId);
     if (!food || food.delivered || food.carried) return false;
     food.claimedBy = antId;
+    food.claimedByColonyId = colonyId;
     return true;
   }
 
-  joinCarry(foodId, antId) {
+  joinCarry(foodId, antId, colonyId = null) {
     const food = this.items.find((item) => item.id === foodId);
     if (!food || !food.carried || food.delivered) return false;
+    if (colonyId != null && food.carriedByColonyId != null && food.carriedByColonyId !== colonyId) return false;
     if (!food.supportAntIds.includes(antId)) food.supportAntIds.push(antId);
     return true;
   }
@@ -414,12 +419,14 @@ export class FoodSystem {
     food.supportAntIds = food.supportAntIds.filter((id) => id !== antId);
   }
 
-  pickUpFood(foodId, antId) {
+  pickUpFood(foodId, antId, colonyId = null) {
     const food = this.items.find((item) => item.id === foodId);
     if (!food || food.delivered || food.carried) return false;
     food.carried = true;
     food.carriedBy = antId;
+    food.carriedByColonyId = colonyId;
     food.claimedBy = antId;
+    food.claimedByColonyId = colonyId;
     food.supportAntIds = [antId];
     return true;
   }
@@ -472,7 +479,9 @@ export class FoodSystem {
     food.delivered = true;
     food.carried = false;
     food.carriedBy = null;
+    food.carriedByColonyId = null;
     food.claimedBy = null;
+    food.claimedByColonyId = null;
     food.supportAntIds = [];
     food.regrowAt = randomRange(FOOD_CONFIG.regrowDelayMin, FOOD_CONFIG.regrowDelayMax);
     this.nestStoredById.set(nestId, this.getNestStored(nestId) + food.weight);
@@ -556,7 +565,9 @@ export class FoodSystem {
       food.delivered = false;
       food.carried = false;
       food.carriedBy = null;
+      food.carriedByColonyId = null;
       food.claimedBy = null;
+      food.claimedByColonyId = null;
       food.supportAntIds = [];
       food.regrowAt = null;
       food.sizeScale = sizeScale;

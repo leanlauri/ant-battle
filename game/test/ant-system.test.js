@@ -51,6 +51,29 @@ describe('ant system helpers', () => {
     expect(findCombatTarget(fighter, [fighter, enemyWorker, enemyFighter])?.role).toBe(ANT_ROLE.fighter);
   });
 
+  test('fighters prioritize hostile food carriers over other enemies', () => {
+    const fighter = createRandomAntStates(1)[0];
+    fighter.role = ANT_ROLE.fighter;
+    fighter.faction = 'player';
+    fighter.colonyId = COLONY.player;
+    fighter.position.set(0, fighter.position.y, 0);
+
+    const enemyFighter = createRandomAntStates(1)[0];
+    enemyFighter.role = ANT_ROLE.fighter;
+    enemyFighter.faction = 'enemy';
+    enemyFighter.colonyId = COLONY.enemyAlpha;
+    enemyFighter.position.set(2.2, enemyFighter.position.y, 0);
+
+    const enemyCarrier = createRandomAntStates(1)[0];
+    enemyCarrier.role = ANT_ROLE.worker;
+    enemyCarrier.faction = 'enemy';
+    enemyCarrier.colonyId = COLONY.enemyAlpha;
+    enemyCarrier.carryingFoodId = 1;
+    enemyCarrier.position.set(2.8, enemyCarrier.position.y, 0);
+
+    expect(findCombatTarget(fighter, [fighter, enemyFighter, enemyCarrier])?.id).toBe(enemyCarrier.id);
+  });
+
   test('workers only target hostile fighters when defending', () => {
     const worker = createRandomAntStates(1)[0];
     worker.role = ANT_ROLE.worker;
