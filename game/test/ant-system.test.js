@@ -55,11 +55,15 @@ describe('ant system helpers', () => {
     const nests = [
       { id: 'player-1', faction: 'player', colonyId: COLONY.player, position: new THREE.Vector3(0, 0, 0) },
       { id: 'enemy-1', faction: 'enemy', colonyId: COLONY.enemyAlpha, position: new THREE.Vector3(10, 0, 10) },
+      { id: 'enemy-2', faction: 'enemy', colonyId: COLONY.enemyBeta, position: new THREE.Vector3(-10, 0, -10) },
     ];
     const ants = createRandomAntStates(120, nests);
 
     expect(ants.some((ant) => ant.faction === 'enemy')).toBe(true);
     expect(ants.some((ant) => ant.homeNestId === 'enemy-1')).toBe(true);
+    expect(ants.some((ant) => ant.homeNestId === 'enemy-2')).toBe(true);
+    expect(ants.some((ant) => ant.colonyId === COLONY.enemyAlpha)).toBe(true);
+    expect(ants.some((ant) => ant.colonyId === COLONY.enemyBeta)).toBe(true);
     expect(ants.some((ant) => ant.faction === 'enemy' && ant.role === ANT_ROLE.worker)).toBe(true);
   });
 

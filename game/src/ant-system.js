@@ -766,6 +766,8 @@ export class AntSystem {
     this.hitEffectGroup = new THREE.Group();
     this.groundSplats = [];
     this.groundSplatGroup = new THREE.Group();
+    this.corpseRemains = [];
+    this.corpseGroup = new THREE.Group();
     this.stats = {
       enemyAntsDefeated: 0,
       playerAntsLost: 0,
@@ -776,6 +778,7 @@ export class AntSystem {
     this.outcome = null;
     this.scene.add(this.hitEffectGroup);
     this.scene.add(this.groundSplatGroup);
+    this.scene.add(this.corpseGroup);
 
     const rearGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorRearRadius, 8, 6);
     const frontGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorFrontRadius, 8, 6);
@@ -802,18 +805,59 @@ export class AntSystem {
   }
 
   spawnGroundSplat(position, colonyId, scale = 1) {
-    const material = new THREE.MeshBasicMaterial({
-      color: getBloodColor(colonyId),
-      transparent: true,
-      opacity: 0.42,
-      depthWrite: false,
+    const group = new THREE.Group();
+    const splatCount = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < splatCount; i += 1) {
+      const material = new THREE.MeshBasicMaterial({
+        color: getBloodColor(colonyId),
+        transparent: true,
+        opacity: 0.34 + Math.random() * 0.12,
+        depthWrite: false,
+      });
+      material.userData.baseOpacity = material.opacity;
+      const radius = (0.1 + Math.random() * 0.12) * scale;
+      const mesh = new THREE.Mesh(new THREE.CircleGeometry(radius, 10), material);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(
+        (Math.random() - 0.5) * 0.28 * scale,
+        0,
+        (Math.random() - 0.5) * 0.28 * scale,
+      );
+      mesh.scale.set(1 + Math.random() * 0.35, 1 + Math.random() * 0.2, 1);
+      group.add(mesh);
+    }
+    group.rotation.y = Math.random() * Math.PI * 2;
+    group.position.set(position.x, sampleHeight(position.x, position.z) + 0.03, position.z);
+    this.groundSplatGroup.add(group);
+    this.groundSplats.push({ mesh: group, life: 18, maxLife: 18 });
+  }
+
+  spawnCorpseRemains(position, colonyId, role = ANT_ROLE.worker) {
+    const palette = getAntPalette(role, colonyId);
+    const group = new THREE.Group();
+    const bodyMaterial = new THREE.MeshToonMaterial({ color: palette.body });
+    const accentMaterial = new THREE.MeshToonMaterial({ color: palette.accent });
+
+    const abdomen = new THREE.Mesh(new THREE.SphereGeometry(role === ANT_ROLE.fighter ? 0.16 : 0.13, 8, 6), bodyMaterial);
+    abdomen.scale.set(1.15, 0.55, 0.9);
+    abdomen.position.set(-0.08, 0.04, 0);
+    group.add(abdomen);
+
+    const thorax = new THREE.Mesh(new THREE.SphereGeometry(role === ANT_ROLE.fighter ? 0.13 : 0.11, 8, 6), accentMaterial);
+    thorax.scale.set(1, 0.45, 0.85);
+    thorax.position.set(0.09, 0.03, 0.03);
+    group.add(thorax);
+
+    group.rotation.set(0, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.7);
+    group.position.set(position.x, sampleHeight(position.x, position.z) + 0.02, position.z);
+    group.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = false;
+        child.receiveShadow = true;
+      }
     });
-    const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.18 * scale, 10), material);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(position.x, sampleHeight(position.x, position.z) + 0.03, position.z);
-    mesh.scale.setScalar(1);
-    this.groundSplatGroup.add(mesh);
-    this.groundSplats.push({ mesh, life: 14, maxLife: 14 });
+    this.corpseGroup.add(group);
+    this.corpseRemains.push({ mesh: group, life: 22, maxLife: 22 });
   }
 
   spawnHitEffect(position, colonyId, intensity = 1) {
@@ -863,12 +907,38 @@ export class AntSystem {
     this.groundSplats = this.groundSplats.filter((splat) => {
       splat.life -= dt;
       const lifeRatio = Math.max(0, splat.life / splat.maxLife);
-      splat.mesh.material.opacity = 0.42 * lifeRatio;
       splat.mesh.scale.setScalar(1 + (1 - lifeRatio) * 0.35);
+      splat.mesh.traverse((child) => {
+        if (child.isMesh && child.material) child.material.opacity = (child.material.userData?.baseOpacity ?? 0.4) * lifeRatio;
+      });
       if (splat.life > 0) return true;
       this.groundSplatGroup.remove(splat.mesh);
-      splat.mesh.material.dispose();
-      splat.mesh.geometry.dispose();
+      splat.mesh.traverse((child) => {
+        if (child.isMesh) {
+          child.material?.dispose?.();
+          child.geometry?.dispose?.();
+        }
+      });
+      return false;
+    });
+
+    this.corpseRemains = this.corpseRemains.filter((corpse) => {
+      corpse.life -= dt;
+      const lifeRatio = Math.max(0, corpse.life / corpse.maxLife);
+      corpse.mesh.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.transparent = true;
+          child.material.opacity = Math.min(1, lifeRatio + 0.1);
+        }
+      });
+      if (corpse.life > 0) return true;
+      this.corpseGroup.remove(corpse.mesh);
+      corpse.mesh.traverse((child) => {
+        if (child.isMesh) {
+          child.material?.dispose?.();
+          child.geometry?.dispose?.();
+        }
+      });
       return false;
     });
   }
@@ -920,14 +990,16 @@ export class AntSystem {
                 if (ant.attackCooldownRemaining <= 0) {
                   ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
                   target.hp -= ANT_CONFIG.fighterAttackDamage;
-                  this.spawnHitEffect(target.position, target.colonyId, target.dead ? 1.4 : 1);
+                  target.hitFlashTime = 0.2;
+                  this.spawnHitEffect(target.position, target.colonyId, target.hp <= 0 ? 1.4 : 1);
                   if (target.hp <= 0 && !target.dead) {
                     target.dead = true;
                     clearAntAssignments(target, this.foodSystem, this.foods);
-                  target.velocity.setScalar(0);
-                  target.desiredVelocity.setScalar(0);
+                    target.velocity.setScalar(0);
+                    target.desiredVelocity.setScalar(0);
                     target.action = 'dead';
                     this.spawnGroundSplat(target.position, target.colonyId, 1.6);
+                    this.spawnCorpseRemains(target.position, target.colonyId, target.role);
                     if (target.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
                     if (target.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
                   }
@@ -961,6 +1033,7 @@ export class AntSystem {
                         collapsedAnt.desiredVelocity.setScalar(0);
                         collapsedAnt.action = 'dead';
                         this.spawnGroundSplat(collapsedAnt.position, collapsedAnt.colonyId, 1.8);
+                        this.spawnCorpseRemains(collapsedAnt.position, collapsedAnt.colonyId, collapsedAnt.role);
                         if (collapsedAnt.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
                         if (collapsedAnt.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
                       }
@@ -1042,6 +1115,7 @@ export class AntSystem {
 
       ant.velocity.lerp(ant.desiredVelocity, ant.lodBand === ANT_LOD.near ? 0.16 : ant.lodBand === ANT_LOD.mid ? 0.12 : 0.08);
       ant.attackVisualTime = Math.max(0, (ant.attackVisualTime ?? 0) - dt);
+      ant.hitFlashTime = Math.max(0, (ant.hitFlashTime ?? 0) - dt);
       ant.position.x = clampToTerrainBounds(ant.position.x + ant.velocity.x * dt, TERRAIN_CONFIG.width);
       ant.position.z = clampToTerrainBounds(ant.position.z + ant.velocity.z * dt, TERRAIN_CONFIG.depth);
       ant.position.y = sampleHeight(ant.position.x, ant.position.z) + ant.radius;
@@ -1072,14 +1146,24 @@ export class AntSystem {
       if (useFullMesh) {
         mesh.visible = true;
         mesh.position.copy(ant.position);
+        let attackTilt = 0;
         if (ant.attackVisualTime > 0) {
           const thrustRatio = Math.sin((1 - ant.attackVisualTime / (ANT_CONFIG.fighterAttackCooldown * 0.65)) * Math.PI);
           this.tmpLungeOffset.copy(ant.heading).multiplyScalar(0.28 * thrustRatio);
           mesh.position.add(this.tmpLungeOffset);
+          attackTilt = -0.22 * thrustRatio;
+        }
+        if (ant.hitFlashTime > 0) {
+          const hitRatio = ant.hitFlashTime / 0.2;
+          this.tmpLungeOffset.copy(ant.heading).multiplyScalar(-0.1 * hitRatio);
+          mesh.position.add(this.tmpLungeOffset);
+          mesh.position.y += Math.sin(hitRatio * Math.PI) * 0.05;
         }
         mesh.position.y += ANT_CONFIG.renderOffsetY + bobY;
+        mesh.rotation.x = attackTilt;
         mesh.rotation.y = rotationY;
         mesh.rotation.z = rollZ;
+        mesh.scale.setScalar(ant.hitFlashTime > 0 ? 1 + (ant.hitFlashTime / 0.2) * 0.08 : 1);
         animateAntLegs(mesh, ant);
       } else {
         mesh.visible = false;
@@ -1107,7 +1191,7 @@ export class AntSystem {
         this.farRearInstances.setMatrixAt(this.farInstanceCount, this.tmpMatrix);
         this.tmpMatrix.compose(this.tmpFrontPosition, this.tmpQuaternion.identity(), this.tmpScale);
         this.farFrontInstances.setMatrixAt(this.farInstanceCount, this.tmpMatrix);
-        const palette = getAntPalette(ant.role, ant.faction);
+        const palette = getAntPalette(ant.role, ant.colonyId);
         this.farRearInstances.setColorAt(this.farInstanceCount, new THREE.Color(palette.body));
         this.farFrontInstances.setColorAt(this.farInstanceCount, new THREE.Color(palette.accent));
         this.farInstanceCount += 1;
