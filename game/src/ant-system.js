@@ -50,6 +50,11 @@ export const ANT_CONFIG = Object.freeze({
 export const ANT_LOD = Object.freeze({ near: 'near', mid: 'mid', far: 'far' });
 export const ANT_ROLE = Object.freeze({ scout: 'scout', worker: 'worker', fighter: 'fighter' });
 export const ANT_FACTION = Object.freeze({ player: 'player', enemy: 'enemy' });
+export const PLAYER_STARTING_COUNTS = Object.freeze({
+  scouts: 10,
+  workers: 10,
+  fighters: 5,
+});
 
 const clampToTerrainBounds = (value, extent, padding = 1) => THREE.MathUtils.clamp(value, -extent / 2 + padding, extent / 2 - padding);
 const randomRange = (min, max) => min + Math.random() * (max - min);
@@ -273,17 +278,30 @@ const spawnAroundNest = (nest, rolePicker, count, startId = 0) => {
   return ants;
 };
 
+const spawnPlayerStartingColony = (playerNest, startId = 0) => {
+  const ants = [];
+  let nextId = startId;
+  const roleGroups = [
+    [ANT_ROLE.scout, PLAYER_STARTING_COUNTS.scouts],
+    [ANT_ROLE.worker, PLAYER_STARTING_COUNTS.workers],
+    [ANT_ROLE.fighter, PLAYER_STARTING_COUNTS.fighters],
+  ];
+
+  for (const [role, count] of roleGroups) {
+    ants.push(...spawnAroundNest(playerNest, () => role, count, nextId));
+    nextId += count;
+  }
+
+  return ants;
+};
+
 export const createRandomAntStates = (count = ANT_CONFIG.count, nests = [{ id: 'player-1', faction: ANT_FACTION.player, position: new THREE.Vector3(0, 0, 0) }]) => {
   const playerNest = nests.find((nest) => nest.faction === ANT_FACTION.player) ?? nests[0];
   const enemyNests = nests.filter((nest) => nest.faction === ANT_FACTION.enemy);
   const enemyPerNest = enemyNests.length ? Math.min(24, Math.floor(count * 0.12)) : 0;
-  const totalEnemyCount = enemyPerNest * enemyNests.length;
-  const playerCount = Math.max(1, count - totalEnemyCount);
   let nextId = 0;
-  const ants = [];
-
-  ants.push(...spawnAroundNest(playerNest, chooseRole, playerCount, nextId));
-  nextId += playerCount;
+  const ants = spawnPlayerStartingColony(playerNest, nextId);
+  nextId += ants.length;
 
   for (const enemyNest of enemyNests) {
     ants.push(...spawnAroundNest(enemyNest, chooseEnemyRole, enemyPerNest, nextId));

@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
-import { ANT_CONFIG, ANT_LOD, ANT_ROLE, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash } from '../src/ant-system.js';
+import { ANT_CONFIG, ANT_LOD, ANT_ROLE, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash } from '../src/ant-system.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
 describe('ant system helpers', () => {
-  test('creates 200 ants within the terrain bounds', () => {
+  test('creates the starting colony within the terrain bounds', () => {
     const ants = createRandomAntStates(ANT_CONFIG.count);
 
-    expect(ants).toHaveLength(200);
+    expect(ants).toHaveLength(PLAYER_STARTING_COUNTS.scouts + PLAYER_STARTING_COUNTS.workers + PLAYER_STARTING_COUNTS.fighters);
     for (const ant of ants) {
       expect(ant.position.x).toBeGreaterThanOrEqual(-TERRAIN_CONFIG.width / 2);
       expect(ant.position.x).toBeLessThanOrEqual(TERRAIN_CONFIG.width / 2);
@@ -58,6 +58,14 @@ describe('ant system helpers', () => {
     expect(ants.some((ant) => ant.faction === 'enemy')).toBe(true);
     expect(ants.some((ant) => ant.homeNestId === 'enemy-1')).toBe(true);
     expect(ants.some((ant) => ant.faction === 'enemy' && ant.role === ANT_ROLE.worker)).toBe(true);
+  });
+
+  test('uses the requested starting class counts for the player colony', () => {
+    const ants = createRandomAntStates();
+
+    expect(ants.filter((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.scout)).toHaveLength(PLAYER_STARTING_COUNTS.scouts);
+    expect(ants.filter((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.worker)).toHaveLength(PLAYER_STARTING_COUNTS.workers);
+    expect(ants.filter((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.fighter)).toHaveLength(PLAYER_STARTING_COUNTS.fighters);
   });
 
   test('slows brain cadence for distant ants', () => {

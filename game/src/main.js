@@ -145,18 +145,18 @@ const renderScreens = () => {
   if (app.screen === APP_SCREEN.levelSelect) renderLevelGrid();
 };
 
-const changeScreen = async (nextScreen) => {
+const changeScreen = async (nextScreen, { restartGameplay = false } = {}) => {
   const wasGameplayVisible = isGameplayVisible();
   app.screen = nextScreen;
   const shouldShowGameplay = isGameplayVisible();
 
-  if (!shouldShowGameplay && wasGameplayVisible) {
+  if ((!shouldShowGameplay && wasGameplayVisible) || (restartGameplay && shouldShowGameplay && wasGameplayVisible)) {
     gameplaySession.stop();
   }
 
   renderScreens();
 
-  if (shouldShowGameplay && !wasGameplayVisible) {
+  if (shouldShowGameplay && (!wasGameplayVisible || restartGameplay)) {
     await gameplaySession.start();
     gameplaySession.setDebugVisualsVisible(refs.debugVisualsToggle.checked);
   }
@@ -171,7 +171,7 @@ const openLevelSelect = async () => {
 const launchLevel = async (levelNumber) => {
   app.currentLevel = levelNumber;
   app.lastHudSummary = null;
-  await changeScreen(APP_SCREEN.gameplay);
+  await changeScreen(APP_SCREEN.gameplay, { restartGameplay: true });
 };
 
 const openVictory = async () => {
