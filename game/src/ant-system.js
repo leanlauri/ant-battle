@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FOOD_CONFIG, NEST_CONFIG, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor } from './food-system.js';
+import { COLONY, FOOD_CONFIG, NEST_CONFIG, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor } from './food-system.js';
 import { PHEROMONE_CONFIG } from './pheromone-system.js';
 import { TERRAIN_CONFIG, sampleHeight } from './terrain.js';
 
@@ -54,6 +54,24 @@ export const ANT_FACTION = Object.freeze({ player: 'player', enemy: 'enemy' });
 export const PLAYER_STARTING_COUNTS = Object.freeze({
   workers: 20,
   fighters: 5,
+});
+
+const ANT_COLONY_PALETTES = Object.freeze({
+  [COLONY.player]: {
+    [ANT_ROLE.worker]: { body: 0x4f6f2f, accent: 0xa6ee5a },
+    [ANT_ROLE.fighter]: { body: 0x5b3a22, accent: 0x29a354 },
+    blood: 0x8ed946,
+  },
+  [COLONY.enemyAlpha]: {
+    [ANT_ROLE.worker]: { body: 0xd18aa9, accent: 0x7c3455 },
+    [ANT_ROLE.fighter]: { body: 0x7d364d, accent: 0x4d1225 },
+    blood: 0xff6f9a,
+  },
+  [COLONY.enemyBeta]: {
+    [ANT_ROLE.worker]: { body: 0x8ba4d6, accent: 0x3a5387 },
+    [ANT_ROLE.fighter]: { body: 0x516db2, accent: 0x25396a },
+    blood: 0x8fb7ff,
+  },
 });
 
 const clampToTerrainBounds = (value, extent, padding = 1) => THREE.MathUtils.clamp(value, -extent / 2 + padding, extent / 2 - padding);
@@ -125,7 +143,7 @@ const findClosestHostileNestPosition = (ant, nestLookup) => {
   let bestNest = null;
   let bestDistanceSq = Number.POSITIVE_INFINITY;
   for (const nest of nestLookup.values()) {
-    if (nest.faction === ant.faction) continue;
+    if (nest.colonyId === ant.colonyId || nest.collapsed) continue;
     const distanceSq = ant.position.distanceToSquared(nest.position);
     if (distanceSq < bestDistanceSq) {
       bestDistanceSq = distanceSq;
@@ -141,7 +159,7 @@ export const findSiegeTargetNest = (ant, nests, maxDistance = ANT_CONFIG.fighter
   let bestNest = null;
   let bestDistanceSq = maxDistance * maxDistance;
   for (const nest of nests) {
-    if (nest.faction === ant.faction || nest.collapsed) continue;
+    if (nest.colonyId === ant.colonyId || nest.collapsed) continue;
     const distanceSq = ant.position.distanceToSquared(nest.position);
     if (distanceSq <= bestDistanceSq) {
       bestNest = nest;
@@ -152,14 +170,11 @@ export const findSiegeTargetNest = (ant, nests, maxDistance = ANT_CONFIG.fighter
 };
 
 const getAntPalette = (role, faction) => {
-  if (faction === ANT_FACTION.enemy) {
-    if (role === ANT_ROLE.fighter) return { body: 0x7d364d, accent: 0x4d1225 };
-    return { body: 0xd18aa9, accent: 0x7c3455 };
-  }
-
-  if (role === ANT_ROLE.fighter) return { body: 0x5b3a22, accent: 0x29a354 };
-  return { body: 0x4f6f2f, accent: 0xa6ee5a };
+  const colonyPalette = ANT_COLONY_PALETTES[faction] ?? ANT_COLONY_PALETTES[COLONY.player];
+  return colonyPalette[role] ?? colonyPalette[ANT_ROLE.worker];
 };
+
+const getBloodColor = (colonyId) => ANT_COLONY_PALETTES[colonyId]?.blood ?? ANT_COLONY_PALETTES[COLONY.player].blood;
 
 const getHomeNestPosition = (ant, nestLookup) => nestLookup.get(ant.homeNestId)?.position ?? NEST_CONFIG.position;
 
@@ -167,7 +182,7 @@ const findNearestFriendlyActiveNest = (ant, nests, excludeNestId = null) => {
   let bestNest = null;
   let bestDistanceSq = Number.POSITIVE_INFINITY;
   for (const nest of nests) {
-    if (nest.faction !== ant.faction || nest.collapsed || nest.id === excludeNestId) continue;
+    if (nest.colonyId !== ant.colonyId || nest.collapsed || nest.id === excludeNestId) continue;
     const distanceSq = ant.position.distanceToSquared(nest.position);
     if (distanceSq < bestDistanceSq) {
       bestDistanceSq = distanceSq;
@@ -264,10 +279,12 @@ const animateAntLegs = (mesh, ant) => {
 export const createAntState = (id, x, z, overrides = {}) => {
   const role = overrides.role ?? chooseRole();
   const maxHp = overrides.maxHp ?? getMaxHpForRole(role);
+  const colonyId = overrides.colonyId ?? overrides.faction ?? COLONY.player;
 
   return {
     id,
     faction: ANT_FACTION.player,
+    colonyId,
     homeNestId: 'player-1',
     role,
     radius: ANT_CONFIG.bodyRadius,
@@ -307,6 +324,7 @@ const spawnAroundNest = (nest, rolePicker, count, startId = 0) => {
     const z = clampToTerrainBounds(nest.position.z + Math.sin(angle) * distance, TERRAIN_CONFIG.depth);
     ants.push(createAntState(startId + i, x, z, {
       faction: nest.faction,
+      colonyId: nest.colonyId,
       homeNestId: nest.id,
       role: rolePicker(),
     }));
@@ -656,7 +674,7 @@ export const findCombatTarget = (ant, ants, maxDistance = ANT_CONFIG.fighterSens
   let bestDistanceSq = maxDistance * maxDistance;
   let bestPriority = -1;
   for (const other of ants) {
-    if (other === ant || other.dead || other.faction === ant.faction) continue;
+    if (other === ant || other.dead || other.colonyId === ant.colonyId) continue;
     const distanceSq = ant.position.distanceToSquared(other.position);
     if (distanceSq > maxDistance * maxDistance) continue;
 
@@ -740,9 +758,14 @@ export class AntSystem {
     this.tmpForward = new THREE.Vector3();
     this.tmpRearPosition = new THREE.Vector3();
     this.tmpFrontPosition = new THREE.Vector3();
+    this.tmpLungeOffset = new THREE.Vector3();
     this.spatialHash = new Map();
     this.farInstanceCount = 0;
     this.focusTarget = null;
+    this.hitEffects = [];
+    this.hitEffectGroup = new THREE.Group();
+    this.groundSplats = [];
+    this.groundSplatGroup = new THREE.Group();
     this.stats = {
       enemyAntsDefeated: 0,
       playerAntsLost: 0,
@@ -751,6 +774,8 @@ export class AntSystem {
       maxPlayerAnts: this.ants.filter((ant) => ant.faction === ANT_FACTION.player && !ant.dead).length,
     };
     this.outcome = null;
+    this.scene.add(this.hitEffectGroup);
+    this.scene.add(this.groundSplatGroup);
 
     const rearGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorRearRadius, 8, 6);
     const frontGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorFrontRadius, 8, 6);
@@ -767,12 +792,85 @@ export class AntSystem {
     }
 
     for (const ant of this.ants) {
-      const mesh = createAntVisual(ant.role, ant.faction);
+      const mesh = createAntVisual(ant.role, ant.colonyId);
       mesh.position.copy(ant.position);
       mesh.rotation.y = Math.atan2(ant.heading.x, ant.heading.z);
+      mesh.userData.baseY = ANT_CONFIG.renderOffsetY;
       scene.add(mesh);
       this.meshes.push(mesh);
     }
+  }
+
+  spawnGroundSplat(position, colonyId, scale = 1) {
+    const material = new THREE.MeshBasicMaterial({
+      color: getBloodColor(colonyId),
+      transparent: true,
+      opacity: 0.42,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.18 * scale, 10), material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(position.x, sampleHeight(position.x, position.z) + 0.03, position.z);
+    mesh.scale.setScalar(1);
+    this.groundSplatGroup.add(mesh);
+    this.groundSplats.push({ mesh, life: 14, maxLife: 14 });
+  }
+
+  spawnHitEffect(position, colonyId, intensity = 1) {
+    const particles = [];
+    for (let i = 0; i < 4; i += 1) {
+      const material = new THREE.MeshBasicMaterial({
+        color: getBloodColor(colonyId),
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.06 * intensity, 8), material);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.copy(position);
+      mesh.position.y += 0.12 + Math.random() * 0.12;
+      const angle = (i / 4) * Math.PI * 2 + Math.random() * 0.35;
+      const speed = 0.8 + Math.random() * 1.1;
+      particles.push({
+        mesh,
+        velocity: new THREE.Vector3(Math.cos(angle) * speed, 0.6 + Math.random() * 0.7, Math.sin(angle) * speed),
+      });
+      this.hitEffectGroup.add(mesh);
+    }
+    this.hitEffects.push({ particles, life: 0.35, maxLife: 0.35 });
+    this.spawnGroundSplat(position, colonyId, 0.7 * intensity);
+  }
+
+  updateEffects(dt) {
+    this.hitEffects = this.hitEffects.filter((effect) => {
+      effect.life -= dt;
+      const lifeRatio = Math.max(0, effect.life / effect.maxLife);
+      for (const particle of effect.particles) {
+        particle.mesh.position.addScaledVector(particle.velocity, dt);
+        particle.velocity.y -= 4.4 * dt;
+        particle.mesh.material.opacity = 0.9 * lifeRatio;
+        particle.mesh.scale.setScalar(0.75 + (1 - lifeRatio) * 1.2);
+      }
+      if (effect.life > 0) return true;
+      for (const particle of effect.particles) {
+        this.hitEffectGroup.remove(particle.mesh);
+        particle.mesh.material.dispose();
+        particle.mesh.geometry.dispose();
+      }
+      return false;
+    });
+
+    this.groundSplats = this.groundSplats.filter((splat) => {
+      splat.life -= dt;
+      const lifeRatio = Math.max(0, splat.life / splat.maxLife);
+      splat.mesh.material.opacity = 0.42 * lifeRatio;
+      splat.mesh.scale.setScalar(1 + (1 - lifeRatio) * 0.35);
+      if (splat.life > 0) return true;
+      this.groundSplatGroup.remove(splat.mesh);
+      splat.mesh.material.dispose();
+      splat.mesh.geometry.dispose();
+      return false;
+    });
   }
 
   update(dt) {
@@ -816,20 +914,23 @@ export class AntSystem {
             ant.target.set(target.position.x, 0, target.position.z);
             const targetDistance = ant.position.distanceTo(target.position);
             if (targetDistance <= ANT_CONFIG.fighterAttackRange) {
-              ant.action = 'attack';
-              ant.desiredVelocity.setScalar(0);
-              if (ant.attackCooldownRemaining <= 0) {
-                ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
-                target.hp -= ANT_CONFIG.fighterAttackDamage;
-                if (target.hp <= 0 && !target.dead) {
-                  target.dead = true;
-                  clearAntAssignments(target, this.foodSystem, this.foods);
+                ant.action = 'attack';
+                ant.desiredVelocity.setScalar(0);
+                ant.attackVisualTime = ANT_CONFIG.fighterAttackCooldown * 0.65;
+                if (ant.attackCooldownRemaining <= 0) {
+                  ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
+                  target.hp -= ANT_CONFIG.fighterAttackDamage;
+                  this.spawnHitEffect(target.position, target.colonyId, target.dead ? 1.4 : 1);
+                  if (target.hp <= 0 && !target.dead) {
+                    target.dead = true;
+                    clearAntAssignments(target, this.foodSystem, this.foods);
                   target.velocity.setScalar(0);
                   target.desiredVelocity.setScalar(0);
-                  target.action = 'dead';
-                  if (target.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
-                  if (target.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
-                }
+                    target.action = 'dead';
+                    this.spawnGroundSplat(target.position, target.colonyId, 1.6);
+                    if (target.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
+                    if (target.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
+                  }
               }
             }
           } else {
@@ -841,9 +942,11 @@ export class AntSystem {
               if (siegeDistance <= ANT_CONFIG.fighterNestAttackRange) {
                 ant.action = 'attack-nest';
                 ant.desiredVelocity.setScalar(0);
+                ant.attackVisualTime = ANT_CONFIG.fighterAttackCooldown * 0.65;
                 if (ant.attackCooldownRemaining <= 0) {
                   ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
                   const damageResult = this.foodSystem.damageNest(siegeNest.id, ANT_CONFIG.fighterNestAttackDamage);
+                  this.spawnHitEffect(siegeNest.position, siegeNest.colonyId, 0.85);
                   if (damageResult?.justCollapsed) {
                     if (siegeNest.faction === ANT_FACTION.enemy) this.stats.enemyNestsDestroyed += 1;
                     if (siegeNest.faction === ANT_FACTION.player) this.stats.playerNestsLost += 1;
@@ -857,6 +960,7 @@ export class AntSystem {
                         collapsedAnt.velocity.setScalar(0);
                         collapsedAnt.desiredVelocity.setScalar(0);
                         collapsedAnt.action = 'dead';
+                        this.spawnGroundSplat(collapsedAnt.position, collapsedAnt.colonyId, 1.8);
                         if (collapsedAnt.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
                         if (collapsedAnt.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
                       }
@@ -937,6 +1041,7 @@ export class AntSystem {
       }
 
       ant.velocity.lerp(ant.desiredVelocity, ant.lodBand === ANT_LOD.near ? 0.16 : ant.lodBand === ANT_LOD.mid ? 0.12 : 0.08);
+      ant.attackVisualTime = Math.max(0, (ant.attackVisualTime ?? 0) - dt);
       ant.position.x = clampToTerrainBounds(ant.position.x + ant.velocity.x * dt, TERRAIN_CONFIG.width);
       ant.position.z = clampToTerrainBounds(ant.position.z + ant.velocity.z * dt, TERRAIN_CONFIG.depth);
       ant.position.y = sampleHeight(ant.position.x, ant.position.z) + ant.radius;
@@ -967,6 +1072,11 @@ export class AntSystem {
       if (useFullMesh) {
         mesh.visible = true;
         mesh.position.copy(ant.position);
+        if (ant.attackVisualTime > 0) {
+          const thrustRatio = Math.sin((1 - ant.attackVisualTime / (ANT_CONFIG.fighterAttackCooldown * 0.65)) * Math.PI);
+          this.tmpLungeOffset.copy(ant.heading).multiplyScalar(0.28 * thrustRatio);
+          mesh.position.add(this.tmpLungeOffset);
+        }
         mesh.position.y += ANT_CONFIG.renderOffsetY + bobY;
         mesh.rotation.y = rotationY;
         mesh.rotation.z = rollZ;
@@ -1015,6 +1125,8 @@ export class AntSystem {
       if (activeEnemyNests === 0) this.outcome = 'victory';
       else if (activePlayerNests === 0) this.outcome = 'defeat';
     }
+
+    this.updateEffects(dt);
 
     this.farRearInstances.count = this.farInstanceCount;
     this.farFrontInstances.count = this.farInstanceCount;

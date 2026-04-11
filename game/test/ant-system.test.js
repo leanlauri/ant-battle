@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
 import { ANT_CONFIG, ANT_LOD, ANT_ROLE, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash, resolveNestCollapse } from '../src/ant-system.js';
+import { COLONY } from '../src/food-system.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
 describe('ant system helpers', () => {
@@ -32,16 +33,19 @@ describe('ant system helpers', () => {
     const fighter = createRandomAntStates(1)[0];
     fighter.role = ANT_ROLE.fighter;
     fighter.faction = 'player';
+    fighter.colonyId = COLONY.player;
     fighter.position.set(0, fighter.position.y, 0);
 
     const enemyWorker = createRandomAntStates(1)[0];
     enemyWorker.role = ANT_ROLE.worker;
     enemyWorker.faction = 'enemy';
+    enemyWorker.colonyId = COLONY.enemyAlpha;
     enemyWorker.position.set(1.4, enemyWorker.position.y, 0);
 
     const enemyFighter = createRandomAntStates(1)[0];
     enemyFighter.role = ANT_ROLE.fighter;
     enemyFighter.faction = 'enemy';
+    enemyFighter.colonyId = COLONY.enemyAlpha;
     enemyFighter.position.set(2.2, enemyFighter.position.y, 0);
 
     expect(findCombatTarget(fighter, [fighter, enemyWorker, enemyFighter])?.role).toBe(ANT_ROLE.fighter);
@@ -49,8 +53,8 @@ describe('ant system helpers', () => {
 
   test('spawns enemy ants when enemy nests exist', () => {
     const nests = [
-      { id: 'player-1', faction: 'player', position: new THREE.Vector3(0, 0, 0) },
-      { id: 'enemy-1', faction: 'enemy', position: new THREE.Vector3(10, 0, 10) },
+      { id: 'player-1', faction: 'player', colonyId: COLONY.player, position: new THREE.Vector3(0, 0, 0) },
+      { id: 'enemy-1', faction: 'enemy', colonyId: COLONY.enemyAlpha, position: new THREE.Vector3(10, 0, 10) },
     ];
     const ants = createRandomAntStates(120, nests);
 
@@ -63,12 +67,13 @@ describe('ant system helpers', () => {
     const fighter = createRandomAntStates(1)[0];
     fighter.role = ANT_ROLE.fighter;
     fighter.faction = 'player';
+    fighter.colonyId = COLONY.player;
     fighter.position.set(0, fighter.position.y, 0);
 
     const nests = [
-      { id: 'enemy-1', faction: 'enemy', position: new THREE.Vector3(8, 0, 0), collapsed: false },
-      { id: 'enemy-2', faction: 'enemy', position: new THREE.Vector3(4, 0, 0), collapsed: true },
-      { id: 'player-1', faction: 'player', position: new THREE.Vector3(-2, 0, 0), collapsed: false },
+      { id: 'enemy-1', faction: 'enemy', colonyId: COLONY.enemyAlpha, position: new THREE.Vector3(8, 0, 0), collapsed: false },
+      { id: 'enemy-2', faction: 'enemy', colonyId: COLONY.enemyBeta, position: new THREE.Vector3(4, 0, 0), collapsed: true },
+      { id: 'player-1', faction: 'player', colonyId: COLONY.player, position: new THREE.Vector3(-2, 0, 0), collapsed: false },
     ];
 
     expect(findSiegeTargetNest(fighter, nests)?.id).toBe('enemy-1');
@@ -78,14 +83,17 @@ describe('ant system helpers', () => {
     const ants = createRandomAntStates(3);
     ants[0].homeNestId = 'enemy-1';
     ants[0].faction = 'enemy';
+    ants[0].colonyId = COLONY.enemyAlpha;
     ants[1].homeNestId = 'enemy-1';
     ants[1].faction = 'enemy';
+    ants[1].colonyId = COLONY.enemyAlpha;
     ants[2].homeNestId = 'enemy-1';
     ants[2].faction = 'enemy';
+    ants[2].colonyId = COLONY.enemyAlpha;
 
     const nests = [
-      { id: 'enemy-1', faction: 'enemy', position: new THREE.Vector3(0, 0, 0), collapsed: true },
-      { id: 'enemy-2', faction: 'enemy', position: new THREE.Vector3(10, 0, 0), collapsed: false },
+      { id: 'enemy-1', faction: 'enemy', colonyId: COLONY.enemyAlpha, position: new THREE.Vector3(0, 0, 0), collapsed: true },
+      { id: 'enemy-2', faction: 'enemy', colonyId: COLONY.enemyAlpha, position: new THREE.Vector3(10, 0, 0), collapsed: false },
     ];
 
     const result = resolveNestCollapse(nests[0], ants, nests);
@@ -144,9 +152,11 @@ describe('ant system helpers', () => {
   });
 
   test('player and enemy workers use distinct tinted materials', () => {
-    const playerWorker = createAntVisual(ANT_ROLE.worker, 'player');
-    const enemyWorker = createAntVisual(ANT_ROLE.worker, 'enemy');
+    const playerWorker = createAntVisual(ANT_ROLE.worker, COLONY.player);
+    const enemyWorker = createAntVisual(ANT_ROLE.worker, COLONY.enemyAlpha);
+    const enemyWorkerBeta = createAntVisual(ANT_ROLE.worker, COLONY.enemyBeta);
 
     expect(playerWorker.children[0].material.color.getHex()).not.toBe(enemyWorker.children[0].material.color.getHex());
+    expect(enemyWorker.children[0].material.color.getHex()).not.toBe(enemyWorkerBeta.children[0].material.color.getHex());
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
 import { Scene } from 'three';
-import { FACTION, FOOD_CONFIG, NEST_CONFIG, createFoodItems, createNestDefinitions, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor, getNestPosition } from '../src/food-system.js';
+import { COLONY, FACTION, FOOD_CONFIG, NEST_CONFIG, createFoodItems, createNestDefinitions, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor, getNestPosition } from '../src/food-system.js';
 import { FoodSystem } from '../src/food-system.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
@@ -70,6 +70,8 @@ describe('food system helpers', () => {
     const nests = createNestDefinitions();
     expect(nests.find((nest) => nest.faction === FACTION.player)?.id).toBe('player-1');
     expect(nests.filter((nest) => nest.faction === FACTION.enemy)).toHaveLength(2);
+    expect(nests.find((nest) => nest.id === 'enemy-1')?.colonyId).toBe(COLONY.enemyAlpha);
+    expect(nests.find((nest) => nest.id === 'enemy-2')?.colonyId).toBe(COLONY.enemyBeta);
   });
 
   test('reserves queue slots and stores food against the requested nest', () => {

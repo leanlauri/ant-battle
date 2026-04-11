@@ -28,16 +28,27 @@ export const FACTION = Object.freeze({
   enemy: 'enemy',
 });
 
-const FACTION_STYLE = Object.freeze({
-  [FACTION.player]: {
+export const COLONY = Object.freeze({
+  player: 'player',
+  enemyAlpha: 'enemy-alpha',
+  enemyBeta: 'enemy-beta',
+});
+
+const COLONY_STYLE = Object.freeze({
+  [COLONY.player]: {
     mound: 0x8b5a2b,
     inner: 0x5a3414,
     ring: 0xbaff9c,
   },
-  [FACTION.enemy]: {
+  [COLONY.enemyAlpha]: {
     mound: 0x7a4158,
     inner: 0x481d31,
     ring: 0xff859f,
+  },
+  [COLONY.enemyBeta]: {
+    mound: 0x4a527f,
+    inner: 0x22284d,
+    ring: 0x8eb4ff,
   },
 });
 
@@ -89,15 +100,15 @@ export const getNestPosition = () => {
   return new THREE.Vector3(x, sampleHeight(x, z), z);
 };
 
-const createNestDefinition = ({ id, x, z, faction, label }) => {
+const createNestDefinition = ({ id, x, z, faction, colonyId = faction, label }) => {
   const position = new THREE.Vector3(x, sampleHeight(x, z), z);
-  return { id, faction, label, position, maxHp: NEST_CONFIG.maxHp, hp: NEST_CONFIG.maxHp, collapsed: false };
+  return { id, faction, colonyId, label, position, maxHp: NEST_CONFIG.maxHp, hp: NEST_CONFIG.maxHp, collapsed: false };
 };
 
 export const createNestDefinitions = () => ([
-  createNestDefinition({ id: 'player-1', x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z, faction: FACTION.player, label: 'Home Nest' }),
-  createNestDefinition({ id: 'enemy-1', x: -26, z: -18, faction: FACTION.enemy, label: 'Enemy Nest Alpha' }),
-  createNestDefinition({ id: 'enemy-2', x: 28, z: 22, faction: FACTION.enemy, label: 'Enemy Nest Beta' }),
+  createNestDefinition({ id: 'player-1', x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z, faction: FACTION.player, colonyId: COLONY.player, label: 'Home Nest' }),
+  createNestDefinition({ id: 'enemy-1', x: -26, z: -18, faction: FACTION.enemy, colonyId: COLONY.enemyAlpha, label: 'Enemy Nest Alpha' }),
+  createNestDefinition({ id: 'enemy-2', x: 28, z: 22, faction: FACTION.enemy, colonyId: COLONY.enemyBeta, label: 'Enemy Nest Beta' }),
 ]);
 
 export const getFoodCarryFactor = (food) => {
@@ -163,7 +174,7 @@ const createFoodVisual = (food) => {
 const createNestVisual = (nest) => {
   const group = new THREE.Group();
   const debugGroup = new THREE.Group();
-  const style = FACTION_STYLE[nest.faction] ?? FACTION_STYLE.player;
+  const style = COLONY_STYLE[nest.colonyId] ?? COLONY_STYLE[COLONY.player];
   const nestBaseY = nest.position.y;
   const nestMaterial = new THREE.MeshToonMaterial({ color: style.mound });
   const innerMaterial = new THREE.MeshToonMaterial({ color: style.inner });
@@ -494,7 +505,7 @@ export class FoodSystem {
         if (!child.isMesh || !child.material?.color) return;
         const ratio = nest.maxHp > 0 ? nest.hp / nest.maxHp : 0;
         const shade = nest.collapsed ? 0.42 : THREE.MathUtils.lerp(0.68, 1, ratio);
-        child.material.color.setHex(child.userData.baseColor ?? (FACTION_STYLE[nest.faction] ?? FACTION_STYLE.player).mound).multiplyScalar(shade);
+        child.material.color.setHex(child.userData.baseColor ?? (COLONY_STYLE[nest.colonyId] ?? COLONY_STYLE[COLONY.player]).mound).multiplyScalar(shade);
       });
     }
   }
