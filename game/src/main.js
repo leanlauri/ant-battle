@@ -1,31 +1,22 @@
-/* global __BUILD_ID__ */
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { AntSystem } from './ant-system.js';
-import { FOOD_CONFIG, FoodSystem } from './food-system.js';
-import { PheromoneSystem } from './pheromone-system.js';
-import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount } from './terrain.js';
+import {
+  LEVELS_PER_PAGE,
+  TOTAL_LEVELS,
+  completeLevel,
+  createDefaultCampaignProgress,
+  getLevelsForPage,
+  getPageCount,
+  getPageRange,
+  loadCampaignProgress,
+  saveCampaignProgress,
+} from './campaign-state.js';
+import { createGameplaySession } from './gameplay-session.js';
 
-const BUILD_ID_FALLBACK = '9172f01';
-const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : BUILD_ID_FALLBACK;
-const BUILD_INFO = {
-  value: BUILD_ID,
-  source: typeof __BUILD_ID__ !== 'undefined' ? 'bundle' : 'fallback',
-};
-
-const refreshBuildIdFromGitHub = async () => {
-  try {
-    const response = await fetch('https://api.github.com/repos/leanlauri/web-experiments/commits?sha=main&path=ants&per_page=1');
-    if (!response.ok) return;
-    const commits = await response.json();
-    const sha = commits?.[0]?.sha;
-    if (typeof sha === 'string' && sha.length >= 7) {
-      BUILD_INFO.value = sha.slice(0, 7);
-      BUILD_INFO.source = 'github';
-    }
-  } catch {
-    // Keep the bundled or checked-in fallback id.
-  }
+const APP_SCREEN = {
+  title: 'title',
+  levelSelect: 'level-select',
+  gameplay: 'gameplay',
+  victory: 'victory',
+  defeat: 'defeat',
 };
 
 const showFatalError = (error) => {
@@ -36,145 +27,208 @@ const showFatalError = (error) => {
   if (overlay) overlay.style.display = 'flex';
 };
 
-const updateHud = ({ terrain, antSystem }) => {
-  const cameraInfo = document.getElementById('cameraInfo');
-  const meshInfo = document.getElementById('meshInfo');
-  const antInfo = document.getElementById('antInfo');
-  const foodInfo = document.getElementById('foodInfo');
-  const buildInfo = document.getElementById('buildInfo');
-  const hudHint = document.getElementById('hudHint');
-  const hud = document.getElementById('hud');
-
-  if (hudHint && hud) hudHint.textContent = hud.open ? 'tap to collapse' : 'tap to expand';
-  if (cameraInfo) cameraInfo.textContent = 'Camera: drag to orbit, pinch or wheel to zoom.';
-  if (meshInfo) meshInfo.textContent = `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${TERRAIN_CONFIG.maxHeight}, ${TERRAIN_CONFIG.maxHeight}].`;
-
-  if (antInfo && antSystem) {
-    const summary = antSystem.getSummary();
-    antInfo.textContent = `Ants: ${summary.total} total, carrying ${summary.carrying}, roles S/F/W ${summary.scouts}/${summary.foragers}/${summary.workers}, render ${summary.fullMesh}/${summary.impostor}.`;
-  }
-
-  if (foodInfo && antSystem) {
-    const remaining = antSystem.foods.filter((item) => !item.delivered).length;
-    const heaviest = antSystem.foods.reduce((max, food) => Math.max(max, food.requiredCarriers), 1);
-    foodInfo.textContent = `Food: ${remaining} left, nest stored ${(antSystem.foodSystem?.nestStored ?? 0).toFixed(1)}, max carriers ${heaviest}, sense ~${FOOD_CONFIG.senseDistance}m.`;
-  }
-
-  if (buildInfo) {
-    buildInfo.textContent = `Build: ${BUILD_INFO.value}`;
-  }
+const refs = {
+  gameCanvasHost: document.getElementById('gameCanvasHost'),
+  titleScreen: document.getElementById('titleScreen'),
+  levelSelectScreen: document.getElementById('levelSelectScreen'),
+  victoryScreen: document.getElementById('victoryScreen'),
+  defeatScreen: document.getElementById('defeatScreen'),
+  startButton: document.getElementById('startButton'),
+  titleTapTarget: document.getElementById('titleTapTarget'),
+  titleBuildBadge: document.getElementById('titleBuildBadge'),
+  levelGrid: document.getElementById('levelGrid'),
+  levelPageLabel: document.getElementById('levelPageLabel'),
+  levelProgressLabel: document.getElementById('levelProgressLabel'),
+  previousPageButton: document.getElementById('previousPageButton'),
+  nextPageButton: document.getElementById('nextPageButton'),
+  backToTitleButton: document.getElementById('backToTitleButton'),
+  gameplayHud: document.getElementById('gameplayHud'),
+  antCountValue: document.getElementById('antCountValue'),
+  gameplayLevelLabel: document.getElementById('gameplayLevelLabel'),
+  hud: document.getElementById('hud'),
+  hudHint: document.getElementById('hudHint'),
+  cameraInfo: document.getElementById('cameraInfo'),
+  meshInfo: document.getElementById('meshInfo'),
+  antInfo: document.getElementById('antInfo'),
+  foodInfo: document.getElementById('foodInfo'),
+  buildInfo: document.getElementById('buildInfo'),
+  debugVisualsToggle: document.getElementById('debugVisualsToggle'),
+  debugWinButton: document.getElementById('debugWinButton'),
+  debugLoseButton: document.getElementById('debugLoseButton'),
+  returnToLevelSelectButton: document.getElementById('returnToLevelSelectButton'),
+  victoryLevelLabel: document.getElementById('victoryLevelLabel'),
+  victorySummary: document.getElementById('victorySummary'),
+  nextLevelButton: document.getElementById('nextLevelButton'),
+  victoryLevelSelectButton: document.getElementById('victoryLevelSelectButton'),
+  defeatLevelLabel: document.getElementById('defeatLevelLabel'),
+  defeatSummary: document.getElementById('defeatSummary'),
+  retryLevelButton: document.getElementById('retryLevelButton'),
+  defeatLevelSelectButton: document.getElementById('defeatLevelSelectButton'),
 };
 
-const bootstrap = async () => {
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-  document.body.appendChild(renderer.domElement);
-
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xdbe7f4);
-  scene.fog = new THREE.Fog(0xdbe7f4, 39, 104);
-
-  const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 260);
-  camera.position.set(36, 26, 36);
-  camera.up.set(0, 1, 0);
-  camera.lookAt(0, 0, 0);
-
-  const debugVisualsToggle = document.getElementById('debugVisualsToggle');
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.target.set(0, 2, 0);
-  controls.minDistance = 10;
-  controls.maxDistance = 120;
-  controls.maxPolarAngle = Math.PI * 0.48;
-  controls.enablePan = true;
-
-  scene.add(new THREE.HemisphereLight(0xf2f7ff, 0x7e93a8, 1.4));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.8);
-  sun.position.set(12, 20, 10);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -60;
-  sun.shadow.camera.right = 60;
-  sun.shadow.camera.top = 60;
-  sun.shadow.camera.bottom = -60;
-  sun.shadow.camera.near = 1;
-  sun.shadow.camera.far = 90;
-  sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 0.02;
-  scene.add(sun);
-  scene.add(sun.target);
-  sun.target.position.set(0, 0, 0);
-
-  const debugVisualsGroup = new THREE.Group();
-  const axesHelper = new THREE.AxesHelper(12);
-  debugVisualsGroup.add(axesHelper);
-  scene.add(debugVisualsGroup);
-  const grid = new THREE.GridHelper(100, 20, 0x3a658f, 0x89a7c3);
-  grid.position.y = -0.02;
-  debugVisualsGroup.add(grid);
-
-  const terrain = createTerrainMesh();
-  scene.add(terrain);
-  scene.add(createTerrainOverlay(terrain.geometry));
-
-  const foodSystem = new FoodSystem({ scene });
-  const pheromoneSystem = new PheromoneSystem();
-  const antSystem = new AntSystem({ scene, camera, foodSystem, pheromoneSystem, foods: foodSystem.items, count: 200 });
-
-  await refreshBuildIdFromGitHub();
-
-  const setDebugVisualsVisible = (visible) => {
-    debugVisualsGroup.visible = !!visible;
-    foodSystem.setDebugVisualsVisible(visible);
-    if (debugVisualsToggle) debugVisualsToggle.checked = !!visible;
-  };
-
-  setDebugVisualsVisible(debugVisualsToggle?.checked ?? false);
-  debugVisualsToggle?.addEventListener('change', () => {
-    setDebugVisualsVisible(debugVisualsToggle.checked);
-  });
-
-  updateHud({ terrain, antSystem });
-
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-
-  const clock = new THREE.Clock();
-  const fixedStep = 1 / 60;
-  const maxFrameDt = 0.1;
-  const maxSubsteps = 4;
-  let accumulator = 0;
-
-  const animate = () => {
-    const dt = Math.min(maxFrameDt, clock.getDelta());
-    accumulator += dt;
-    controls.update();
-
-    let substeps = 0;
-    while (accumulator >= fixedStep && substeps < maxSubsteps) {
-      pheromoneSystem.update(fixedStep);
-      foodSystem.update(fixedStep);
-      antSystem.update(fixedStep);
-      accumulator -= fixedStep;
-      substeps += 1;
-    }
-
-    updateHud({ terrain, antSystem });
-    renderer.render(scene, camera);
-    window.requestAnimationFrame(animate);
-  };
-
-  animate();
+const app = {
+  screen: APP_SCREEN.title,
+  currentLevel: 1,
+  currentPage: 0,
+  progress: loadCampaignProgress() || createDefaultCampaignProgress(),
+  lastHudSummary: null,
 };
 
-bootstrap().catch((error) => {
-  console.error('Ants bootstrap failed:', error);
-  showFatalError(error);
+const gameplaySession = createGameplaySession({
+  mount: refs.gameCanvasHost,
+  onHudUpdate: (summary) => {
+    app.lastHudSummary = summary;
+    refs.antCountValue.textContent = summary ? String(summary.playerAntCount) : '0';
+    refs.cameraInfo.textContent = summary?.cameraText ?? 'Camera: waiting for gameplay...';
+    refs.meshInfo.textContent = summary?.terrainText ?? 'Terrain: --';
+    refs.antInfo.textContent = summary?.antText ?? 'Ants: --';
+    refs.foodInfo.textContent = summary?.foodText ?? 'Food: --';
+    refs.buildInfo.textContent = summary?.buildText ?? 'Build: --';
+    refs.titleBuildBadge.textContent = summary?.buildText ?? 'Build: --';
+    if (refs.hud && refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
+  },
+  onFatalError: showFatalError,
 });
+
+const isGameplayVisible = () => [APP_SCREEN.gameplay, APP_SCREEN.victory, APP_SCREEN.defeat].includes(app.screen);
+
+const renderLevelGrid = () => {
+  const levels = getLevelsForPage(app.currentPage, app.progress, TOTAL_LEVELS);
+  refs.levelGrid.replaceChildren();
+
+  for (const level of levels) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'levelCard';
+    button.dataset.state = level.state;
+    button.disabled = level.state === 'locked';
+    button.dataset.level = String(level.levelNumber);
+    button.innerHTML = `
+      <span class="levelCardNumber">${level.levelNumber}</span>
+      <span class="levelCardMeta">${level.isBossLevel ? 'Wasp' : 'Ant'} level</span>
+      <span class="levelCardState">${level.state}</span>
+    `;
+    button.addEventListener('click', () => {
+      if (level.state === 'locked') return;
+      launchLevel(level.levelNumber);
+    });
+    refs.levelGrid.appendChild(button);
+  }
+
+  const range = getPageRange(app.currentPage, TOTAL_LEVELS);
+  refs.levelPageLabel.textContent = `Levels ${range.start}–${range.end}`;
+  refs.levelProgressLabel.textContent = `Unlocked ${app.progress.unlockedLevel} / ${TOTAL_LEVELS}`;
+  refs.previousPageButton.disabled = app.currentPage === 0;
+  refs.nextPageButton.disabled = app.currentPage >= getPageCount(TOTAL_LEVELS) - 1;
+};
+
+const renderScreens = () => {
+  refs.titleScreen.hidden = app.screen !== APP_SCREEN.title;
+  refs.levelSelectScreen.hidden = app.screen !== APP_SCREEN.levelSelect;
+  refs.victoryScreen.hidden = app.screen !== APP_SCREEN.victory;
+  refs.defeatScreen.hidden = app.screen !== APP_SCREEN.defeat;
+  refs.gameplayHud.hidden = !isGameplayVisible();
+  refs.gameCanvasHost.hidden = !isGameplayVisible();
+  document.body.dataset.screen = app.screen;
+
+  refs.gameplayLevelLabel.textContent = `Level ${app.currentLevel}`;
+  if (refs.hud && refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
+
+  if (app.screen === APP_SCREEN.levelSelect) renderLevelGrid();
+};
+
+const changeScreen = async (nextScreen) => {
+  const wasGameplayVisible = isGameplayVisible();
+  app.screen = nextScreen;
+  const shouldShowGameplay = isGameplayVisible();
+
+  if (!shouldShowGameplay && wasGameplayVisible) {
+    gameplaySession.stop();
+  }
+
+  renderScreens();
+
+  if (shouldShowGameplay && !wasGameplayVisible) {
+    await gameplaySession.start();
+    gameplaySession.setDebugVisualsVisible(refs.debugVisualsToggle.checked);
+  }
+};
+
+const openLevelSelect = async () => {
+  const unlockedPage = Math.floor((app.progress.unlockedLevel - 1) / LEVELS_PER_PAGE);
+  app.currentPage = Math.max(0, unlockedPage);
+  await changeScreen(APP_SCREEN.levelSelect);
+};
+
+const launchLevel = async (levelNumber) => {
+  app.currentLevel = levelNumber;
+  app.lastHudSummary = null;
+  await changeScreen(APP_SCREEN.gameplay);
+};
+
+const openVictory = async () => {
+  app.progress = completeLevel(app.progress, app.currentLevel, TOTAL_LEVELS);
+  saveCampaignProgress(app.progress);
+
+  const nextLevel = Math.min(TOTAL_LEVELS, app.currentLevel + 1);
+  refs.victoryLevelLabel.textContent = `Level ${app.currentLevel} complete`;
+  refs.victorySummary.textContent = `You reached ${app.lastHudSummary?.playerAntCount ?? 0} ants in this shell build. Level ${nextLevel <= TOTAL_LEVELS ? nextLevel : app.currentLevel} is now available.`;
+  refs.nextLevelButton.disabled = app.currentLevel >= TOTAL_LEVELS;
+  refs.nextLevelButton.textContent = app.currentLevel >= TOTAL_LEVELS ? 'Campaign Complete' : `Play Level ${nextLevel}`;
+  await changeScreen(APP_SCREEN.victory);
+};
+
+const openDefeat = async () => {
+  refs.defeatLevelLabel.textContent = `Level ${app.currentLevel} failed`;
+  refs.defeatSummary.textContent = `Max ants on field in this run: ${app.lastHudSummary?.playerAntCount ?? 0}. Try again or head back to level select.`;
+  await changeScreen(APP_SCREEN.defeat);
+};
+
+refs.startButton.addEventListener('click', () => {
+  openLevelSelect();
+});
+refs.titleTapTarget.addEventListener('click', () => {
+  openLevelSelect();
+});
+refs.backToTitleButton.addEventListener('click', () => {
+  changeScreen(APP_SCREEN.title);
+});
+refs.previousPageButton.addEventListener('click', () => {
+  app.currentPage = Math.max(0, app.currentPage - 1);
+  renderLevelGrid();
+});
+refs.nextPageButton.addEventListener('click', () => {
+  app.currentPage = Math.min(getPageCount(TOTAL_LEVELS) - 1, app.currentPage + 1);
+  renderLevelGrid();
+});
+refs.debugVisualsToggle.addEventListener('change', () => {
+  gameplaySession.setDebugVisualsVisible(refs.debugVisualsToggle.checked);
+});
+refs.debugWinButton.addEventListener('click', () => {
+  openVictory();
+});
+refs.debugLoseButton.addEventListener('click', () => {
+  openDefeat();
+});
+refs.returnToLevelSelectButton.addEventListener('click', () => {
+  openLevelSelect();
+});
+refs.nextLevelButton.addEventListener('click', () => {
+  if (app.currentLevel >= TOTAL_LEVELS) return;
+  launchLevel(Math.min(TOTAL_LEVELS, app.currentLevel + 1));
+});
+refs.victoryLevelSelectButton.addEventListener('click', () => {
+  openLevelSelect();
+});
+refs.retryLevelButton.addEventListener('click', () => {
+  launchLevel(app.currentLevel);
+});
+refs.defeatLevelSelectButton.addEventListener('click', () => {
+  openLevelSelect();
+});
+refs.hud?.addEventListener('toggle', () => {
+  if (refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
+});
+
+refs.titleBuildBadge.textContent = 'Build: --';
+renderScreens();

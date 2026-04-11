@@ -6,24 +6,320 @@
   <link rel="icon" href="data:," />
   <title>Ant Battle</title>
   <style>
+    :root {
+      color-scheme: light;
+      --bg-top: #eef4fb;
+      --bg-bottom: #cedced;
+      --ink: #16314d;
+      --ink-soft: rgba(22, 49, 77, 0.76);
+      --panel: rgba(245, 249, 255, 0.88);
+      --panel-strong: rgba(250, 252, 255, 0.96);
+      --border: rgba(22, 49, 77, 0.12);
+      --shadow: 0 18px 50px rgba(19, 49, 77, 0.16);
+      --accent: #74d38a;
+      --accent-strong: #44b460;
+      --completed: #63a9ff;
+      --locked: #93a4b7;
+    }
+
     html, body { height: 100%; margin: 0; }
     body {
       overflow: hidden;
-      background: linear-gradient(180deg, #e4edf7 0%, #cfdcec 100%);
-      color: #16314d;
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      color: var(--ink);
       font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     }
-    canvas { display: block; }
+    body[data-screen="gameplay"],
+    body[data-screen="victory"],
+    body[data-screen="defeat"] {
+      background: #dbe7f4;
+    }
+    button {
+      font: inherit;
+      color: inherit;
+    }
+    [hidden] { display: none !important; }
+
+    #gameCanvasHost,
+    #screenRoot,
+    #fatalOverlay {
+      position: fixed;
+      inset: 0;
+    }
+    #gameCanvasHost {
+      z-index: 0;
+    }
+    #gameCanvasHost canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #screenRoot {
+      z-index: 5;
+      pointer-events: none;
+    }
+    .screen,
+    .overlayScreen {
+      position: absolute;
+      inset: 0;
+      pointer-events: auto;
+    }
+    .screenShell {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .heroPanel,
+    .overlayPanel,
+    .levelSelectPanel {
+      width: min(560px, calc(100vw - 32px));
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      box-sizing: border-box;
+    }
+    .heroPanel,
+    .overlayPanel {
+      padding: 28px 24px;
+      text-align: center;
+    }
+    .kicker {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    h1, h2, p { margin: 0; }
+    h1 {
+      font-size: clamp(40px, 9vw, 72px);
+      line-height: 0.95;
+    }
+    h2 {
+      font-size: clamp(28px, 6vw, 44px);
+    }
+    .heroCopy,
+    .overlayCopy {
+      color: var(--ink-soft);
+      max-width: 38ch;
+      margin: 12px auto 0;
+    }
+    .primaryButton,
+    .secondaryButton,
+    .ghostButton,
+    .shellButton,
+    .levelCard {
+      border: 0;
+      border-radius: 18px;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+    }
+    .primaryButton:hover,
+    .secondaryButton:hover,
+    .ghostButton:hover,
+    .shellButton:hover,
+    .levelCard:hover {
+      transform: translateY(-1px);
+    }
+    .primaryButton:active,
+    .secondaryButton:active,
+    .ghostButton:active,
+    .shellButton:active,
+    .levelCard:active {
+      transform: translateY(0);
+    }
+    .primaryButton {
+      padding: 16px 24px;
+      min-width: 220px;
+      background: linear-gradient(180deg, #8be39f 0%, #54c772 100%);
+      color: #0f3c20;
+      font-weight: 800;
+      box-shadow: 0 12px 26px rgba(68, 180, 96, 0.22);
+    }
+    .secondaryButton,
+    .ghostButton,
+    .shellButton {
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--border);
+    }
+    .secondaryButton,
+    .ghostButton { min-width: 140px; }
+    .buttonRow {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .titleBackdrop {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at top, rgba(255,255,255,0.72), transparent 44%),
+        radial-gradient(circle at 20% 70%, rgba(116, 211, 138, 0.22), transparent 28%),
+        radial-gradient(circle at 80% 28%, rgba(99, 169, 255, 0.20), transparent 26%);
+      pointer-events: none;
+    }
+    #titleTapTarget {
+      position: absolute;
+      inset: 0;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+    }
+    #titleBuildBadge {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 6;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(245, 249, 255, 0.86);
+      border: 1px solid var(--border);
+      color: var(--ink-soft);
+      box-shadow: 0 10px 26px rgba(19, 49, 77, 0.12);
+      pointer-events: none;
+    }
+    .levelSelectPanel {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .levelSelectHeader,
+    .levelSelectFooter {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .levelSelectMeta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      text-align: center;
+      flex: 1;
+    }
+    #levelPageLabel {
+      font-size: clamp(22px, 5vw, 30px);
+      font-weight: 800;
+    }
+    #levelProgressLabel {
+      color: var(--ink-soft);
+    }
+    #levelGrid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .levelCard {
+      padding: 14px 10px;
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+      text-align: left;
+      min-height: 92px;
+    }
+    .levelCardNumber {
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .levelCardMeta,
+    .levelCardState {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .levelCard[data-state="open"] {
+      background: linear-gradient(180deg, rgba(116, 211, 138, 0.24), rgba(255,255,255,0.96));
+      border-color: rgba(68, 180, 96, 0.38);
+      box-shadow: 0 10px 24px rgba(68, 180, 96, 0.14);
+    }
+    .levelCard[data-state="completed"] {
+      background: linear-gradient(180deg, rgba(99, 169, 255, 0.24), rgba(255,255,255,0.96));
+      border-color: rgba(99, 169, 255, 0.4);
+    }
+    .levelCard[data-state="locked"] {
+      cursor: default;
+      opacity: 0.56;
+      color: #5b6e83;
+    }
+    .levelCard:disabled {
+      pointer-events: none;
+    }
+    .overlayScreen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(13, 23, 36, 0.28);
+      backdrop-filter: blur(4px);
+    }
+    #gameplayHud {
+      position: fixed;
+      inset: 0;
+      z-index: 8;
+      pointer-events: none;
+    }
+    #topBar {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      left: 12px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      pointer-events: none;
+    }
+    .statusCard,
+    #hud {
+      pointer-events: auto;
+      border-radius: 16px;
+      background: rgba(246, 250, 255, 0.84);
+      border: 1px solid rgba(22, 49, 77, 0.12);
+      box-shadow: 0 10px 30px rgba(19, 49, 77, 0.12);
+      backdrop-filter: blur(8px);
+    }
+    .statusCard {
+      padding: 12px 16px;
+      text-align: right;
+      min-width: 124px;
+    }
+    .statusLabel {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ink-soft);
+    }
+    .statusValue {
+      display: block;
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1;
+      margin-top: 4px;
+    }
+    .statusSubvalue {
+      display: block;
+      margin-top: 6px;
+      color: var(--ink-soft);
+    }
     #hud {
       position: fixed;
       left: 12px;
       top: 12px;
-      z-index: 10;
-      border-radius: 12px;
-      background: rgba(246, 250, 255, 0.84);
-      box-shadow: 0 10px 30px rgba(19, 49, 77, 0.12);
-      backdrop-filter: blur(8px);
-      max-width: min(340px, calc(100vw - 24px));
+      max-width: min(360px, calc(100vw - 24px));
       overflow: hidden;
     }
     #hud summary {
@@ -43,21 +339,24 @@
     }
     #hudHint {
       font-size: 12px;
-      opacity: 0.75;
+      color: var(--ink-soft);
     }
     #hudBody {
       padding: 0 12px 12px;
       border-top: 1px solid rgba(22, 49, 77, 0.08);
     }
-    .hudRow { margin-top: 6px; }
+    .hudRow { margin-top: 8px; }
     .hudToggle {
       display: flex;
       align-items: center;
       gap: 8px;
     }
+    .shellActions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
     #fatalOverlay {
-      position: fixed;
-      inset: 0;
       display: none;
       align-items: center;
       justify-content: center;
@@ -77,31 +376,131 @@
       max-width: 720px;
       white-space: pre-wrap;
     }
+
+    @media (max-width: 760px) {
+      .heroPanel,
+      .overlayPanel,
+      .levelSelectPanel { width: min(100vw - 20px, 560px); }
+      #levelGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .levelSelectHeader,
+      .levelSelectFooter {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .levelSelectMeta { order: -1; width: 100%; }
+      #topBar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .statusCard {
+        align-self: flex-end;
+      }
+      #hud { top: auto; bottom: 12px; }
+    }
   </style>
 </head>
-<body>
-  <details id="hud">
-    <summary>
-      <span id="hudTitle">Ant Battle</span>
-      <span id="hudHint">tap to collapse</span>
-    </summary>
-    <div id="hudBody">
-      <div class="hudRow" id="axisInfo">Axes: +X right, +Y up, +Z forward.</div>
-      <div class="hudRow" id="cameraInfo">Camera: booting…</div>
-      <div class="hudRow" id="meshInfo">Terrain: --</div>
-      <div class="hudRow" id="antInfo">Ants: --</div>
-      <div class="hudRow" id="foodInfo">Food: --</div>
-      <div class="hudRow" id="buildInfo">Build: --</div>
-      <label class="hudRow hudToggle">
-        <input id="debugVisualsToggle" type="checkbox" />
-        <span>Debug visuals</span>
-      </label>
+<body data-screen="title">
+  <div id="gameCanvasHost" hidden></div>
+
+  <div id="screenRoot">
+    <section id="titleScreen" class="screen">
+      <div class="titleBackdrop"></div>
+      <button id="titleTapTarget" type="button" aria-label="Tap anywhere to start"></button>
+      <div class="screenShell">
+        <div class="heroPanel">
+          <p class="kicker">Mobile-first colony strategy</p>
+          <h1>Ant Battle</h1>
+          <p class="heroCopy">A playable shell is taking shape. Start the campaign, pick a level, and drop into the prototype battlefield.</p>
+          <div class="buttonRow">
+            <button id="startButton" type="button" class="primaryButton">Tap to Start</button>
+          </div>
+        </div>
+      </div>
+      <div id="titleBuildBadge">Build: --</div>
+    </section>
+
+    <section id="levelSelectScreen" class="screen" hidden>
+      <div class="screenShell">
+        <div class="levelSelectPanel">
+          <div class="levelSelectHeader">
+            <button id="previousPageButton" type="button" class="secondaryButton">← Prev</button>
+            <div class="levelSelectMeta">
+              <div id="levelPageLabel">Levels 1–20</div>
+              <div id="levelProgressLabel">Unlocked 1 / 100</div>
+            </div>
+            <button id="nextPageButton" type="button" class="secondaryButton">Next →</button>
+          </div>
+          <div id="levelGrid"></div>
+          <div class="levelSelectFooter">
+            <button id="backToTitleButton" type="button" class="ghostButton">Back</button>
+            <div class="kicker">Completed levels stay replayable. One new level unlocks at a time.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="victoryScreen" class="overlayScreen" hidden>
+      <div class="overlayPanel">
+        <p class="kicker">Victory</p>
+        <h2 id="victoryLevelLabel">Level complete</h2>
+        <p id="victorySummary" class="overlayCopy">You won the shell flow battle.</p>
+        <div class="buttonRow">
+          <button id="nextLevelButton" type="button" class="primaryButton">Play next level</button>
+          <button id="victoryLevelSelectButton" type="button" class="secondaryButton">Level select</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="defeatScreen" class="overlayScreen" hidden>
+      <div class="overlayPanel">
+        <p class="kicker">Defeat</p>
+        <h2 id="defeatLevelLabel">Level failed</h2>
+        <p id="defeatSummary" class="overlayCopy">Your colony fell. Try again.</p>
+        <div class="buttonRow">
+          <button id="retryLevelButton" type="button" class="primaryButton">Tap to try again</button>
+          <button id="defeatLevelSelectButton" type="button" class="secondaryButton">Level select</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="gameplayHud" hidden>
+    <div id="topBar">
+      <details id="hud" open>
+        <summary>
+          <span id="hudTitle">Ant Battle</span>
+          <span id="hudHint">tap to collapse</span>
+        </summary>
+        <div id="hudBody">
+          <div class="hudRow" id="cameraInfo">Camera: waiting for gameplay...</div>
+          <div class="hudRow" id="meshInfo">Terrain: --</div>
+          <div class="hudRow" id="antInfo">Ants: --</div>
+          <div class="hudRow" id="foodInfo">Food: --</div>
+          <div class="hudRow" id="buildInfo">Build: --</div>
+          <label class="hudRow hudToggle">
+            <input id="debugVisualsToggle" type="checkbox" />
+            <span>Debug visuals</span>
+          </label>
+          <div class="hudRow shellActions">
+            <button id="debugWinButton" type="button" class="shellButton">Shell win</button>
+            <button id="debugLoseButton" type="button" class="shellButton">Shell lose</button>
+            <button id="returnToLevelSelectButton" type="button" class="shellButton">Level select</button>
+          </div>
+        </div>
+      </details>
+      <div class="statusCard">
+        <span class="statusLabel">Player ants</span>
+        <span id="antCountValue" class="statusValue">0</span>
+        <span id="gameplayLevelLabel" class="statusSubvalue">Level 1</span>
+      </div>
     </div>
-  </details>
+  </div>
+
   <div id="fatalOverlay">
     <div id="fatalTitle">Renderer startup failed</div>
     <div id="fatalMessage">The 3D scene could not start.</div>
   </div>
+
   <script type="importmap">
     {
       "imports": {

@@ -13,7 +13,7 @@ const detectWebGLSupport = async (page) => page.evaluate(() => {
   };
 });
 
-test('renders the ants terrain prototype without runtime errors', async ({ page }) => {
+test('boots through title, level select, gameplay, and shell victory flow', async ({ page }) => {
   const consoleErrors = [];
   const pageErrors = [];
 
@@ -26,24 +26,33 @@ test('renders the ants terrain prototype without runtime errors', async ({ page 
 
   await page.goto('/');
 
+  await expect(page.locator('h1')).toHaveText('Ant Battle');
+  await expect(page.locator('#startButton')).toHaveText('Tap to Start');
+  await expect(page.locator('#titleBuildBadge')).toContainText('Build:');
+
+  await page.locator('#startButton').click();
+  await expect(page.locator('#levelPageLabel')).toHaveText('Levels 1–20');
+  await expect(page.locator('[data-level="1"]')).toContainText('open');
+  await expect(page.locator('[data-level="2"]')).toContainText('locked');
+
+  await page.locator('[data-level="1"]').click();
+
   const webgl = await detectWebGLSupport(page);
   test.skip(!webgl.available, 'Skipping WebGL-dependent test because this browser context cannot create a usable WebGL context.');
 
-  await expect(page.locator('#hudTitle')).toHaveText('Ants Prototype');
-  await expect(page.locator('#axisInfo')).toContainText('Axes: +X right, +Y up, +Z forward');
-  await expect(page.locator('#cameraInfo')).toContainText('drag to orbit');
-  await expect(page.locator('#meshInfo')).toContainText('Terrain: 20000 tris');
-  await expect(page.locator('#meshInfo')).toContainText('x/z [-50, 50]');
-  await expect(page.locator('#meshInfo')).toContainText('y [-5, 5]');
+  await expect(page.locator('#gameplayHud')).toBeVisible();
+  await expect(page.locator('#gameplayLevelLabel')).toContainText('Level 1');
   await expect(page.locator('#antInfo')).toContainText('Ants: 200 total');
-  await expect(page.locator('#antInfo')).toContainText('roles S/F/W');
-  await expect(page.locator('#antInfo')).toContainText('render');
-  await expect(page.locator('#foodInfo')).toContainText('Food:');
-  await expect(page.locator('#foodInfo')).toContainText('nest stored');
-  await expect(page.locator('#foodInfo')).toContainText('max carriers');
-  await expect(page.locator('#foodInfo')).toContainText('sense');
-  await expect(page.locator('body > canvas').first()).toBeVisible();
+  await expect(page.locator('body canvas')).toBeVisible();
   await expect(page.locator('#fatalOverlay')).toBeHidden();
+
+  await page.locator('#debugWinButton').click();
+  await expect(page.locator('#victoryLevelLabel')).toHaveText('Level 1 complete');
+  await expect(page.locator('#nextLevelButton')).toContainText('Play Level 2');
+
+  await page.locator('#victoryLevelSelectButton').click();
+  await expect(page.locator('[data-level="1"]')).toContainText('completed');
+  await expect(page.locator('[data-level="2"]')).toContainText('open');
 
   expect(pageErrors, `Unhandled page errors: ${pageErrors.join('\n')}`).toEqual([]);
   expect(consoleErrors, `Console errors: ${consoleErrors.join('\n')}`).toEqual([]);

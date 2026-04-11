@@ -24,17 +24,18 @@ Goals:
 - [x] Project docs baseline is authored in repo root (`ANT_BATTLE_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`, `COMBAT_AND_NEST_SPEC.md`, `UI_UX_SPEC.md`, `FACTION_AND_UNIT_SPEC.md`)
 - [x] Repo naming cleanup started, page title and HUD title now read `Ant Battle`
 - [x] Campaign progress persistence and 1–100 level catalog added in code
-- [ ] App/game state machine added
-- [ ] Title screen UI layer added
-- [ ] Level select UI layer added
-- [ ] Gameplay boot moved behind state entry
-- [ ] Victory / defeat overlay shell added
-- [ ] Local progression is wired into the playable flow
+- [x] App/game state machine added
+- [x] Title screen UI layer added
+- [x] Level select UI layer added
+- [x] Gameplay boot moved behind state entry
+- [x] Victory / defeat overlay shell added
+- [x] Local progression is wired into the playable flow
+- [x] End-to-end smoke flow covers title → level select → gameplay → shell victory unlock
 
 ### Next implementation slice
-1. Add app/game state machine with title, level select, gameplay, victory, and defeat states.
-2. Render title and level select overlays over the current playable simulation shell.
-3. Wire win/loss shell transitions and persist unlock progression.
+1. Add the Milestone 2 ownership model: player nest, enemy nests, and explicit faction identity.
+2. Add selectable player nest feedback and top-right ant-count HUD that reflects player ownership.
+3. Add tap terrain focus commands with a visible focus marker.
 
 ---
 
