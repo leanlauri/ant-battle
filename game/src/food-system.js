@@ -121,11 +121,15 @@ const createNestDefinition = ({ id, x, z, faction, colonyId = faction, label }) 
   return { id, faction, colonyId, label, position, maxHp: NEST_CONFIG.maxHp, hp: NEST_CONFIG.maxHp, collapsed: false };
 };
 
-export const createNestDefinitions = () => ([
-  createNestDefinition({ id: 'player-1', x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z, faction: FACTION.player, colonyId: COLONY.player, label: 'Home Nest' }),
-  createNestDefinition({ id: 'enemy-1', x: -26, z: -18, faction: FACTION.enemy, colonyId: COLONY.enemyAlpha, label: 'Enemy Nest Alpha' }),
-  createNestDefinition({ id: 'enemy-2', x: 28, z: 22, faction: FACTION.enemy, colonyId: COLONY.enemyBeta, label: 'Enemy Nest Beta' }),
-]);
+export const createNestDefinitions = ({ enemyNestCount = 2 } = {}) => {
+  const allNests = [
+    createNestDefinition({ id: 'player-1', x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z, faction: FACTION.player, colonyId: COLONY.player, label: 'Home Nest' }),
+    createNestDefinition({ id: 'enemy-1', x: -26, z: -18, faction: FACTION.enemy, colonyId: COLONY.enemyAlpha, label: 'Enemy Nest Alpha' }),
+    createNestDefinition({ id: 'enemy-2', x: 28, z: 22, faction: FACTION.enemy, colonyId: COLONY.enemyBeta, label: 'Enemy Nest Beta' }),
+  ];
+  const clampedEnemyNestCount = THREE.MathUtils.clamp(enemyNestCount, 0, allNests.length - 1);
+  return [allNests[0], ...allNests.slice(1, 1 + clampedEnemyNestCount)];
+};
 
 export const getFoodCarryFactor = (food) => {
   const supportCount = Math.max(0, food.supportAntIds?.length ?? 0);
@@ -304,12 +308,12 @@ const computeNestScale = (nestStored, hpRatio = 1) => {
 };
 
 export class FoodSystem {
-  constructor({ scene, count = FOOD_CONFIG.count } = {}) {
+  constructor({ scene, count = FOOD_CONFIG.count, enemyNestCount = 2 } = {}) {
     this.scene = scene;
     this.items = createFoodItems(count);
     this.meshes = [];
     this.nestStoredById = new Map();
-    this.nests = createNestDefinitions().map((nest) => ({
+    this.nests = createNestDefinitions({ enemyNestCount }).map((nest) => ({
       ...nest,
       mesh: createNestVisual(nest),
     }));

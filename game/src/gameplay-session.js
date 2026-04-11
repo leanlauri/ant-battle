@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { AntSystem } from './ant-system.js';
 import { ENEMY_ECONOMY_CONFIG, FOOD_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
+import { getLevelDefinition } from './level-definition.js';
 import { PheromoneSystem } from './pheromone-system.js';
 import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount } from './terrain.js';
 
@@ -14,7 +15,7 @@ const createBuildInfo = () => ({
   source: typeof __BUILD_ID__ !== 'undefined' ? 'bundle' : 'fallback',
 });
 
-const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
+const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) => {
   const antSummary = antSystem.getSummary();
   const remainingFood = antSystem.foods.filter((item) => !item.delivered).length;
   const heaviestFood = antSystem.foods.reduce((max, food) => Math.max(max, food.requiredCarriers), 1);
@@ -24,7 +25,7 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
 
   return {
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
-    terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${TERRAIN_CONFIG.maxHeight}, ${TERRAIN_CONFIG.maxHeight}].`,
+    terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${TERRAIN_CONFIG.maxHeight}, ${TERRAIN_CONFIG.maxHeight}], ${levelDefinition?.label ?? 'sandbox'}.`,
     antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
     selectedNestText: `Selected nest: ${selectedNestLabel}${selectedNestHealth ? `, HP ${selectedNestHealth.hp}/${selectedNestHealth.maxHp}${selectedNestHealth.collapsed ? ' (collapsed)' : ''}` : ''}, stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}`,
     focusText: focusTarget
@@ -118,9 +119,11 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     }
   };
 
+  let currentLevelDefinition = getLevelDefinition(1);
+
   const publishHud = () => {
     if (!terrain || !antSystem) return;
-    onHudUpdate?.(formatHudSummary({ terrain, antSystem, buildInfo }));
+    onHudUpdate?.(formatHudSummary({ terrain, antSystem, buildInfo, levelDefinition: currentLevelDefinition }));
   };
 
   const setDebugVisualsVisible = (visible) => {
@@ -189,7 +192,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     const outcome = antSystem.getOutcome?.();
     if (outcome && !battleResolved) {
       battleResolved = true;
-      const summary = formatHudSummary({ terrain, antSystem, buildInfo });
+      const summary = formatHudSummary({ terrain, antSystem, buildInfo, levelDefinition: currentLevelDefinition });
       onHudUpdate?.(summary);
       onBattleResolved?.(outcome, summary);
     }
@@ -199,8 +202,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     animationFrameId = window.requestAnimationFrame(animate);
   };
 
-  const start = async () => {
+  const start = async (levelNumber = 1) => {
     stop();
+    currentLevelDefinition = getLevelDefinition(levelNumber);
 
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -255,9 +259,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       scene.add(terrain);
       scene.add(createTerrainOverlay(terrain.geometry));
 
-      foodSystem = new FoodSystem({ scene });
+      foodSystem = new FoodSystem({ scene, count: currentLevelDefinition.foodCount, enemyNestCount: currentLevelDefinition.enemyNestCount });
       pheromoneSystem = new PheromoneSystem();
-      antSystem = new AntSystem({ scene, camera, foodSystem, pheromoneSystem, foods: foodSystem.items, nests: foodSystem.nests, count: 200 });
+      antSystem = new AntSystem({ scene, camera, foodSystem, pheromoneSystem, foods: foodSystem.items, nests: foodSystem.nests, count: currentLevelDefinition.antBudget });
       setDebugVisualsVisible(debugVisualsVisible);
       publishHud();
 

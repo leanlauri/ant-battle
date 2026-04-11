@@ -96,6 +96,13 @@ describe('food system helpers', () => {
     expect(nests.find((nest) => nest.id === 'enemy-2')?.colonyId).toBe(COLONY.enemyBeta);
   });
 
+  test('can generate a reduced enemy-nest layout for early levels', () => {
+    const nests = createNestDefinitions({ enemyNestCount: 1 });
+    expect(nests).toHaveLength(2);
+    expect(nests.some((nest) => nest.id === 'enemy-1')).toBe(true);
+    expect(nests.some((nest) => nest.id === 'enemy-2')).toBe(false);
+  });
+
   test('reserves queue slots and stores food against the requested nest', () => {
     const system = new FoodSystem({ scene: new Scene(), count: 1 });
     const food = system.items[0];

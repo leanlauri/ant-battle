@@ -13,7 +13,7 @@ const detectWebGLSupport = async (page) => page.evaluate(() => {
   };
 });
 
-test('boots through title, level select, gameplay, and shell victory flow', async ({ page }) => {
+test('boots through title, level select, gameplay, and victory progression flow', async ({ page }) => {
   const consoleErrors = [];
   const pageErrors = [];
 
@@ -53,7 +53,7 @@ test('boots through title, level select, gameplay, and shell victory flow', asyn
   await page.locator('body canvas').click({ position: { x: 520, y: 420 } });
   await expect(page.locator('#focusInfo')).not.toHaveText('Focus: none');
 
-  await page.locator('#debugWinButton').click();
+  await page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.forceOutcome?.('victory'));
   await expect(page.locator('#victoryLevelLabel')).toHaveText('Level 1 complete');
   await expect(page.locator('#nextLevelButton')).toContainText('Play Level 2');
 

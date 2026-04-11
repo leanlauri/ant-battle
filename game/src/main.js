@@ -57,8 +57,6 @@ const refs = {
   buildInfo: document.getElementById('buildInfo'),
   upgradeCards: document.getElementById('upgradeCards'),
   debugVisualsToggle: document.getElementById('debugVisualsToggle'),
-  debugWinButton: document.getElementById('debugWinButton'),
-  debugLoseButton: document.getElementById('debugLoseButton'),
   returnToLevelSelectButton: document.getElementById('returnToLevelSelectButton'),
   victoryLevelLabel: document.getElementById('victoryLevelLabel'),
   victorySummary: document.getElementById('victorySummary'),
@@ -196,7 +194,7 @@ const changeScreen = async (nextScreen, { restartGameplay = false } = {}) => {
   renderScreens();
 
   if (shouldShowGameplay && (!wasGameplayVisible || restartGameplay)) {
-    await gameplaySession.start();
+    await gameplaySession.start(app.currentLevel);
     gameplaySession.setDebugVisualsVisible(refs.debugVisualsToggle.checked);
   }
 };
@@ -251,12 +249,6 @@ refs.nextPageButton.addEventListener('click', () => {
 refs.debugVisualsToggle.addEventListener('change', () => {
   gameplaySession.setDebugVisualsVisible(refs.debugVisualsToggle.checked);
 });
-refs.debugWinButton.addEventListener('click', () => {
-  openVictory();
-});
-refs.debugLoseButton.addEventListener('click', () => {
-  openDefeat();
-});
 refs.returnToLevelSelectButton.addEventListener('click', () => {
   openLevelSelect();
 });
@@ -276,6 +268,20 @@ refs.defeatLevelSelectButton.addEventListener('click', () => {
 refs.hud?.addEventListener('toggle', () => {
   if (refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
 });
+
+window.__ANT_BATTLE_TEST_API__ = {
+  forceOutcome(outcome) {
+    if (outcome === 'victory') {
+      openVictory();
+      return true;
+    }
+    if (outcome === 'defeat') {
+      openDefeat();
+      return true;
+    }
+    return false;
+  },
+};
 
 refs.titleBuildBadge.textContent = 'Build: --';
 renderScreens();
