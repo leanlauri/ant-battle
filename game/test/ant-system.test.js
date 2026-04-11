@@ -57,6 +57,7 @@ describe('ant system helpers', () => {
 
     expect(ants.some((ant) => ant.faction === 'enemy')).toBe(true);
     expect(ants.some((ant) => ant.homeNestId === 'enemy-1')).toBe(true);
+    expect(ants.some((ant) => ant.faction === 'enemy' && ant.role === ANT_ROLE.worker)).toBe(true);
   });
 
   test('slows brain cadence for distant ants', () => {
@@ -99,5 +100,12 @@ describe('ant system helpers', () => {
     for (const leg of visual.userData.legs) {
       expect(leg.userData.baseRotation).toBeTruthy();
     }
+  });
+
+  test('player and enemy workers use distinct tinted materials', () => {
+    const playerWorker = createAntVisual(ANT_ROLE.worker, 'player');
+    const enemyWorker = createAntVisual(ANT_ROLE.worker, 'enemy');
+
+    expect(playerWorker.children[0].material.color.getHex()).not.toBe(enemyWorker.children[0].material.color.getHex());
   });
 });

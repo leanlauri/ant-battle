@@ -112,16 +112,23 @@ const chooseRole = () => {
   return ANT_ROLE.fighter;
 };
 
+const chooseEnemyRole = () => {
+  const roll = Math.random();
+  if (roll < 0.22) return ANT_ROLE.scout;
+  if (roll < 0.58) return ANT_ROLE.worker;
+  return ANT_ROLE.fighter;
+};
+
 const getAntPalette = (role, faction) => {
   if (faction === ANT_FACTION.enemy) {
     if (role === ANT_ROLE.fighter) return { body: 0x7d364d, accent: 0x4d1225 };
-    if (role === ANT_ROLE.scout) return { body: 0x9d6285, accent: 0x5b2440 };
-    return { body: 0x8d4b6b, accent: 0x58243c };
+    if (role === ANT_ROLE.scout) return { body: 0xb9759b, accent: 0x6b2a4b };
+    return { body: 0xd18aa9, accent: 0x7c3455 };
   }
 
-  if (role === ANT_ROLE.fighter) return { body: 0x694126, accent: 0x2c7f43 };
-  if (role === ANT_ROLE.scout) return { body: 0x6f5336, accent: 0x8bbf56 };
-  return { body: 0x4c2612, accent: 0x2f1308 };
+  if (role === ANT_ROLE.fighter) return { body: 0x5b3a22, accent: 0x29a354 };
+  if (role === ANT_ROLE.scout) return { body: 0x69824b, accent: 0xc4f06b };
+  return { body: 0x4f6f2f, accent: 0xa6ee5a };
 };
 
 export const createAntVisual = (role = ANT_ROLE.worker, faction = ANT_FACTION.player) => {
@@ -279,7 +286,7 @@ export const createRandomAntStates = (count = ANT_CONFIG.count, nests = [{ id: '
   nextId += playerCount;
 
   for (const enemyNest of enemyNests) {
-    ants.push(...spawnAroundNest(enemyNest, () => (Math.random() < 0.6 ? ANT_ROLE.fighter : ANT_ROLE.scout), enemyPerNest, nextId));
+    ants.push(...spawnAroundNest(enemyNest, chooseEnemyRole, enemyPerNest, nextId));
     nextId += enemyPerNest;
   }
 
@@ -391,13 +398,8 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
 
   if (ant.carryingFoodId != null) return;
 
-  if (ant.faction === ANT_FACTION.enemy) {
-    choosePatrolAction(ant, homeNestPosition);
-    return;
-  }
-
   if (ant.role === ANT_ROLE.fighter) {
-    if (colonyFocusTarget) {
+    if (ant.faction === ANT_FACTION.player && colonyFocusTarget) {
       chooseFocusAction(ant, colonyFocusTarget);
       return;
     }
@@ -406,7 +408,7 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
   }
 
   if (ant.role === ANT_ROLE.scout) {
-    if (colonyFocusTarget) {
+    if (ant.faction === ANT_FACTION.player && colonyFocusTarget) {
       chooseFocusAction(ant, colonyFocusTarget);
       return;
     }
@@ -461,7 +463,7 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
     const focusDistance = ant.position.distanceTo(colonyFocusTarget);
     const focusRadius = 17;
     const focusChance = 0.58;
-    if (focusDistance > focusRadius && Math.random() < focusChance) {
+    if (ant.faction === ANT_FACTION.player && focusDistance > focusRadius && Math.random() < focusChance) {
       chooseFocusAction(ant, colonyFocusTarget);
       return;
     }
@@ -609,16 +611,17 @@ export const findCombatTarget = (ant, ants, maxDistance = ANT_CONFIG.fighterSens
 
   let bestTarget = null;
   let bestDistanceSq = maxDistance * maxDistance;
+  let bestPriority = -1;
   for (const other of ants) {
     if (other === ant || other.dead || other.faction === ant.faction) continue;
     const distanceSq = ant.position.distanceToSquared(other.position);
-    if (distanceSq > bestDistanceSq) continue;
+    if (distanceSq > maxDistance * maxDistance) continue;
 
     const priority = other.role === ANT_ROLE.fighter ? 2 : 1;
-    const currentPriority = bestTarget?.role === ANT_ROLE.fighter ? 2 : 1;
-    if (!bestTarget || priority > currentPriority || (priority === currentPriority && distanceSq < bestDistanceSq)) {
+    if (!bestTarget || priority > bestPriority || (priority === bestPriority && distanceSq < bestDistanceSq)) {
       bestTarget = other;
       bestDistanceSq = distanceSq;
+      bestPriority = priority;
     }
   }
 
