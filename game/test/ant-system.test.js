@@ -51,6 +51,28 @@ describe('ant system helpers', () => {
     expect(findCombatTarget(fighter, [fighter, enemyWorker, enemyFighter])?.role).toBe(ANT_ROLE.fighter);
   });
 
+  test('workers only target hostile fighters when defending', () => {
+    const worker = createRandomAntStates(1)[0];
+    worker.role = ANT_ROLE.worker;
+    worker.faction = 'player';
+    worker.colonyId = COLONY.player;
+    worker.position.set(0, worker.position.y, 0);
+
+    const enemyWorker = createRandomAntStates(1)[0];
+    enemyWorker.role = ANT_ROLE.worker;
+    enemyWorker.faction = 'enemy';
+    enemyWorker.colonyId = COLONY.enemyAlpha;
+    enemyWorker.position.set(1.2, enemyWorker.position.y, 0);
+
+    const enemyFighter = createRandomAntStates(1)[0];
+    enemyFighter.role = ANT_ROLE.fighter;
+    enemyFighter.faction = 'enemy';
+    enemyFighter.colonyId = COLONY.enemyAlpha;
+    enemyFighter.position.set(2.2, enemyFighter.position.y, 0);
+
+    expect(findCombatTarget(worker, [worker, enemyWorker, enemyFighter])?.role).toBe(ANT_ROLE.fighter);
+  });
+
   test('spawns enemy ants when enemy nests exist', () => {
     const nests = [
       { id: 'player-1', faction: 'player', colonyId: COLONY.player, position: new THREE.Vector3(0, 0, 0) },

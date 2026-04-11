@@ -66,6 +66,17 @@ describe('food system helpers', () => {
     expect(system.nestMesh.scale.y).toBeGreaterThan(before);
   });
 
+  test('damaged nest shrinks from its fully healthy scale', () => {
+    const system = new FoodSystem({ scene: new Scene(), count: 0 });
+    system.nestStored = 20;
+    system.updateNestVisual();
+    const healthyScale = system.nestMesh.scale.x;
+
+    system.damageNest('player-1', NEST_CONFIG.maxHp / 2);
+
+    expect(system.nestMesh.scale.x).toBeLessThan(healthyScale);
+  });
+
   test('creates one player nest and enemy faction nests', () => {
     const nests = createNestDefinitions();
     expect(nests.find((nest) => nest.faction === FACTION.player)?.id).toBe('player-1');

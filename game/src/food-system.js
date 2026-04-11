@@ -269,7 +269,22 @@ const createFocusMarker = () => {
   return group;
 };
 
-const computeNestScale = (nestStored) => 1 + Math.min(0.85, nestStored * 0.012);
+const getNestSurfaceY = (nestPosition, radius = NEST_CONFIG.radius * 1.35) => {
+  let highest = nestPosition.y;
+  for (let i = 0; i < 10; i += 1) {
+    const angle = (i / 10) * Math.PI * 2;
+    const x = nestPosition.x + Math.cos(angle) * radius;
+    const z = nestPosition.z + Math.sin(angle) * radius;
+    highest = Math.max(highest, sampleHeight(x, z));
+  }
+  return highest;
+};
+
+const computeNestScale = (nestStored, hpRatio = 1) => {
+  const growthScale = 1 + Math.min(0.85, nestStored * 0.012);
+  const healthScale = THREE.MathUtils.lerp(0.52, 1, THREE.MathUtils.clamp(hpRatio, 0, 1));
+  return growthScale * healthScale;
+};
 
 export class FoodSystem {
   constructor({ scene, count = FOOD_CONFIG.count } = {}) {
@@ -496,15 +511,18 @@ export class FoodSystem {
 
   updateNestVisual() {
     for (const nest of this.nests) {
-      const scale = computeNestScale(this.getNestStored(nest.id));
+      const hpRatio = nest.maxHp > 0 ? nest.hp / nest.maxHp : 0;
+      const scale = computeNestScale(this.getNestStored(nest.id), hpRatio);
       nest.mesh.scale.set(scale, 1 + (scale - 1) * 1.4, scale);
       nest.mesh.position.set(nest.position.x, nest.position.y, nest.position.z);
       const ring = nest.mesh?.userData?.selectionRing;
-      if (ring) ring.scale.setScalar(scale);
+      if (ring) {
+        ring.scale.setScalar(Math.max(0.7, scale));
+        ring.position.y = getNestSurfaceY(nest.position, NEST_CONFIG.radius * scale * 1.35) - nest.position.y + 0.18;
+      }
       nest.mesh.traverse((child) => {
         if (!child.isMesh || !child.material?.color) return;
-        const ratio = nest.maxHp > 0 ? nest.hp / nest.maxHp : 0;
-        const shade = nest.collapsed ? 0.42 : THREE.MathUtils.lerp(0.68, 1, ratio);
+        const shade = nest.collapsed ? 0.42 : THREE.MathUtils.lerp(0.68, 1, hpRatio);
         child.material.color.setHex(child.userData.baseColor ?? (COLONY_STYLE[nest.colonyId] ?? COLONY_STYLE[COLONY.player]).mound).multiplyScalar(shade);
       });
     }

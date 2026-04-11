@@ -39,11 +39,16 @@ export const ANT_CONFIG = Object.freeze({
   legMoveThreshold: 0.08,
   legCarryMinRatio: 0.22,
   fighterSenseDistance: 12,
+  workerDefenseSenseDistance: 4.8,
   fighterAttackRange: 0.95,
   fighterAttackDamage: 14,
   fighterAttackCooldown: 0.72,
+  workerAttackRange: 0.85,
+  workerAttackDamage: 3.5,
+  workerAttackCooldown: 0.96,
   fighterNestAttackRange: 2.1,
   fighterNestAttackDamage: 4,
+  enemyNestSiegeStoredThreshold: 14,
   workerHp: 28,
   fighterHp: 46,
 });
@@ -52,8 +57,8 @@ export const ANT_LOD = Object.freeze({ near: 'near', mid: 'mid', far: 'far' });
 export const ANT_ROLE = Object.freeze({ worker: 'worker', fighter: 'fighter' });
 export const ANT_FACTION = Object.freeze({ player: 'player', enemy: 'enemy' });
 export const PLAYER_STARTING_COUNTS = Object.freeze({
-  workers: 20,
-  fighters: 5,
+  workers: 24,
+  fighters: 1,
 });
 
 const ANT_COLONY_PALETTES = Object.freeze({
@@ -135,7 +140,7 @@ const chooseRole = () => {
 
 const chooseEnemyRole = () => {
   const roll = Math.random();
-  if (roll < 0.56) return ANT_ROLE.worker;
+  if (roll < 0.82) return ANT_ROLE.worker;
   return ANT_ROLE.fighter;
 };
 
@@ -167,6 +172,15 @@ export const findSiegeTargetNest = (ant, nests, maxDistance = ANT_CONFIG.fighter
     }
   }
   return bestNest;
+};
+
+const getNestImpactPoint = (ant, nest) => {
+  const offset = new THREE.Vector3(ant.position.x - nest.position.x, 0, ant.position.z - nest.position.z);
+  if (offset.lengthSq() <= 0.0001) offset.set(1, 0, 0);
+  offset.normalize().multiplyScalar(NEST_CONFIG.radius * 1.05);
+  const x = nest.position.x + offset.x;
+  const z = nest.position.z + offset.z;
+  return new THREE.Vector3(x, sampleHeight(x, z) + 0.18, z);
 };
 
 const getAntPalette = (role, faction) => {
@@ -668,15 +682,20 @@ const attachHelperToFood = (ant, food, supportIndex) => {
 };
 
 export const findCombatTarget = (ant, ants, maxDistance = ANT_CONFIG.fighterSenseDistance) => {
-  if (ant.dead || ant.role !== ANT_ROLE.fighter) return null;
+  if (ant.dead) return null;
+
+  const canAttackFighters = ant.role === ANT_ROLE.fighter || ant.role === ANT_ROLE.worker;
+  if (!canAttackFighters) return null;
+  const senseDistance = ant.role === ANT_ROLE.worker ? ANT_CONFIG.workerDefenseSenseDistance : maxDistance;
 
   let bestTarget = null;
-  let bestDistanceSq = maxDistance * maxDistance;
+  let bestDistanceSq = senseDistance * senseDistance;
   let bestPriority = -1;
   for (const other of ants) {
     if (other === ant || other.dead || other.colonyId === ant.colonyId) continue;
+    if (ant.role === ANT_ROLE.worker && other.role !== ANT_ROLE.fighter) continue;
     const distanceSq = ant.position.distanceToSquared(other.position);
-    if (distanceSq > maxDistance * maxDistance) continue;
+    if (distanceSq > senseDistance * senseDistance) continue;
 
     const priority = other.role === ANT_ROLE.fighter ? 2 : 1;
     if (!bestTarget || priority > bestPriority || (priority === bestPriority && distanceSq < bestDistanceSq)) {
@@ -869,6 +888,7 @@ export class AntSystem {
         opacity: 0.9,
         depthWrite: false,
       });
+      material.userData.baseOpacity = 0.9;
       const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.06 * intensity, 8), material);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.copy(position);
@@ -977,72 +997,81 @@ export class AntSystem {
       ant.logicCooldown -= dt;
       ant.attackCooldownRemaining = Math.max(0, ant.attackCooldownRemaining - dt);
       if (ant.logicCooldown <= 0) {
-        if (ant.role === ANT_ROLE.fighter) {
+        if (ant.role === ANT_ROLE.fighter || ant.role === ANT_ROLE.worker) {
           const target = findCombatTarget(ant, this.ants);
           if (target) {
             ant.combatTargetId = target.id;
             ant.target.set(target.position.x, 0, target.position.z);
             const targetDistance = ant.position.distanceTo(target.position);
-            if (targetDistance <= ANT_CONFIG.fighterAttackRange) {
-                ant.action = 'attack';
-                ant.desiredVelocity.setScalar(0);
-                ant.attackVisualTime = ANT_CONFIG.fighterAttackCooldown * 0.65;
-                if (ant.attackCooldownRemaining <= 0) {
-                  ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
-                  target.hp -= ANT_CONFIG.fighterAttackDamage;
-                  target.hitFlashTime = 0.2;
-                  this.spawnHitEffect(target.position, target.colonyId, target.hp <= 0 ? 1.4 : 1);
-                  if (target.hp <= 0 && !target.dead) {
-                    target.dead = true;
-                    clearAntAssignments(target, this.foodSystem, this.foods);
-                    target.velocity.setScalar(0);
-                    target.desiredVelocity.setScalar(0);
-                    target.action = 'dead';
-                    this.spawnGroundSplat(target.position, target.colonyId, 1.6);
-                    this.spawnCorpseRemains(target.position, target.colonyId, target.role);
-                    if (target.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
-                    if (target.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
-                  }
+            const attackRange = ant.role === ANT_ROLE.worker ? ANT_CONFIG.workerAttackRange : ANT_CONFIG.fighterAttackRange;
+            const attackCooldown = ant.role === ANT_ROLE.worker ? ANT_CONFIG.workerAttackCooldown : ANT_CONFIG.fighterAttackCooldown;
+            const attackDamage = ant.role === ANT_ROLE.worker ? ANT_CONFIG.workerAttackDamage : ANT_CONFIG.fighterAttackDamage;
+            if (targetDistance <= attackRange) {
+              ant.action = 'attack';
+              ant.desiredVelocity.setScalar(0);
+              ant.attackVisualTime = attackCooldown * 0.65;
+              if (ant.attackCooldownRemaining <= 0) {
+                ant.attackCooldownRemaining = attackCooldown;
+                target.hp -= attackDamage;
+                target.hitFlashTime = 0.2;
+                this.spawnHitEffect(target.position, target.colonyId, target.hp <= 0 ? 1.4 : 1);
+                if (target.hp <= 0 && !target.dead) {
+                  target.dead = true;
+                  clearAntAssignments(target, this.foodSystem, this.foods);
+                  target.velocity.setScalar(0);
+                  target.desiredVelocity.setScalar(0);
+                  target.action = 'dead';
+                  this.spawnGroundSplat(target.position, target.colonyId, 1.6);
+                  this.spawnCorpseRemains(target.position, target.colonyId, target.role);
+                  if (target.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
+                  if (target.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
+                }
               }
             }
-          } else {
+          } else if (ant.role === ANT_ROLE.fighter) {
             const siegeNest = findSiegeTargetNest(ant, this.nests);
             if (siegeNest) {
-              ant.combatTargetId = siegeNest.id;
-              ant.target.set(siegeNest.position.x, 0, siegeNest.position.z);
-              const siegeDistance = ant.position.distanceTo(siegeNest.position);
-              if (siegeDistance <= ANT_CONFIG.fighterNestAttackRange) {
-                ant.action = 'attack-nest';
-                ant.desiredVelocity.setScalar(0);
-                ant.attackVisualTime = ANT_CONFIG.fighterAttackCooldown * 0.65;
-                if (ant.attackCooldownRemaining <= 0) {
-                  ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
-                  const damageResult = this.foodSystem.damageNest(siegeNest.id, ANT_CONFIG.fighterNestAttackDamage);
-                  this.spawnHitEffect(siegeNest.position, siegeNest.colonyId, 0.85);
-                  if (damageResult?.justCollapsed) {
-                    if (siegeNest.faction === ANT_FACTION.enemy) this.stats.enemyNestsDestroyed += 1;
-                    if (siegeNest.faction === ANT_FACTION.player) this.stats.playerNestsLost += 1;
-                    const collapseResult = resolveNestCollapse(siegeNest, this.ants, this.nests);
-                    const killedAntIds = new Set(collapseResult.killedIds);
-                    for (const collapsedAnt of this.ants) {
-                      if (!killedAntIds.has(collapsedAnt.id)) continue;
-                      if (!collapsedAnt.dead) {
-                        clearAntAssignments(collapsedAnt, this.foodSystem, this.foods);
-                        collapsedAnt.dead = true;
-                        collapsedAnt.velocity.setScalar(0);
-                        collapsedAnt.desiredVelocity.setScalar(0);
-                        collapsedAnt.action = 'dead';
-                        this.spawnGroundSplat(collapsedAnt.position, collapsedAnt.colonyId, 1.8);
-                        this.spawnCorpseRemains(collapsedAnt.position, collapsedAnt.colonyId, collapsedAnt.role);
-                        if (collapsedAnt.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
-                        if (collapsedAnt.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
+              const canSiege = ant.faction !== ANT_FACTION.enemy
+                || this.foodSystem.getNestStored(ant.homeNestId) >= ANT_CONFIG.enemyNestSiegeStoredThreshold;
+              if (!canSiege) {
+                ant.combatTargetId = null;
+              } else {
+                ant.combatTargetId = siegeNest.id;
+                ant.target.set(siegeNest.position.x, 0, siegeNest.position.z);
+                const siegeDistance = ant.position.distanceTo(siegeNest.position);
+                if (siegeDistance <= ANT_CONFIG.fighterNestAttackRange) {
+                  ant.action = 'attack-nest';
+                  ant.desiredVelocity.setScalar(0);
+                  ant.attackVisualTime = ANT_CONFIG.fighterAttackCooldown * 0.65;
+                  if (ant.attackCooldownRemaining <= 0) {
+                    ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
+                    const damageResult = this.foodSystem.damageNest(siegeNest.id, ANT_CONFIG.fighterNestAttackDamage);
+                    this.spawnHitEffect(getNestImpactPoint(ant, siegeNest), siegeNest.colonyId, 0.85);
+                    if (damageResult?.justCollapsed) {
+                      if (siegeNest.faction === ANT_FACTION.enemy) this.stats.enemyNestsDestroyed += 1;
+                      if (siegeNest.faction === ANT_FACTION.player) this.stats.playerNestsLost += 1;
+                      const collapseResult = resolveNestCollapse(siegeNest, this.ants, this.nests);
+                      const killedAntIds = new Set(collapseResult.killedIds);
+                      for (const collapsedAnt of this.ants) {
+                        if (!killedAntIds.has(collapsedAnt.id)) continue;
+                        if (!collapsedAnt.dead) {
+                          clearAntAssignments(collapsedAnt, this.foodSystem, this.foods);
+                          collapsedAnt.dead = true;
+                          collapsedAnt.velocity.setScalar(0);
+                          collapsedAnt.desiredVelocity.setScalar(0);
+                          collapsedAnt.action = 'dead';
+                          this.spawnGroundSplat(collapsedAnt.position, collapsedAnt.colonyId, 1.8);
+                          this.spawnCorpseRemains(collapsedAnt.position, collapsedAnt.colonyId, collapsedAnt.role);
+                          if (collapsedAnt.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
+                          if (collapsedAnt.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
+                        }
                       }
-                    }
-                    for (const reassignedAnt of this.ants) {
-                      if (!collapseResult.reassignedIds.includes(reassignedAnt.id)) continue;
-                      clearAntAssignments(reassignedAnt, this.foodSystem, this.foods);
-                      reassignedAnt.action = 'wander';
-                      reassignedAnt.nestApproachStage = 'queue';
+                      for (const reassignedAnt of this.ants) {
+                        if (!collapseResult.reassignedIds.includes(reassignedAnt.id)) continue;
+                        clearAntAssignments(reassignedAnt, this.foodSystem, this.foods);
+                        reassignedAnt.action = 'wander';
+                        reassignedAnt.nestApproachStage = 'queue';
+                      }
                     }
                   }
                 }
@@ -1050,6 +1079,8 @@ export class AntSystem {
             } else {
               ant.combatTargetId = null;
             }
+          } else {
+            ant.combatTargetId = null;
           }
         }
 
@@ -1148,7 +1179,8 @@ export class AntSystem {
         mesh.position.copy(ant.position);
         let attackTilt = 0;
         if (ant.attackVisualTime > 0) {
-          const thrustRatio = Math.sin((1 - ant.attackVisualTime / (ANT_CONFIG.fighterAttackCooldown * 0.65)) * Math.PI);
+          const attackCycle = Math.max(0.0001, (ant.role === ANT_ROLE.worker ? ANT_CONFIG.workerAttackCooldown : ANT_CONFIG.fighterAttackCooldown) * 0.65);
+          const thrustRatio = Math.sin((1 - ant.attackVisualTime / attackCycle) * Math.PI);
           this.tmpLungeOffset.copy(ant.heading).multiplyScalar(0.28 * thrustRatio);
           mesh.position.add(this.tmpLungeOffset);
           attackTilt = -0.22 * thrustRatio;
