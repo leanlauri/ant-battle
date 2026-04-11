@@ -115,8 +115,22 @@ const chooseRole = () => {
 
 const chooseEnemyRole = () => {
   const roll = Math.random();
-  if (roll < 0.62) return ANT_ROLE.worker;
+  if (roll < 0.56) return ANT_ROLE.worker;
   return ANT_ROLE.fighter;
+};
+
+const findClosestHostileNestPosition = (ant, nestLookup) => {
+  let bestNest = null;
+  let bestDistanceSq = Number.POSITIVE_INFINITY;
+  for (const nest of nestLookup.values()) {
+    if (nest.faction === ant.faction) continue;
+    const distanceSq = ant.position.distanceToSquared(nest.position);
+    if (distanceSq < bestDistanceSq) {
+      bestDistanceSq = distanceSq;
+      bestNest = nest;
+    }
+  }
+  return bestNest?.position ?? null;
 };
 
 const getAntPalette = (role, faction) => {
@@ -408,6 +422,20 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
       chooseFocusAction(ant, colonyFocusTarget);
       return;
     }
+
+    if (ant.faction === ANT_FACTION.enemy) {
+      const hostileNestPosition = findClosestHostileNestPosition(ant, nestLookup);
+      if (hostileNestPosition) {
+        const pressureDistance = ant.position.distanceTo(hostileNestPosition);
+        const pressureRadius = 14;
+        const pressureChance = 0.72;
+        if (pressureDistance > pressureRadius || Math.random() < pressureChance) {
+          chooseFocusAction(ant, hostileNestPosition);
+          return;
+        }
+      }
+    }
+
     choosePatrolAction(ant, homeNestPosition);
     return;
   }
