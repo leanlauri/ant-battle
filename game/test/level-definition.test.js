@@ -7,6 +7,8 @@ describe('level definition', () => {
     expect(level.enemyNestCount).toBe(1);
     expect(level.foodCount).toBe(20);
     expect(level.antBudget).toBe(120);
+    expect(level.timeOfDay).toBe('bright day');
+    expect(level.objectiveText).toContain('rival colony');
   });
 
   test('mid campaign levels escalate to split-front battles', () => {
@@ -14,6 +16,7 @@ describe('level definition', () => {
     expect(level.enemyNestCount).toBe(2);
     expect(level.foodCount).toBeGreaterThan(24);
     expect(level.antBudget).toBeGreaterThan(160);
+    expect(level.terrain.maxHeight).toBeGreaterThan(getLevelDefinition(1).terrain.maxHeight);
   });
 
   test('boss levels get extra pressure while staying deterministic', () => {

@@ -5,7 +5,7 @@ import { AntSystem } from './ant-system.js';
 import { ENEMY_ECONOMY_CONFIG, FOOD_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
 import { getLevelDefinition } from './level-definition.js';
 import { PheromoneSystem } from './pheromone-system.js';
-import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount } from './terrain.js';
+import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount, resetActiveTerrainProfile, setActiveTerrainProfile } from './terrain.js';
 
 const BUILD_ID_FALLBACK = '9ae531b';
 const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : BUILD_ID_FALLBACK;
@@ -25,12 +25,13 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
 
   return {
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
-    terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${TERRAIN_CONFIG.maxHeight}, ${TERRAIN_CONFIG.maxHeight}], ${levelDefinition?.label ?? 'sandbox'}.`,
+    terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${levelDefinition?.terrain?.maxHeight ?? TERRAIN_CONFIG.maxHeight}, ${levelDefinition?.terrain?.maxHeight ?? TERRAIN_CONFIG.maxHeight}], ${levelDefinition?.label ?? 'sandbox'} (${levelDefinition?.timeOfDay ?? 'day'}).`,
     antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
     selectedNestText: `Selected nest: ${selectedNestLabel}${selectedNestHealth ? `, HP ${selectedNestHealth.hp}/${selectedNestHealth.maxHp}${selectedNestHealth.collapsed ? ' (collapsed)' : ''}` : ''}, stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}`,
     focusText: focusTarget
       ? `Focus: x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
       : 'Focus: none',
+    objectiveText: `Objective: ${levelDefinition?.objectiveText ?? 'Destroy hostile nests.'}`,
     battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down, ${antSystem.foodSystem?.getActiveEnemyNestCount?.() ?? 0} enemy nests still active.`,
     foodText: `Food: ${remainingFood} left, selected nest stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
     selectedNestStored: antSystem.foodSystem?.getSelectedNestStored?.() ?? 0,
@@ -165,6 +166,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     clock = null;
     battleResolved = false;
     enemyProductionCooldowns.clear();
+    resetActiveTerrainProfile();
     mount.replaceChildren();
     onHudUpdate?.(null);
   };
@@ -205,6 +207,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const start = async (levelNumber = 1) => {
     stop();
     currentLevelDefinition = getLevelDefinition(levelNumber);
+    setActiveTerrainProfile(currentLevelDefinition.terrain);
 
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -214,8 +217,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       mount.appendChild(renderer.domElement);
 
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xdbe7f4);
-      scene.fog = new THREE.Fog(0xdbe7f4, 39, 104);
+      scene.background = new THREE.Color(currentLevelDefinition.atmosphere?.background ?? 0xdbe7f4);
+      scene.fog = new THREE.Fog(currentLevelDefinition.atmosphere?.fog ?? 0xdbe7f4, 39, 104);
 
       camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 260);
       camera.position.set(36, 26, 36);
@@ -231,8 +234,12 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       controls.maxPolarAngle = Math.PI * 0.48;
       controls.enablePan = true;
 
-      scene.add(new THREE.HemisphereLight(0xf2f7ff, 0x7e93a8, 1.4));
-      const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+      scene.add(new THREE.HemisphereLight(
+        currentLevelDefinition.atmosphere?.hemiSky ?? 0xf2f7ff,
+        currentLevelDefinition.atmosphere?.hemiGround ?? 0x7e93a8,
+        1.4,
+      ));
+      const sun = new THREE.DirectionalLight(currentLevelDefinition.atmosphere?.sun ?? 0xffffff, 1.8);
       sun.position.set(12, 20, 10);
       sun.castShadow = true;
       sun.shadow.mapSize.set(2048, 2048);

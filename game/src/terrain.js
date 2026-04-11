@@ -10,6 +10,21 @@ export const TERRAIN_CONFIG = Object.freeze({
   octaves: 4,
 });
 
+let activeTerrainProfile = { ...TERRAIN_CONFIG };
+
+export const setActiveTerrainProfile = (profile = {}) => {
+  activeTerrainProfile = {
+    ...TERRAIN_CONFIG,
+    ...profile,
+  };
+};
+
+export const resetActiveTerrainProfile = () => {
+  activeTerrainProfile = { ...TERRAIN_CONFIG };
+};
+
+export const getActiveTerrainProfile = () => ({ ...activeTerrainProfile });
+
 export const createToonGradient = () => {
   const colors = new Uint8Array([
     23, 44, 72, 255,
@@ -71,22 +86,22 @@ const fractalNoise2D = (x, z, { octaves }) => {
 };
 
 export const sampleHeight = (x, z, {
-  maxHeight = TERRAIN_CONFIG.maxHeight,
-  noiseScale = TERRAIN_CONFIG.noiseScale,
-  octaves = TERRAIN_CONFIG.octaves,
+  maxHeight = activeTerrainProfile.maxHeight,
+  noiseScale = activeTerrainProfile.noiseScale,
+  octaves = activeTerrainProfile.octaves,
 } = {}) => {
   const base = fractalNoise2D(x * noiseScale, z * noiseScale, { octaves });
   return THREE.MathUtils.clamp(base * maxHeight, -maxHeight, maxHeight);
 };
 
 export const createTerrainGeometry = ({
-  width = TERRAIN_CONFIG.width,
-  depth = TERRAIN_CONFIG.depth,
-  widthSegments = TERRAIN_CONFIG.widthSegments,
-  depthSegments = TERRAIN_CONFIG.depthSegments,
-  maxHeight = TERRAIN_CONFIG.maxHeight,
-  noiseScale = TERRAIN_CONFIG.noiseScale,
-  octaves = TERRAIN_CONFIG.octaves,
+  width = activeTerrainProfile.width,
+  depth = activeTerrainProfile.depth,
+  widthSegments = activeTerrainProfile.widthSegments,
+  depthSegments = activeTerrainProfile.depthSegments,
+  maxHeight = activeTerrainProfile.maxHeight,
+  noiseScale = activeTerrainProfile.noiseScale,
+  octaves = activeTerrainProfile.octaves,
 } = {}) => {
   const geometry = new THREE.PlaneGeometry(width, depth, widthSegments, depthSegments);
   geometry.rotateX(-Math.PI / 2);

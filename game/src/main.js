@@ -10,6 +10,7 @@ import {
   saveCampaignProgress,
 } from './campaign-state.js';
 import { createGameplaySession } from './gameplay-session.js';
+import { getLevelDefinition } from './level-definition.js';
 
 const APP_SCREEN = {
   title: 'title',
@@ -52,6 +53,7 @@ const refs = {
   antInfo: document.getElementById('antInfo'),
   selectedNestInfo: document.getElementById('selectedNestInfo'),
   focusInfo: document.getElementById('focusInfo'),
+  objectiveInfo: document.getElementById('objectiveInfo'),
   battleInfo: document.getElementById('battleInfo'),
   foodInfo: document.getElementById('foodInfo'),
   buildInfo: document.getElementById('buildInfo'),
@@ -125,6 +127,7 @@ const gameplaySession = createGameplaySession({
     refs.antInfo.textContent = summary?.antText ?? 'Ants: --';
     refs.selectedNestInfo.textContent = summary?.selectedNestText ?? 'Selected nest: Home Nest';
     refs.focusInfo.textContent = summary?.focusText ?? 'Focus: none';
+    refs.objectiveInfo.textContent = summary?.objectiveText ?? 'Objective: --';
     refs.battleInfo.textContent = summary?.battleText ?? 'Battle: 0 enemy down, 0 player lost, 0 enemies still active.';
     refs.foodInfo.textContent = summary?.foodText ?? 'Food: --';
     refs.buildInfo.textContent = summary?.buildText ?? 'Build: --';
@@ -142,6 +145,7 @@ const renderLevelGrid = () => {
   refs.levelGrid.replaceChildren();
 
   for (const level of levels) {
+    const definition = getLevelDefinition(level.levelNumber);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'levelCard';
@@ -150,7 +154,7 @@ const renderLevelGrid = () => {
     button.dataset.level = String(level.levelNumber);
     button.innerHTML = `
       <span class="levelCardNumber">${level.levelNumber}</span>
-      <span class="levelCardMeta">${level.isBossLevel ? 'Wasp' : 'Ant'} level</span>
+      <span class="levelCardMeta">${level.isBossLevel ? 'Wasp' : definition.timeOfDay} • ${definition.label}</span>
       <span class="levelCardState">${level.state}</span>
     `;
     button.addEventListener('click', () => {

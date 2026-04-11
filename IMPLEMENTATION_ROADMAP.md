@@ -45,10 +45,11 @@ Goals:
 - [x] Selected nests now expose a first upgrade-card skeleton, including food-based nest repair and worker/fighter batch purchases
 - [x] Enemy nests now convert stored food into new worker/fighter batches over time, and selected-nest HUD feedback now shows local stored food more clearly
 - [x] Direct HUD shell win/lose buttons are gone, smoke coverage now uses a hidden test hook instead of player-facing debug controls, and level-number-based scenario variation now changes enemy nest count and budget bands
+- [x] Levels now carry deterministic biome-like flavor data, including terrain roughness, time-of-day atmosphere, and objective text, which now affects battlefield shape and presentation in-game
 
 ### Next implementation slice
-1. Deepen seeded level differentiation beyond count/budget bands, especially terrain, objective flavor, and faction setup.
-2. Expand the upgrade economy beyond repair/basic reinforcements so nests diverge strategically.
+1. Expand the upgrade economy beyond repair/basic reinforcements so nests diverge strategically.
+2. Add more faction/setup differentiation per level so campaign fights are not only budget variants.
 3. Keep reducing remaining debug-flavoured presentation so the shell feels fully game-facing.
 
 ---
