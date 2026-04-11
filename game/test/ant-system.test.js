@@ -17,6 +17,8 @@ describe('ant system helpers', () => {
       expect(ant.position.y).toBeLessThanOrEqual(ant.radius + TERRAIN_CONFIG.maxHeight + 0.001);
       expect(ANT_CONFIG.renderOffsetY).toBeLessThan(0);
       expect([ANT_ROLE.scout, ANT_ROLE.forager, ANT_ROLE.worker]).toContain(ant.role);
+      expect(ant.faction).toBe('player');
+      expect(ant.homeNestId).toBe('player-1');
       expect(ant.carryingFoodId).toBeNull();
       expect(ant.action).toBe('wander');
     }

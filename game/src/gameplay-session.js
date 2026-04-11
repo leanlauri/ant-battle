@@ -18,14 +18,19 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo }) => {
   const antSummary = antSystem.getSummary();
   const remainingFood = antSystem.foods.filter((item) => !item.delivered).length;
   const heaviestFood = antSystem.foods.reduce((max, food) => Math.max(max, food.requiredCarriers), 1);
+  const focusTarget = antSystem.foodSystem?.getFocusTarget?.();
 
   return {
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
     terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${TERRAIN_CONFIG.maxHeight}, ${TERRAIN_CONFIG.maxHeight}].`,
     antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, roles S/F/W ${antSummary.scouts}/${antSummary.foragers}/${antSummary.workers}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
+    selectedNestText: `Selected nest: ${antSystem.foodSystem?.getSelectedNestLabel?.() ?? 'Home Nest'}`,
+    focusText: focusTarget
+      ? `Focus: x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
+      : 'Focus: none',
     foodText: `Food: ${remainingFood} left, nest stored ${(antSystem.foodSystem?.nestStored ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
     buildText: `Build: ${buildInfo.value}`,
-    playerAntCount: antSummary.total,
+    playerAntCount: antSummary.playerTotal,
   };
 };
 
@@ -44,7 +49,7 @@ const refreshBuildIdFromGitHub = async (buildInfo) => {
   }
 };
 
-export const createGameplaySession = ({ mount, onHudUpdate, onFatalError }) => {
+export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNestSelected, onFocusAssigned }) => {
   let renderer = null;
   let scene = null;
   let camera = null;
@@ -55,6 +60,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError }) => {
   let antSystem = null;
   let debugVisualsGroup = null;
   let resizeHandler = null;
+  let pointerDown = null;
+  let pointerDownHandler = null;
+  let pointerUpHandler = null;
   let animationFrameId = 0;
   let running = false;
   let accumulator = 0;
@@ -84,6 +92,11 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError }) => {
       window.removeEventListener('resize', resizeHandler);
       resizeHandler = null;
     }
+    if (pointerDownHandler && renderer?.domElement) renderer.domElement.removeEventListener('pointerdown', pointerDownHandler);
+    if (pointerUpHandler && renderer?.domElement) renderer.domElement.removeEventListener('pointerup', pointerUpHandler);
+    pointerDownHandler = null;
+    pointerUpHandler = null;
+    pointerDown = null;
     controls?.dispose();
     renderer?.dispose();
     if (typeof renderer?.forceContextLoss === 'function') renderer.forceContextLoss();
@@ -196,6 +209,41 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError }) => {
         renderer.setSize(window.innerWidth, window.innerHeight);
       };
       window.addEventListener('resize', resizeHandler);
+
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      pointerDownHandler = (event) => {
+        pointerDown = { x: event.clientX, y: event.clientY };
+      };
+      pointerUpHandler = (event) => {
+        if (!pointerDown || !camera || !terrain || !foodSystem || !antSystem) return;
+        const travel = Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y);
+        pointerDown = null;
+        if (travel > 8) return;
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+
+        const nestHit = foodSystem.findNestHit(raycaster);
+        if (nestHit?.faction === 'player') {
+          foodSystem.setSelectedNest(nestHit.id);
+          onNestSelected?.(nestHit);
+          publishHud();
+          return;
+        }
+
+        const terrainHit = raycaster.intersectObject(terrain, true)[0];
+        if (!terrainHit || !foodSystem.getSelectedNest()) return;
+        const target = terrainHit.point;
+        foodSystem.setFocusTarget(target);
+        antSystem.setFocusTarget(target);
+        onFocusAssigned?.(foodSystem.getFocusTarget());
+        publishHud();
+      };
+      renderer.domElement.addEventListener('pointerdown', pointerDownHandler);
+      renderer.domElement.addEventListener('pointerup', pointerUpHandler);
 
       clock = new THREE.Clock();
       running = true;

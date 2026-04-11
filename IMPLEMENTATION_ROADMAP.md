@@ -16,9 +16,9 @@ Goals:
 ## Execution status
 
 ### Current checkpoint
-- Current milestone: Milestone 1, Game shell
-- Current sprint: Sprint A
-- Current focus: persistent campaign progress, level catalog, and screen-flow shell
+- Current milestone: Milestone 3, Ant classes as game units
+- Current sprint: Sprint B
+- Current focus: class identity, faction tinting, and class-driven behavior separation
 
 ### Progress log
 - [x] Project docs baseline is authored in repo root (`ANT_BATTLE_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`, `COMBAT_AND_NEST_SPEC.md`, `UI_UX_SPEC.md`, `FACTION_AND_UNIT_SPEC.md`)
@@ -31,11 +31,13 @@ Goals:
 - [x] Victory / defeat overlay shell added
 - [x] Local progression is wired into the playable flow
 - [x] End-to-end smoke flow covers title → level select → gameplay → shell victory unlock
+- [x] Player nest ownership, enemy nest identity, selection ring, and focus marker are implemented
+- [x] Top-right ant count now reflects player ownership and gameplay HUD shows selected nest + focus target
 
 ### Next implementation slice
-1. Add the Milestone 2 ownership model: player nest, enemy nests, and explicit faction identity.
-2. Add selectable player nest feedback and top-right ant-count HUD that reflects player ownership.
-3. Add tap terrain focus commands with a visible focus marker.
+1. Convert the current ant role model into explicit gameplay classes with clearer naming and stat hooks.
+2. Add readable player and enemy faction tinting to ants and nests.
+3. Separate class behavior priorities so workers, scouts, and fighters feel distinct before combat lands.
 
 ---
 

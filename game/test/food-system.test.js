@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
 import { Scene } from 'three';
-import { FOOD_CONFIG, NEST_CONFIG, createFoodItems, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor, getNestPosition } from '../src/food-system.js';
+import { FACTION, FOOD_CONFIG, NEST_CONFIG, createFoodItems, createNestDefinitions, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor, getNestPosition } from '../src/food-system.js';
 import { FoodSystem } from '../src/food-system.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
@@ -64,5 +64,23 @@ describe('food system helpers', () => {
     system.updateNestVisual();
     expect(system.nestMesh.scale.x).toBeGreaterThan(before);
     expect(system.nestMesh.scale.y).toBeGreaterThan(before);
+  });
+
+  test('creates one player nest and enemy faction nests', () => {
+    const nests = createNestDefinitions();
+    expect(nests.find((nest) => nest.faction === FACTION.player)?.id).toBe('player-1');
+    expect(nests.filter((nest) => nest.faction === FACTION.enemy)).toHaveLength(2);
+  });
+
+  test('keeps selection on the player nest and records focus targets', () => {
+    const system = new FoodSystem({ scene: new Scene(), count: 0 });
+
+    expect(system.getSelectedNest()?.id).toBe('player-1');
+    expect(system.setSelectedNest('enemy-1')).toBe(false);
+    expect(system.getSelectedNest()?.id).toBe('player-1');
+
+    system.setFocusTarget(new THREE.Vector3(12, 0, -8));
+    expect(system.getFocusTarget()?.x).toBeCloseTo(12);
+    expect(system.focusMarker.visible).toBe(true);
   });
 });

@@ -43,8 +43,12 @@ test('boots through title, level select, gameplay, and shell victory flow', asyn
   await expect(page.locator('#gameplayHud')).toBeVisible();
   await expect(page.locator('#gameplayLevelLabel')).toContainText('Level 1');
   await expect(page.locator('#antInfo')).toContainText('Ants: 200 total');
+  await expect(page.locator('#selectedNestInfo')).toContainText('Selected nest: Home Nest');
   await expect(page.locator('body canvas')).toBeVisible();
   await expect(page.locator('#fatalOverlay')).toBeHidden();
+
+  await page.locator('body canvas').click({ position: { x: 520, y: 420 } });
+  await expect(page.locator('#focusInfo')).not.toHaveText('Focus: none');
 
   await page.locator('#debugWinButton').click();
   await expect(page.locator('#victoryLevelLabel')).toHaveText('Level 1 complete');

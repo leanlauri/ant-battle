@@ -42,6 +42,7 @@ export const ANT_CONFIG = Object.freeze({
 
 export const ANT_LOD = Object.freeze({ near: 'near', mid: 'mid', far: 'far' });
 export const ANT_ROLE = Object.freeze({ scout: 'scout', forager: 'forager', worker: 'worker' });
+export const ANT_FACTION = Object.freeze({ player: 'player' });
 
 const clampToTerrainBounds = (value, extent, padding = 1) => THREE.MathUtils.clamp(value, -extent / 2 + padding, extent / 2 - padding);
 const randomRange = (min, max) => min + Math.random() * (max - min);
@@ -177,6 +178,8 @@ const animateAntLegs = (mesh, ant) => {
 
 export const createAntState = (id, x, z) => ({
   id,
+  faction: ANT_FACTION.player,
+  homeNestId: 'player-1',
   role: chooseRole(),
   radius: ANT_CONFIG.bodyRadius,
   position: new THREE.Vector3(x, sampleHeight(x, z) + ANT_CONFIG.bodyRadius, z),
@@ -264,6 +267,18 @@ const chooseCarryToNestAction = (ant, dropTarget) => {
   }
 };
 
+const chooseFocusAction = (ant, focusTarget) => {
+  ant.action = 'focus-target';
+  ant.target.set(focusTarget.x, 0, focusTarget.z);
+  const direction = new THREE.Vector3(focusTarget.x - ant.position.x, 0, focusTarget.z - ant.position.z);
+  if (direction.lengthSq() <= 0.0001) return;
+
+  direction.normalize();
+  ant.heading.copy(direction);
+  const speedFactor = ant.role === ANT_ROLE.scout ? 1.08 : ant.role === ANT_ROLE.forager ? 1 : 0.92;
+  ant.desiredVelocity.copy(direction).multiplyScalar(ANT_CONFIG.speed * speedFactor);
+};
+
 const getCarryApproachTarget = (ant, nestPosition) => {
   if (!ant.queuedNestSlot) return nestPosition;
   if (ant.nestApproachStage !== 'entrance') {
@@ -276,7 +291,7 @@ const getCarryApproachTarget = (ant, nestPosition) => {
   return ant.queuedNestSlot.entrancePosition;
 };
 
-const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem) => {
+const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusTarget) => {
   ant.lodBand = getLodBandForDistance(distanceToCamera);
   ant.brainInterval = getBrainIntervalForDistance(distanceToCamera);
   ant.logicInterval = getLogicIntervalForDistance(distanceToCamera);
@@ -311,6 +326,16 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem) => {
   if (sensedFood) {
     chooseFoodAction(ant, sensedFood);
     return;
+  }
+
+  if (colonyFocusTarget) {
+    const focusDistance = ant.position.distanceTo(colonyFocusTarget);
+    const focusRadius = ant.role === ANT_ROLE.scout ? 22 : ant.role === ANT_ROLE.forager ? 17 : 13;
+    const focusChance = ant.role === ANT_ROLE.scout ? 0.92 : ant.role === ANT_ROLE.forager ? 0.74 : 0.46;
+    if (focusDistance > focusRadius && Math.random() < focusChance) {
+      chooseFocusAction(ant, colonyFocusTarget);
+      return;
+    }
   }
 
   if (ant.role !== ANT_ROLE.worker) {
@@ -474,6 +499,7 @@ export class AntSystem {
     this.tmpFrontPosition = new THREE.Vector3();
     this.spatialHash = new Map();
     this.farInstanceCount = 0;
+    this.focusTarget = null;
 
     const rearGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorRearRadius, 8, 6);
     const frontGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorFrontRadius, 8, 6);
@@ -518,7 +544,7 @@ export class AntSystem {
 
       ant.brainCooldown -= dt;
       if (ant.brainCooldown <= 0) {
-        updateBrain(ant, distanceToCamera, this.foods, this.pheromoneSystem);
+        updateBrain(ant, distanceToCamera, this.foods, this.pheromoneSystem, this.focusTarget);
         ant.brainCooldown = ant.brainInterval;
       }
 
@@ -653,6 +679,10 @@ export class AntSystem {
     this.farFrontInstances.instanceMatrix.needsUpdate = true;
   }
 
+  setFocusTarget(target) {
+    this.focusTarget = target ? target.clone() : null;
+  }
+
   getSummary() {
     let visible = 0;
     let idle = 0;
@@ -677,6 +707,7 @@ export class AntSystem {
     }
     return {
       total: this.ants.length,
+      playerTotal: this.ants.filter((ant) => ant.faction === ANT_FACTION.player).length,
       visible,
       active: this.ants.length - idle,
       idle,

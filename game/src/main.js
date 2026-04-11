@@ -50,6 +50,8 @@ const refs = {
   cameraInfo: document.getElementById('cameraInfo'),
   meshInfo: document.getElementById('meshInfo'),
   antInfo: document.getElementById('antInfo'),
+  selectedNestInfo: document.getElementById('selectedNestInfo'),
+  focusInfo: document.getElementById('focusInfo'),
   foodInfo: document.getElementById('foodInfo'),
   buildInfo: document.getElementById('buildInfo'),
   debugVisualsToggle: document.getElementById('debugVisualsToggle'),
@@ -76,12 +78,16 @@ const app = {
 
 const gameplaySession = createGameplaySession({
   mount: refs.gameCanvasHost,
+  onNestSelected: () => {},
+  onFocusAssigned: () => {},
   onHudUpdate: (summary) => {
     app.lastHudSummary = summary;
     refs.antCountValue.textContent = summary ? String(summary.playerAntCount) : '0';
     refs.cameraInfo.textContent = summary?.cameraText ?? 'Camera: waiting for gameplay...';
     refs.meshInfo.textContent = summary?.terrainText ?? 'Terrain: --';
     refs.antInfo.textContent = summary?.antText ?? 'Ants: --';
+    refs.selectedNestInfo.textContent = summary?.selectedNestText ?? 'Selected nest: Home Nest';
+    refs.focusInfo.textContent = summary?.focusText ?? 'Focus: none';
     refs.foodInfo.textContent = summary?.foodText ?? 'Food: --';
     refs.buildInfo.textContent = summary?.buildText ?? 'Build: --';
     refs.titleBuildBadge.textContent = summary?.buildText ?? 'Build: --';

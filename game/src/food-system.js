@@ -22,6 +22,24 @@ export const NEST_CONFIG = Object.freeze({
   position: new THREE.Vector3(0, 0, 0),
 });
 
+export const FACTION = Object.freeze({
+  player: 'player',
+  enemy: 'enemy',
+});
+
+const FACTION_STYLE = Object.freeze({
+  [FACTION.player]: {
+    mound: 0x8b5a2b,
+    inner: 0x5a3414,
+    ring: 0xbaff9c,
+  },
+  [FACTION.enemy]: {
+    mound: 0x7a4158,
+    inner: 0x481d31,
+    ring: 0xff859f,
+  },
+});
+
 const randomRange = (min, max) => min + Math.random() * (max - min);
 
 const deriveFoodWeight = (sizeScale) => {
@@ -69,6 +87,17 @@ export const getNestPosition = () => {
   const z = NEST_CONFIG.position.z;
   return new THREE.Vector3(x, sampleHeight(x, z), z);
 };
+
+const createNestDefinition = ({ id, x, z, faction, label }) => {
+  const position = new THREE.Vector3(x, sampleHeight(x, z), z);
+  return { id, faction, label, position };
+};
+
+export const createNestDefinitions = () => ([
+  createNestDefinition({ id: 'player-1', x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z, faction: FACTION.player, label: 'Home Nest' }),
+  createNestDefinition({ id: 'enemy-1', x: -26, z: -18, faction: FACTION.enemy, label: 'Enemy Nest Alpha' }),
+  createNestDefinition({ id: 'enemy-2', x: 28, z: 22, faction: FACTION.enemy, label: 'Enemy Nest Beta' }),
+]);
 
 export const getFoodCarryFactor = (food) => {
   const supportCount = Math.max(0, food.supportAntIds?.length ?? 0);
@@ -130,12 +159,13 @@ const createFoodVisual = (food) => {
   return group;
 };
 
-const createNestVisual = () => {
+const createNestVisual = (nest) => {
   const group = new THREE.Group();
   const debugGroup = new THREE.Group();
-  const nestBaseY = sampleHeight(NEST_CONFIG.position.x, NEST_CONFIG.position.z);
-  const nestMaterial = new THREE.MeshToonMaterial({ color: 0x8b5a2b });
-  const innerMaterial = new THREE.MeshToonMaterial({ color: 0x5a3414 });
+  const style = FACTION_STYLE[nest.faction] ?? FACTION_STYLE.player;
+  const nestBaseY = nest.position.y;
+  const nestMaterial = new THREE.MeshToonMaterial({ color: style.mound });
+  const innerMaterial = new THREE.MeshToonMaterial({ color: style.inner });
   const queueMaterial = new THREE.MeshToonMaterial({ color: 0xffd54f });
   const entranceMaterial = new THREE.MeshToonMaterial({ color: 0x00e5ff });
   const pathMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: false, depthWrite: false });
@@ -162,36 +192,62 @@ const createNestVisual = () => {
     const queueMarker = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.12, 12), queueMaterial);
     const queueX = Math.cos(angle) * NEST_CONFIG.queueRadius;
     const queueZ = Math.sin(angle) * NEST_CONFIG.queueRadius;
-    const queueWorldX = NEST_CONFIG.position.x + queueX;
-    const queueWorldZ = NEST_CONFIG.position.z + queueZ;
+    const queueWorldX = nest.position.x + queueX;
+    const queueWorldZ = nest.position.z + queueZ;
     const queueLocalY = sampleHeight(queueWorldX, queueWorldZ) - nestBaseY;
     queueMarker.position.set(queueX, queueLocalY + 0.22, queueZ);
-    queueMarker.castShadow = false;
-    queueMarker.receiveShadow = false;
     debugGroup.add(queueMarker);
 
     const entranceMarker = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.16, 12), entranceMaterial);
     const entranceX = Math.cos(angle) * NEST_CONFIG.entranceRadius;
     const entranceZ = Math.sin(angle) * NEST_CONFIG.entranceRadius;
-    const entranceWorldX = NEST_CONFIG.position.x + entranceX;
-    const entranceWorldZ = NEST_CONFIG.position.z + entranceZ;
+    const entranceWorldX = nest.position.x + entranceX;
+    const entranceWorldZ = nest.position.z + entranceZ;
     const entranceLocalY = sampleHeight(entranceWorldX, entranceWorldZ) - nestBaseY;
     entranceMarker.position.set(entranceX, entranceLocalY + 0.28, entranceZ);
-    entranceMarker.castShadow = false;
-    entranceMarker.receiveShadow = false;
     debugGroup.add(entranceMarker);
 
     const pathGeometry = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(queueX, queueLocalY + 0.32, queueZ),
       new THREE.Vector3(entranceX, entranceLocalY + 0.32, entranceZ),
     ]);
-    const pathLine = new THREE.Line(pathGeometry, pathMaterial);
-    debugGroup.add(pathLine);
+    debugGroup.add(new THREE.Line(pathGeometry, pathMaterial));
   }
 
-  group.add(debugGroup);
-  group.userData.debugGroup = debugGroup;
+  const selectionRing = new THREE.Mesh(
+    new THREE.TorusGeometry(NEST_CONFIG.radius * 1.35, 0.12, 10, 48),
+    new THREE.MeshBasicMaterial({ color: style.ring, transparent: true, opacity: nest.faction === FACTION.player ? 0.95 : 0.45 }),
+  );
+  selectionRing.rotation.x = Math.PI / 2;
+  selectionRing.position.y = 0.26;
+  selectionRing.visible = false;
+  group.add(selectionRing);
 
+  group.userData.debugGroup = debugGroup;
+  group.userData.selectionRing = selectionRing;
+  group.userData.nestId = nest.id;
+  group.add(debugGroup);
+
+  return group;
+};
+
+const createFocusMarker = () => {
+  const group = new THREE.Group();
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(1.1, 0.08, 10, 40),
+    new THREE.MeshBasicMaterial({ color: 0xbaff9c, transparent: true, opacity: 0.96 }),
+  );
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  const spike = new THREE.Mesh(
+    new THREE.ConeGeometry(0.26, 0.6, 6),
+    new THREE.MeshToonMaterial({ color: 0x4fbf67 }),
+  );
+  spike.position.y = 0.38;
+  group.add(spike);
+
+  group.visible = false;
   return group;
 };
 
@@ -199,15 +255,30 @@ const computeNestScale = (nestStored) => 1 + Math.min(0.85, nestStored * 0.012);
 
 export class FoodSystem {
   constructor({ scene, count = FOOD_CONFIG.count } = {}) {
+    this.scene = scene;
     this.items = createFoodItems(count);
     this.meshes = [];
     this.nestStored = 0;
-    this.nestPosition = getNestPosition();
-    this.nestMesh = createNestVisual();
-    this.nestMesh.position.copy(this.nestPosition);
-    scene.add(this.nestMesh);
+    this.nests = createNestDefinitions().map((nest) => ({
+      ...nest,
+      mesh: createNestVisual(nest),
+    }));
+    this.playerNest = this.nests.find((nest) => nest.faction === FACTION.player);
+    this.enemyNests = this.nests.filter((nest) => nest.faction === FACTION.enemy);
+    this.nestPosition = this.playerNest.position.clone();
+    this.nestMesh = this.playerNest.mesh;
+    this.selectedNestId = this.playerNest.id;
+    this.focusTarget = null;
+    this.focusMarker = createFocusMarker();
     this.queueAssignments = new Map();
+
+    for (const nest of this.nests) {
+      nest.mesh.position.copy(nest.position);
+      scene.add(nest.mesh);
+    }
+    scene.add(this.focusMarker);
     this.updateNestVisual();
+    this.updateSelectionVisuals();
 
     for (const food of this.items) {
       const mesh = createFoodVisual(food);
@@ -215,6 +286,50 @@ export class FoodSystem {
       scene.add(mesh);
       this.meshes.push(mesh);
     }
+  }
+
+  getSelectedNest() {
+    return this.nests.find((nest) => nest.id === this.selectedNestId) ?? this.playerNest;
+  }
+
+  getSelectedNestLabel() {
+    return this.getSelectedNest()?.label ?? 'No nest selected';
+  }
+
+  setSelectedNest(nestId) {
+    const nest = this.nests.find((candidate) => candidate.id === nestId);
+    if (!nest || nest.faction !== FACTION.player) return false;
+    this.selectedNestId = nest.id;
+    this.updateSelectionVisuals();
+    return true;
+  }
+
+  updateSelectionVisuals() {
+    for (const nest of this.nests) {
+      const ring = nest.mesh?.userData?.selectionRing;
+      if (!ring) continue;
+      ring.visible = nest.id === this.selectedNestId && nest.faction === FACTION.player;
+    }
+  }
+
+  setFocusTarget(position) {
+    this.focusTarget = new THREE.Vector3(position.x, sampleHeight(position.x, position.z), position.z);
+    this.focusMarker.visible = true;
+    this.focusMarker.position.set(this.focusTarget.x, this.focusTarget.y + 0.14, this.focusTarget.z);
+  }
+
+  getFocusTarget() {
+    return this.focusTarget ? this.focusTarget.clone() : null;
+  }
+
+  findNestHit(raycaster) {
+    const hits = [];
+    for (const nest of this.nests) {
+      const intersections = raycaster.intersectObject(nest.mesh, true);
+      if (intersections[0]) hits.push({ nest, distance: intersections[0].distance });
+    }
+    hits.sort((a, b) => a.distance - b.distance);
+    return hits[0]?.nest ?? null;
   }
 
   claimFood(foodId, antId) {
@@ -302,14 +417,20 @@ export class FoodSystem {
   }
 
   updateNestVisual() {
-    const scale = computeNestScale(this.nestStored);
-    this.nestMesh.scale.set(scale, 1 + (scale - 1) * 1.4, scale);
-    this.nestMesh.position.set(this.nestPosition.x, this.nestPosition.y, this.nestPosition.z);
+    for (const nest of this.nests) {
+      const scale = nest.id === this.playerNest.id ? computeNestScale(this.nestStored) : 1;
+      nest.mesh.scale.set(scale, 1 + (scale - 1) * 1.4, scale);
+      nest.mesh.position.set(nest.position.x, nest.position.y, nest.position.z);
+      const ring = nest.mesh?.userData?.selectionRing;
+      if (ring) ring.scale.setScalar(scale);
+    }
   }
 
   setDebugVisualsVisible(visible) {
-    const debugGroup = this.nestMesh?.userData?.debugGroup;
-    if (debugGroup) debugGroup.visible = !!visible;
+    for (const nest of this.nests) {
+      const debugGroup = nest.mesh?.userData?.debugGroup;
+      if (debugGroup) debugGroup.visible = !!visible;
+    }
   }
 
   syncCarriedFood(foodId, carrierPosition) {
