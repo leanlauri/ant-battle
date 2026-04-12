@@ -37,8 +37,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the current food, enemy-economy, spawn, and live ant decision/effects coverage.
+- [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the current carry/delivery, focus/pressure, and other covered live simulation interactions.
   - Keep follow-up slices narrow and focused on one live simulation interaction at a time.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
+- [ ] Add live-runtime deterministic coverage for player focus-target routing and enemy fighter pressure decisions.
+  - Exercise real player focus-target influence plus seeded enemy pressure/patrol choice under the normal gameplay update order.
+  - Confirm those decision-path outcomes stay isolated from `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seed changes.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Add live-runtime deterministic coverage for siege-driven nest collapse and migration aftermath.
@@ -195,6 +200,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add live-runtime deterministic coverage for player focus-target routing and enemy fighter pressure decisions.
+  - Added a live-runtime harness that exercises real player focus-target influence plus seeded enemy fighter pressure-versus-patrol choice under the normal gameplay update order while food regrowth and enemy production also run.
+  - Confirmed those decision-path outcomes stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seeds change, while `ants-runtime` changes still diverge them as expected.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this focus-and-pressure coverage.
 
 - [x] Add live-runtime deterministic coverage for carried-food support and delivery interactions.
   - Added a live-runtime harness that exercises real worker claim, assist-carry, and nest delivery flow under the normal gameplay update order while enemy production also runs.
