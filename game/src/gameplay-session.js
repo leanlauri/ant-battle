@@ -554,7 +554,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         }
 
         if (nestHit?.faction === 'enemy') {
-          foodSystem.setFocusTarget(nestHit.position, { type: 'enemy-nest', label: nestHit.label });
+          foodSystem.setFocusTarget(nestHit.position, { type: 'enemy-nest', nestId: nestHit.id, label: nestHit.label });
           antSystem.setFocusTarget(nestHit.position);
           centerCameraOn(nestHit.position);
           onFocusAssigned?.(foodSystem.getFocusTarget());

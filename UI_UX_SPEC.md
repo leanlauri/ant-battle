@@ -137,6 +137,7 @@ Recommended format:
 ### Focus target feedback
 - when player taps terrain after selecting nest, show a visible focus marker
 - marker should be readable on all terrain palettes
+- when the active focus target is an enemy nest, that nest should also get a clear world-space ring/outline so the attack target is unmistakable
 
 ## Optional later HUD additions
 - pause/menu button
@@ -208,7 +209,7 @@ Recommended format:
 
 ## Invalid taps
 - tapping enemy nest should not select it as player-owned
-- may optionally show enemy highlight or info later
+- tapping enemy nest while a player nest is selected should assign focus there and show a readable enemy-target ring or equivalent highlight
 
 ---
 

@@ -35,11 +35,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Immediate UI fixes
 
-- [ ] Make enemy nest selection visibly readable.
-  - Enemy nests can be selected/focused, but the selection ring is not visible enough or is not rendering correctly.
-  - Ensure enemy nest focus has a clear, consistent world-space ring or equivalent indicator like other important targets.
-  - Docs: `UI_UX_SPEC.md`
-
 - [ ] Show the active player nest food count in the gameplay HUD and upgrade UI.
   - Surface how much food is currently stored in the selected player nest.
   - Mirror that value in the upgrade panel/detail flow so affordability is obvious without guesswork.
@@ -204,6 +199,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Make enemy nest selection visibly readable.
+  - Tapping an enemy nest as the active focus target now also lights that nest with a clear world-space target ring, instead of only dropping a generic focus marker nearby.
+  - Raised the ring presentation above terrain with depth-disabled rendering and stronger opacity so enemy target feedback stays readable on varied ground.
+  - Added automated coverage for focused enemy-nest ring visibility and documented the expected enemy-target highlight behavior in `UI_UX_SPEC.md`.
 
 - [x] Refine the orthographic battlefield camera framing.
   - Tilted the battlefield camera into a slight diagonal orthographic view instead of a near-straight top-down look.

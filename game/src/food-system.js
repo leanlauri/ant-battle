@@ -269,12 +269,20 @@ const createNestVisual = (nest) => {
   }
 
   const selectionRing = new THREE.Mesh(
-    new THREE.TorusGeometry(NEST_CONFIG.radius * 1.35, 0.12, 10, 48),
-    new THREE.MeshBasicMaterial({ color: style.ring, transparent: true, opacity: nest.faction === FACTION.player ? 0.95 : 0.45 }),
+    new THREE.TorusGeometry(NEST_CONFIG.radius * 1.4, 0.14, 12, 56),
+    new THREE.MeshBasicMaterial({
+      color: style.ring,
+      transparent: true,
+      opacity: nest.faction === FACTION.player ? 0.98 : 0.92,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
   );
   selectionRing.userData.baseColor = style.ring;
   selectionRing.rotation.x = Math.PI / 2;
   selectionRing.position.y = 0.26;
+  selectionRing.renderOrder = 20;
   selectionRing.visible = false;
   group.add(selectionRing);
 
@@ -564,10 +572,14 @@ export class FoodSystem {
   }
 
   updateSelectionVisuals() {
+    const focusedEnemyNestId = this.focusTargetMeta?.type === 'enemy-nest' ? this.focusTargetMeta.nestId : null;
     for (const nest of this.nests) {
       const ring = nest.mesh?.userData?.selectionRing;
       if (!ring) continue;
-      ring.visible = nest.id === this.selectedNestId && nest.faction === FACTION.player;
+      const isSelectedPlayerNest = nest.id === this.selectedNestId && nest.faction === FACTION.player;
+      const isFocusedEnemyNest = nest.id === focusedEnemyNestId && nest.faction === FACTION.enemy;
+      ring.visible = isSelectedPlayerNest || isFocusedEnemyNest;
+      ring.material.opacity = isSelectedPlayerNest ? 0.98 : isFocusedEnemyNest ? 0.96 : (nest.faction === FACTION.player ? 0.98 : 0.92);
     }
   }
 
@@ -576,6 +588,7 @@ export class FoodSystem {
     this.focusTargetMeta = meta ? { ...meta } : null;
     this.focusMarker.visible = true;
     this.focusMarker.position.set(this.focusTarget.x, this.focusTarget.y + 0.14, this.focusTarget.z);
+    this.updateSelectionVisuals();
   }
 
   getFocusTarget() {
@@ -737,8 +750,11 @@ export class FoodSystem {
       nest.mesh.position.set(nest.position.x, nest.position.y, nest.position.z);
       const ring = nest.mesh?.userData?.selectionRing;
       if (ring) {
-        ring.scale.setScalar(Math.max(0.7, scale));
-        ring.position.y = getNestSurfaceY(nest.position, NEST_CONFIG.radius * scale * 1.35) - nest.position.y + 0.18;
+        const isSelectedPlayerNest = nest.id === this.selectedNestId && nest.faction === FACTION.player;
+        const isFocusedEnemyNest = this.focusTargetMeta?.type === 'enemy-nest' && this.focusTargetMeta?.nestId === nest.id && nest.faction === FACTION.enemy;
+        const pulse = isFocusedEnemyNest ? 1 + Math.sin(performance.now() * 0.008) * 0.07 : 1;
+        ring.scale.setScalar(Math.max(0.74, scale * pulse));
+        ring.position.y = getNestSurfaceY(nest.position, NEST_CONFIG.radius * scale * 1.4) - nest.position.y + (isSelectedPlayerNest || isFocusedEnemyNest ? 0.24 : 0.18);
       }
       nest.mesh.traverse((child) => {
         if (!child.isMesh || !child.material?.color) return;

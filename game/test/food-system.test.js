@@ -175,6 +175,24 @@ describe('food system helpers', () => {
     expect(system.focusMarker.visible).toBe(true);
   });
 
+  test('shows a readable world-space ring when an enemy nest becomes the active focus target', () => {
+    const system = new FoodSystem({ scene: new Scene(), count: 0 });
+    const enemyNest = system.getNestById('enemy-1');
+    const enemyRing = enemyNest?.mesh?.userData?.selectionRing;
+    const playerRing = system.getNestById('player-1')?.mesh?.userData?.selectionRing;
+
+    system.setFocusTarget(enemyNest.position, { type: 'enemy-nest', nestId: enemyNest.id, label: enemyNest.label });
+
+    expect(enemyRing?.visible).toBe(true);
+    expect(enemyRing?.material?.depthTest).toBe(false);
+    expect(enemyRing?.renderOrder).toBeGreaterThan(0);
+    expect(playerRing?.visible).toBe(true);
+
+    system.setFocusTarget(new THREE.Vector3(6, 0, 6), { type: 'terrain', label: 'terrain' });
+    expect(enemyRing?.visible).toBe(false);
+    expect(playerRing?.visible).toBe(true);
+  });
+
   test('offers nest-local upgrade options and spends food for repair', () => {
     const system = new FoodSystem({ scene: new Scene(), count: 0 });
     system.nestStored = 20;
