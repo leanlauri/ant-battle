@@ -35,8 +35,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Add broader determinism coverage for remaining runtime simulation paths.
-  - Extend seed-lock tests beyond current ant/effects/runtime slices into any leftover replay-sensitive systems after food regrowth and enemy economy timing are covered.
+- [ ] Add deterministic integration coverage for remaining runtime stream interactions.
+  - Extend seed-lock tests beyond isolated subsystem harnesses into runtime interactions where enemy economy, spawned reinforcements, and ant simulation meet.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
+- [ ] Add deterministic coverage for any other remaining replay-sensitive runtime paths.
+  - Continue sweeping leftover simulation systems after enemy economy, spawned-ant integration, and food regrowth are covered.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
@@ -188,6 +192,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add deterministic integration coverage for remaining runtime stream interactions.
+  - Thin slice shipped: live enemy production plus real `AntSystem.spawnAntBatch` wiring is now covered by deterministic tests.
+  - Confirmed production timing stays locked to the `enemy-economy` stream while spawned-ant placement remains isolated on `ants-spawn`.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` to document the new integration coverage.
 
 - [x] Add deterministic gameplay-session coverage for seeded enemy economy runtime paths.
   - Extracted the runtime enemy production step into a shared module so gameplay-session behavior can be replay-tested without browser scaffolding.

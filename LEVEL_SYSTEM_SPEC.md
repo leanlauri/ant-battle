@@ -76,6 +76,7 @@ Implementation note:
 - keep setup, runtime ant logic, combat aftermath effects, and enemy-economy rolls on separate substreams so adding one system does not silently perturb another
 - keep reinforcement / upgrade ant spawning on its own `ants-spawn` substream so runtime batch creation does not perturb ongoing ant decision rolls
 - keep regression coverage around replay-sensitive enemy production cooldown rolls so enemy colony growth remains seed-stable across replays
+- keep integration coverage around live enemy production plus spawned-ant batch creation so `enemy-economy` timing and `ants-spawn` placement stay isolated from each other
 
 ---
 
