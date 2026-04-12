@@ -46,6 +46,7 @@ const refs = {
   gameplayHud: document.getElementById('gameplayHud'),
   antCountValue: document.getElementById('antCountValue'),
   gameplayLevelLabel: document.getElementById('gameplayLevelLabel'),
+  statusCardLabel: document.getElementById('statusCardLabel'),
   hud: document.getElementById('hud'),
   hudHint: document.getElementById('hudHint'),
   cameraInfo: document.getElementById('cameraInfo'),
@@ -68,10 +69,12 @@ const refs = {
   upgradeConfirmButton: document.getElementById('upgradeConfirmButton'),
   debugVisualsToggle: document.getElementById('debugVisualsToggle'),
   returnToLevelSelectButton: document.getElementById('returnToLevelSelectButton'),
+  victoryKicker: document.getElementById('victoryKicker'),
   victoryLevelLabel: document.getElementById('victoryLevelLabel'),
   victorySummary: document.getElementById('victorySummary'),
   nextLevelButton: document.getElementById('nextLevelButton'),
   victoryLevelSelectButton: document.getElementById('victoryLevelSelectButton'),
+  defeatKicker: document.getElementById('defeatKicker'),
   defeatLevelLabel: document.getElementById('defeatLevelLabel'),
   defeatSummary: document.getElementById('defeatSummary'),
   retryLevelButton: document.getElementById('retryLevelButton'),
@@ -96,6 +99,8 @@ const UPGRADE_ICON = {
   'war-nest': 'war',
   'fortify-nest': 'hp',
 };
+
+const getCurrentLevelDefinition = () => getLevelDefinition(app.currentLevel);
 
 const closeUpgradePanel = () => {
   app.upgradeNestId = null;
@@ -178,6 +183,7 @@ const gameplaySession = createGameplaySession({
   onHudUpdate: (summary) => {
     app.lastHudSummary = summary;
     refs.antCountValue.textContent = summary ? String(summary.playerAntCount) : '0';
+    refs.statusCardLabel.textContent = summary?.isBossLevel ? 'Boss assault' : 'Player ants';
     refs.cameraInfo.textContent = summary?.cameraText ?? 'Camera: waiting for gameplay...';
     refs.meshInfo.textContent = summary?.terrainText ?? 'Terrain: --';
     refs.antInfo.textContent = summary?.antText ?? 'Ants: --';
@@ -208,9 +214,14 @@ const renderLevelGrid = () => {
     button.dataset.state = level.state;
     button.disabled = level.state === 'locked';
     button.dataset.level = String(level.levelNumber);
+    button.dataset.boss = level.isBossLevel ? 'true' : 'false';
     button.innerHTML = `
       <span class="levelCardNumber">${level.levelNumber}</span>
-      <span class="levelCardMeta">${level.isBossLevel ? 'Wasp' : definition.timeOfDay} • ${definition.label}</span>
+      <span class="levelCardMetaRow">
+        ${level.isBossLevel ? `<span class="levelBossBadge">${definition.boss?.icon ?? '👑'} ${definition.boss?.levelCardLabel ?? 'Boss'}</span>` : ''}
+        <span class="levelCardMeta">${level.isBossLevel ? (definition.boss?.shellLabel ?? 'Boss level') : definition.timeOfDay}</span>
+      </span>
+      <span>${definition.label}</span>
       <span class="levelCardState">${level.state}</span>
     `;
     button.addEventListener('click', () => {
@@ -238,7 +249,10 @@ const renderScreens = () => {
   if (!isGameplayVisible()) closeUpgradePanel();
   document.body.dataset.screen = app.screen;
 
-  refs.gameplayLevelLabel.textContent = `Level ${app.currentLevel}`;
+  const currentLevelDefinition = getCurrentLevelDefinition();
+  refs.gameplayLevelLabel.textContent = currentLevelDefinition.isBossLevel
+    ? currentLevelDefinition.boss?.shellLabel ?? `Boss Level ${app.currentLevel}`
+    : `Level ${app.currentLevel}`;
   if (refs.hud && refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
 
   if (app.screen === APP_SCREEN.levelSelect) renderLevelGrid();
@@ -278,16 +292,26 @@ const openVictory = async () => {
   saveCampaignProgress(app.progress);
 
   const nextLevel = Math.min(TOTAL_LEVELS, app.currentLevel + 1);
-  refs.victoryLevelLabel.textContent = `Level ${app.currentLevel} complete`;
-  refs.victorySummary.textContent = `${app.lastHudSummary?.objectiveCompletionText ?? 'Objective complete.'} You reached ${app.lastHudSummary?.maxPlayerAntCount ?? app.lastHudSummary?.playerAntCount ?? 0} player ants, defeated ${app.lastHudSummary?.enemyAntsDefeated ?? 0} enemies, and destroyed ${app.lastHudSummary?.enemyNestsDestroyed ?? 0} enemy nests. Level ${nextLevel <= TOTAL_LEVELS ? nextLevel : app.currentLevel} is now available.`;
+  const levelDefinition = getCurrentLevelDefinition();
+  refs.victoryKicker.textContent = levelDefinition.isBossLevel ? 'Boss defeated' : 'Victory';
+  refs.victoryScreen.querySelector('.overlayPanel')?.setAttribute('data-boss', levelDefinition.isBossLevel ? 'true' : 'false');
+  refs.victoryLevelLabel.textContent = levelDefinition.isBossLevel
+    ? `${levelDefinition.boss?.shellLabel ?? `Boss Level ${app.currentLevel}`} complete`
+    : `Level ${app.currentLevel} complete`;
+  refs.victorySummary.textContent = `${app.lastHudSummary?.objectiveCompletionText ?? 'Objective complete.'} ${levelDefinition.boss?.victorySummary ?? ''} You reached ${app.lastHudSummary?.maxPlayerAntCount ?? app.lastHudSummary?.playerAntCount ?? 0} player ants, defeated ${app.lastHudSummary?.enemyAntsDefeated ?? 0} enemies, and destroyed ${app.lastHudSummary?.enemyNestsDestroyed ?? 0} enemy nests. Level ${nextLevel <= TOTAL_LEVELS ? nextLevel : app.currentLevel} is now available.`.trim();
   refs.nextLevelButton.disabled = app.currentLevel >= TOTAL_LEVELS;
   refs.nextLevelButton.textContent = app.currentLevel >= TOTAL_LEVELS ? 'Campaign Complete' : `Play Level ${nextLevel}`;
   await changeScreen(APP_SCREEN.victory);
 };
 
 const openDefeat = async () => {
-  refs.defeatLevelLabel.textContent = `Level ${app.currentLevel} failed`;
-  refs.defeatSummary.textContent = `Max player ants: ${app.lastHudSummary?.maxPlayerAntCount ?? app.lastHudSummary?.playerAntCount ?? 0}. Enemies defeated: ${app.lastHudSummary?.enemyAntsDefeated ?? 0}. Player nests lost: ${app.lastHudSummary?.playerNestsLost ?? 0}. Try again or head back to level select.`;
+  const levelDefinition = getCurrentLevelDefinition();
+  refs.defeatKicker.textContent = levelDefinition.isBossLevel ? 'Boss attempt failed' : 'Defeat';
+  refs.defeatScreen.querySelector('.overlayPanel')?.setAttribute('data-boss', levelDefinition.isBossLevel ? 'true' : 'false');
+  refs.defeatLevelLabel.textContent = levelDefinition.isBossLevel
+    ? `${levelDefinition.boss?.shellLabel ?? `Boss Level ${app.currentLevel}`} failed`
+    : `Level ${app.currentLevel} failed`;
+  refs.defeatSummary.textContent = `${levelDefinition.boss?.defeatSummary ?? ''} Max player ants: ${app.lastHudSummary?.maxPlayerAntCount ?? app.lastHudSummary?.playerAntCount ?? 0}. Enemies defeated: ${app.lastHudSummary?.enemyAntsDefeated ?? 0}. Player nests lost: ${app.lastHudSummary?.playerNestsLost ?? 0}. Try again or head back to level select.`.trim();
   await changeScreen(APP_SCREEN.defeat);
 };
 

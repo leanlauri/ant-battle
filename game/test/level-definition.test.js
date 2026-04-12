@@ -28,5 +28,22 @@ describe('level definition', () => {
     expect(first).toEqual(second);
     expect(first.isBossLevel).toBe(true);
     expect(first.foodCount).toBeGreaterThan(getLevelDefinition(9).foodCount);
+    expect(first.boss).toMatchObject({
+      tier: 1,
+      shellLabel: 'Boss Level 10',
+      levelCardLabel: 'Boss 1',
+    });
+    expect(first.nestOverrides['enemy-1']).toMatchObject({ label: 'Brood Nest' });
+    expect(first.scenarioRules.targetNestHpMultiplier).toBeGreaterThan(1);
+  });
+
+  test('later boss tiers scale their pressure cues', () => {
+    const level10 = getLevelDefinition(10);
+    const level20 = getLevelDefinition(20);
+
+    expect(level20.boss.tier).toBe(2);
+    expect(level20.antBudget).toBeGreaterThan(level10.antBudget);
+    expect(level20.scenarioRules.enemyProductionRateMultiplier).toBeGreaterThan(level10.scenarioRules.enemyProductionRateMultiplier);
+    expect(level20.setup.playerStartingCounts.fighters).toBeGreaterThan(level10.setup.playerStartingCounts.fighters);
   });
 });

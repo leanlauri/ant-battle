@@ -35,12 +35,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Immediate gameplay and UX slices
 
-- [ ] Add first boss-level scaffolding for every 10th level.
-  - Replace the current boss placeholder with a real special-case ruleset.
-  - Give boss levels distinct objective copy, setup pressure, and presentation cues.
-  - Do this in a way that can later evolve into a real wasp faction.
-  - Docs: `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`, `FACTION_AND_UNIT_SPEC.md`
-
 - [ ] Remove remaining debug-flavoured gameplay presentation from the player-facing HUD.
   - Audit labels, copy, panel names, hidden test hooks, and shell text.
   - Keep dev/test affordances only where they are invisible to normal play.
@@ -214,6 +208,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add first boss-level scaffolding for every 10th level.
+  - Boss levels now resolve to a deterministic brood-assault profile with tiered pressure values, distinct copy, and shell-facing labels.
+  - The target brood nest now gets per-level presentation/HP overrides, while escort nests stay optional victory-agnostic pressure sources.
+  - Level select and victory/defeat shell now visibly mark boss stages so every 10th level reads differently even before real wasps exist.
+  - Added unit coverage for boss scaling and nest overrides, plus smoke coverage for level-select boss markers.
 
 - [x] Make objective text correspond to real gameplay rule differences, not only flavor text.
   - Added an explicit objective/rules model to level definitions.

@@ -119,16 +119,26 @@ export const getNestPosition = () => {
   return new THREE.Vector3(x, sampleHeight(x, z), z);
 };
 
-const createNestDefinition = ({ id, x, z, faction, colonyId = faction, label }) => {
+const createNestDefinition = ({ id, x, z, faction, colonyId = faction, label, maxHp = NEST_CONFIG.maxHp }) => {
   const position = new THREE.Vector3(x, sampleHeight(x, z), z);
-  return { id, faction, colonyId, label, position, maxHp: NEST_CONFIG.maxHp, hp: NEST_CONFIG.maxHp, collapsed: false };
+  return { id, faction, colonyId, label, position, maxHp, hp: maxHp, collapsed: false };
 };
 
-export const createNestDefinitions = ({ enemyNestCount = 2 } = {}) => {
+export const createNestDefinitions = ({ enemyNestCount = 2, nestOverrides = {} } = {}) => {
+  const withOverride = (base) => {
+    const override = nestOverrides?.[base.id] ?? {};
+    const hpMultiplier = Math.max(0.25, override.maxHpMultiplier ?? 1);
+    return createNestDefinition({
+      ...base,
+      label: override.label ?? base.label,
+      maxHp: Math.round((override.maxHp ?? base.maxHp ?? NEST_CONFIG.maxHp) * hpMultiplier),
+    });
+  };
+
   const allNests = [
-    createNestDefinition({ id: 'player-1', x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z, faction: FACTION.player, colonyId: COLONY.player, label: 'Home Nest' }),
-    createNestDefinition({ id: 'enemy-1', x: -26, z: -18, faction: FACTION.enemy, colonyId: COLONY.enemyAlpha, label: 'Enemy Nest Alpha' }),
-    createNestDefinition({ id: 'enemy-2', x: 28, z: 22, faction: FACTION.enemy, colonyId: COLONY.enemyBeta, label: 'Enemy Nest Beta' }),
+    withOverride({ id: 'player-1', x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z, faction: FACTION.player, colonyId: COLONY.player, label: 'Home Nest', maxHp: NEST_CONFIG.maxHp }),
+    withOverride({ id: 'enemy-1', x: -26, z: -18, faction: FACTION.enemy, colonyId: COLONY.enemyAlpha, label: 'Enemy Nest Alpha', maxHp: NEST_CONFIG.maxHp }),
+    withOverride({ id: 'enemy-2', x: 28, z: 22, faction: FACTION.enemy, colonyId: COLONY.enemyBeta, label: 'Enemy Nest Beta', maxHp: NEST_CONFIG.maxHp }),
   ];
   const clampedEnemyNestCount = THREE.MathUtils.clamp(enemyNestCount, 0, allNests.length - 1);
   return [allNests[0], ...allNests.slice(1, 1 + clampedEnemyNestCount)];
@@ -311,12 +321,12 @@ const computeNestScale = (nestStored, hpRatio = 1) => {
 };
 
 export class FoodSystem {
-  constructor({ scene, count = FOOD_CONFIG.count, enemyNestCount = 2 } = {}) {
+  constructor({ scene, count = FOOD_CONFIG.count, enemyNestCount = 2, nestOverrides = null } = {}) {
     this.scene = scene;
     this.items = createFoodItems(count);
     this.meshes = [];
     this.nestStoredById = new Map();
-    this.nests = createNestDefinitions({ enemyNestCount }).map((nest) => ({
+    this.nests = createNestDefinitions({ enemyNestCount, nestOverrides }).map((nest) => ({
       ...nest,
       mesh: createNestVisual(nest),
     }));

@@ -17,7 +17,8 @@ describe('level objective rules', () => {
     expect(level.objective.type).toBe('destroy-target-nest');
     expect(level.objective.targetNestId).toBe('enemy-1');
     expect(level.objectiveText).toContain('Destroy Brood Nest.');
-    expect(level.scenarioRules.enemyProductionRateMultiplier).toBe(1.25);
+    expect(level.scenarioRules.enemyProductionRateMultiplier).toBeGreaterThan(1.2);
+    expect(level.scenarioRules.targetNestHpMultiplier).toBeGreaterThan(1);
   });
 
   it('reports progress for destroy-all objectives from active nest count', () => {

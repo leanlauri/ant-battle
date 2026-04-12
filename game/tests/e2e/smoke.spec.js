@@ -34,6 +34,8 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect(page.locator('#levelPageLabel')).toHaveText('Levels 1–20');
   await expect(page.locator('[data-level="1"]')).toContainText('open');
   await expect(page.locator('[data-level="2"]')).toContainText('locked');
+  await expect(page.locator('[data-level="10"]')).toContainText('Boss Level 10');
+  await expect(page.locator('[data-level="10"] .levelBossBadge')).toContainText('Boss 1');
 
   await page.locator('[data-level="1"]').click();
 

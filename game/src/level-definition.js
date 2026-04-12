@@ -83,16 +83,63 @@ const LEVEL_BANDS = Object.freeze([
   },
 ]);
 
-const createObjectiveModel = ({ isBossLevel, enemyNestCount }) => {
-  if (isBossLevel) {
-    return {
+const createBossProfile = (normalizedLevel, band) => {
+  if (normalizedLevel % 10 !== 0) return null;
+
+  const bossTier = Math.max(1, normalizedLevel / 10);
+  const targetLabel = 'Brood Nest';
+  const escortNestCount = Math.min(2, Math.max(0, band.enemyNestCount));
+  const productionMultiplier = 1.2 + bossTier * 0.08;
+  const targetNestHpMultiplier = 1.2 + bossTier * 0.1;
+  const bonusFood = bossTier >= 3 ? 4 : 2;
+  const bonusBudget = 16 + bossTier * 8;
+
+  return {
+    tier: bossTier,
+    icon: '👑',
+    title: `${targetLabel} assault`,
+    shellLabel: `Boss Level ${normalizedLevel}`,
+    levelCardLabel: `Boss ${bossTier}`,
+    introText: `Break the ${targetLabel.toLowerCase()} before the escort colonies and fast hatch cycles bury the map in defenders.`,
+    objectiveText: `Destroy ${targetLabel}. Escort nests can survive, but the brood nest hatches reinforcements faster and can absorb more punishment.`,
+    victorySummary: `The ${targetLabel.toLowerCase()} cracked and the brood surge collapsed.`,
+    defeatSummary: `The brood nest held long enough for the escort colonies to overwhelm your line.`,
+    objective: {
       type: OBJECTIVE_TYPE.destroyTargetNest,
       targetNestId: 'enemy-1',
-      targetLabel: 'Brood Nest',
-      rulesText: 'Escort nests can survive, but enemy reinforcements arrive faster.',
-      completionText: 'Destroyed Brood Nest.',
-    };
-  }
+      targetLabel,
+      rulesText: 'Escort nests can survive, but the brood nest hatches reinforcements faster and can absorb more punishment.',
+      completionText: `Destroyed ${targetLabel}.`,
+    },
+    nestOverrides: {
+      'enemy-1': {
+        label: targetLabel,
+        maxHpMultiplier: targetNestHpMultiplier,
+      },
+      'enemy-2': escortNestCount > 0
+        ? {
+            label: 'Escort Nest',
+          }
+        : undefined,
+    },
+    scenarioRules: {
+      enemyProductionRateMultiplier: productionMultiplier,
+      targetNestHpMultiplier,
+      escortNestCount,
+    },
+    enemyNestCount: Math.min(2, escortNestCount + 1),
+    bonusFood,
+    bonusBudget,
+    setupModifiers: {
+      enemyStartingPerNestDelta: 1 + bossTier,
+      enemyWorkerRatioDelta: -0.08,
+      playerStartingFighterDelta: bossTier >= 2 ? 1 : 0,
+    },
+  };
+};
+
+const createObjectiveModel = ({ bossProfile, enemyNestCount }) => {
+  if (bossProfile) return bossProfile.objective;
 
   return {
     type: OBJECTIVE_TYPE.destroyAllEnemyNests,
@@ -104,34 +151,40 @@ const createObjectiveModel = ({ isBossLevel, enemyNestCount }) => {
 export const getLevelDefinition = (levelNumber = 1) => {
   const normalizedLevel = Math.max(1, Math.floor(levelNumber));
   const band = LEVEL_BANDS.find((entry) => normalizedLevel <= entry.maxLevel) ?? LEVEL_BANDS[LEVEL_BANDS.length - 1];
-  const isBossLevel = normalizedLevel % 10 === 0;
-  const enemyNestCount = isBossLevel ? Math.min(2, band.enemyNestCount + 1) : band.enemyNestCount;
-  const objective = createObjectiveModel({ isBossLevel, enemyNestCount });
+  const bossProfile = createBossProfile(normalizedLevel, band);
+  const isBossLevel = !!bossProfile;
+  const enemyNestCount = bossProfile?.enemyNestCount ?? band.enemyNestCount;
+  const objective = createObjectiveModel({ bossProfile, enemyNestCount });
   const scenarioRules = {
-    enemyProductionRateMultiplier: isBossLevel ? 1.25 : 1,
+    enemyProductionRateMultiplier: 1,
+    ...(bossProfile?.scenarioRules ?? {}),
   };
 
   return {
     levelNumber: normalizedLevel,
     seed: `ant-battle-level-${normalizedLevel}`,
     isBossLevel,
+    boss: bossProfile,
     enemyNestCount,
-    foodCount: band.foodCount + (isBossLevel ? 2 : 0),
-    antBudget: band.antBudget + (isBossLevel ? 20 : 0),
-    label: isBossLevel ? 'Brood assault' : band.label,
+    foodCount: band.foodCount + (bossProfile?.bonusFood ?? 0),
+    antBudget: band.antBudget + (bossProfile?.bonusBudget ?? 0),
+    label: bossProfile?.title ?? band.label,
     objective,
-    objectiveText: objective.type === OBJECTIVE_TYPE.destroyTargetNest
-      ? `Destroy ${objective.targetLabel}. ${objective.rulesText}`
-      : enemyNestCount > 1
-        ? `Destroy all hostile nests. ${objective.rulesText}`.trim()
-        : 'Destroy the rival colony nest.',
+    objectiveText: bossProfile?.objectiveText ?? (enemyNestCount > 1
+      ? `Destroy all hostile nests. ${objective.rulesText}`.trim()
+      : 'Destroy the rival colony nest.'),
+    introText: bossProfile?.introText ?? band.objectiveText,
     timeOfDay: band.timeOfDay,
     setup: {
       ...band.setup,
-      playerStartingCounts: { ...band.setup.playerStartingCounts },
-      enemyStartingPerNest: (band.setup?.enemyStartingPerNest ?? 14) + (isBossLevel ? 2 : 0),
-      enemyWorkerRatio: Math.max(0.45, (band.setup?.enemyWorkerRatio ?? 0.82) - (isBossLevel ? 0.06 : 0)),
+      playerStartingCounts: {
+        ...band.setup.playerStartingCounts,
+        fighters: Math.max(1, (band.setup.playerStartingCounts?.fighters ?? 0) + (bossProfile?.setupModifiers?.playerStartingFighterDelta ?? 0)),
+      },
+      enemyStartingPerNest: (band.setup?.enemyStartingPerNest ?? 14) + (bossProfile?.setupModifiers?.enemyStartingPerNestDelta ?? 0),
+      enemyWorkerRatio: Math.max(0.45, (band.setup?.enemyWorkerRatio ?? 0.82) + (bossProfile?.setupModifiers?.enemyWorkerRatioDelta ?? 0)),
     },
+    nestOverrides: bossProfile?.nestOverrides ?? null,
     scenarioRules,
     terrain: { ...band.terrain },
     atmosphere: { ...band.atmosphere },

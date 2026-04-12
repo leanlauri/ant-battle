@@ -28,6 +28,11 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
   const selectedNest = antSystem.foodSystem?.getSelectedNest?.();
 
   return {
+    levelLabel: levelDefinition?.isBossLevel
+      ? `${levelDefinition?.boss?.shellLabel ?? 'Boss Level'} • ${levelDefinition?.label ?? ''}`.trim()
+      : `Level ${levelDefinition?.levelNumber ?? 1} • ${levelDefinition?.label ?? 'Skirmish'}`,
+    bossTitle: levelDefinition?.boss?.title ?? null,
+    isBossLevel: !!levelDefinition?.isBossLevel,
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
     terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${levelDefinition?.terrain?.maxHeight ?? TERRAIN_CONFIG.maxHeight}, ${levelDefinition?.terrain?.maxHeight ?? TERRAIN_CONFIG.maxHeight}], ${levelDefinition?.label ?? 'sandbox'} (${levelDefinition?.timeOfDay ?? 'day'}).`,
     antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, opening ${levelDefinition?.setup?.playerStartingCounts?.workers ?? 0}/${levelDefinition?.setup?.playerStartingCounts?.fighters ?? 0}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
@@ -298,7 +303,12 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       scene.add(terrain);
       scene.add(createTerrainOverlay(terrain.geometry));
 
-      foodSystem = new FoodSystem({ scene, count: currentLevelDefinition.foodCount, enemyNestCount: currentLevelDefinition.enemyNestCount });
+      foodSystem = new FoodSystem({
+        scene,
+        count: currentLevelDefinition.foodCount,
+        enemyNestCount: currentLevelDefinition.enemyNestCount,
+        nestOverrides: currentLevelDefinition.nestOverrides,
+      });
       pheromoneSystem = new PheromoneSystem();
       antSystem = new AntSystem({
         scene,

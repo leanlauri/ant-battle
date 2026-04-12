@@ -103,6 +103,24 @@ describe('food system helpers', () => {
     expect(nests.some((nest) => nest.id === 'enemy-2')).toBe(false);
   });
 
+  test('supports per-level nest presentation and hp overrides', () => {
+    const nests = createNestDefinitions({
+      enemyNestCount: 2,
+      nestOverrides: {
+        'enemy-1': { label: 'Brood Nest', maxHpMultiplier: 1.4 },
+        'enemy-2': { label: 'Escort Nest' },
+      },
+    });
+
+    expect(nests.find((nest) => nest.id === 'enemy-1')).toMatchObject({
+      label: 'Brood Nest',
+      maxHp: Math.round(NEST_CONFIG.maxHp * 1.4),
+    });
+    expect(nests.find((nest) => nest.id === 'enemy-2')).toMatchObject({
+      label: 'Escort Nest',
+    });
+  });
+
   test('reserves queue slots and stores food against the requested nest', () => {
     const system = new FoodSystem({ scene: new Scene(), count: 1 });
     const food = system.items[0];
