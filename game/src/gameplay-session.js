@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { AntSystem } from './ant-system.js';
 import { ENEMY_ECONOMY_CONFIG, FOOD_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
 import { getLevelDefinition } from './level-definition.js';
+import { getObjectiveStatus } from './objective-rules.js';
 import { PheromoneSystem } from './pheromone-system.js';
 import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
 
@@ -16,6 +17,7 @@ const createBuildInfo = () => ({
 });
 
 const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) => {
+  const objectiveStatus = getObjectiveStatus({ objective: levelDefinition?.objective, foodSystem: antSystem.foodSystem });
   const antSummary = antSystem.getSummary();
   const remainingFood = antSystem.foods.filter((item) => !item.delivered).length;
   const heaviestFood = antSystem.foods.reduce((max, food) => Math.max(max, food.requiredCarriers), 1);
@@ -33,8 +35,9 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
     focusText: focusTarget
       ? `Focus: ${focusTargetMeta?.label ?? 'terrain'} at x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
       : 'Focus: none',
-    objectiveText: `Objective: ${levelDefinition?.objectiveText ?? 'Destroy hostile nests.'}`,
-    battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down, ${antSystem.foodSystem?.getActiveEnemyNestCount?.() ?? 0} enemy nests still active.`,
+    objectiveText: objectiveStatus.hudText,
+    objectiveCompletionText: objectiveStatus.completionText,
+    battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down. ${objectiveStatus.battleSuffix}`,
     foodText: `Food: ${remainingFood} left, selected nest stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
     selectedNestStored: antSystem.foodSystem?.getSelectedNestStored?.() ?? 0,
     selectedNestId: selectedNest?.id ?? null,
@@ -87,11 +90,14 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const buildInfo = createBuildInfo();
   const enemyProductionCooldowns = new Map();
 
-  const randomEnemyProductionCooldown = () => THREE.MathUtils.lerp(
-    ENEMY_ECONOMY_CONFIG.productionCooldownMin,
-    ENEMY_ECONOMY_CONFIG.productionCooldownMax,
-    Math.random(),
-  );
+  const randomEnemyProductionCooldown = () => {
+    const multiplier = currentLevelDefinition?.scenarioRules?.enemyProductionRateMultiplier ?? 1;
+    return THREE.MathUtils.lerp(
+      ENEMY_ECONOMY_CONFIG.productionCooldownMin,
+      ENEMY_ECONOMY_CONFIG.productionCooldownMax,
+      Math.random(),
+    ) / Math.max(0.1, multiplier);
+  };
 
   const runEnemyProduction = (dt) => {
     if (!foodSystem || !antSystem) return;
@@ -303,6 +309,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         nests: foodSystem.nests,
         count: currentLevelDefinition.antBudget,
         levelSetup: currentLevelDefinition.setup,
+        objective: currentLevelDefinition.objective,
       });
       setDebugVisualsVisible(debugVisualsVisible);
       publishHud();

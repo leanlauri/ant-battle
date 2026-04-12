@@ -279,7 +279,7 @@ const openVictory = async () => {
 
   const nextLevel = Math.min(TOTAL_LEVELS, app.currentLevel + 1);
   refs.victoryLevelLabel.textContent = `Level ${app.currentLevel} complete`;
-  refs.victorySummary.textContent = `You reached ${app.lastHudSummary?.maxPlayerAntCount ?? app.lastHudSummary?.playerAntCount ?? 0} player ants, defeated ${app.lastHudSummary?.enemyAntsDefeated ?? 0} enemies, and destroyed ${app.lastHudSummary?.enemyNestsDestroyed ?? 0} enemy nests. Level ${nextLevel <= TOTAL_LEVELS ? nextLevel : app.currentLevel} is now available.`;
+  refs.victorySummary.textContent = `${app.lastHudSummary?.objectiveCompletionText ?? 'Objective complete.'} You reached ${app.lastHudSummary?.maxPlayerAntCount ?? app.lastHudSummary?.playerAntCount ?? 0} player ants, defeated ${app.lastHudSummary?.enemyAntsDefeated ?? 0} enemies, and destroyed ${app.lastHudSummary?.enemyNestsDestroyed ?? 0} enemy nests. Level ${nextLevel <= TOTAL_LEVELS ? nextLevel : app.currentLevel} is now available.`;
   refs.nextLevelButton.disabled = app.currentLevel >= TOTAL_LEVELS;
   refs.nextLevelButton.textContent = app.currentLevel >= TOTAL_LEVELS ? 'Campaign Complete' : `Play Level ${nextLevel}`;
   await changeScreen(APP_SCREEN.victory);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { COLONY, FOOD_CONFIG, NEST_CONFIG, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor } from './food-system.js';
 import { createEnemyRolePicker, normalizeLevelSetup } from './level-setup.js';
 import { PHEROMONE_CONFIG } from './pheromone-system.js';
+import { resolveObjectiveOutcome } from './objective-rules.js';
 import { TERRAIN_CONFIG, sampleHeight } from './terrain.js';
 
 export const ANT_CONFIG = Object.freeze({
@@ -755,7 +756,7 @@ export const resolveNestCollapse = (collapsedNest, ants, nests) => {
 };
 
 export class AntSystem {
-  constructor({ scene, camera, foodSystem, pheromoneSystem, foods = [], nests = [], count = ANT_CONFIG.count, levelSetup = {} } = {}) {
+  constructor({ scene, camera, foodSystem, pheromoneSystem, foods = [], nests = [], count = ANT_CONFIG.count, levelSetup = {}, objective = null } = {}) {
     this.scene = scene;
     this.camera = camera;
     this.foodSystem = foodSystem;
@@ -788,6 +789,7 @@ export class AntSystem {
     this.groundSplatGroup = new THREE.Group();
     this.corpseRemains = [];
     this.corpseGroup = new THREE.Group();
+    this.objective = objective;
     this.stats = {
       enemyAntsDefeated: 0,
       playerAntsLost: 0,
@@ -1295,10 +1297,7 @@ export class AntSystem {
     );
 
     if (!this.outcome) {
-      const activeEnemyNests = this.foodSystem.getActiveEnemyNestCount();
-      const activePlayerNests = this.foodSystem.getActivePlayerNestCount();
-      if (activeEnemyNests === 0) this.outcome = 'victory';
-      else if (activePlayerNests === 0) this.outcome = 'defeat';
+      this.outcome = resolveObjectiveOutcome({ objective: this.objective, foodSystem: this.foodSystem });
     }
 
     this.updateEffects(dt);

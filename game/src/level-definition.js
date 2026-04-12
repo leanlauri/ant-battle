@@ -1,3 +1,5 @@
+import { OBJECTIVE_TYPE } from './objective-rules.js';
+
 const LEVEL_BANDS = Object.freeze([
   {
     maxLevel: 10,
@@ -81,20 +83,48 @@ const LEVEL_BANDS = Object.freeze([
   },
 ]);
 
+const createObjectiveModel = ({ isBossLevel, enemyNestCount }) => {
+  if (isBossLevel) {
+    return {
+      type: OBJECTIVE_TYPE.destroyTargetNest,
+      targetNestId: 'enemy-1',
+      targetLabel: 'Brood Nest',
+      rulesText: 'Escort nests can survive, but enemy reinforcements arrive faster.',
+      completionText: 'Destroyed Brood Nest.',
+    };
+  }
+
+  return {
+    type: OBJECTIVE_TYPE.destroyAllEnemyNests,
+    rulesText: enemyNestCount > 1 ? 'Every hostile nest must fall to win.' : '',
+    completionText: enemyNestCount > 1 ? 'All hostile nests destroyed.' : 'Rival nest destroyed.',
+  };
+};
+
 export const getLevelDefinition = (levelNumber = 1) => {
   const normalizedLevel = Math.max(1, Math.floor(levelNumber));
   const band = LEVEL_BANDS.find((entry) => normalizedLevel <= entry.maxLevel) ?? LEVEL_BANDS[LEVEL_BANDS.length - 1];
   const isBossLevel = normalizedLevel % 10 === 0;
+  const enemyNestCount = isBossLevel ? Math.min(2, band.enemyNestCount + 1) : band.enemyNestCount;
+  const objective = createObjectiveModel({ isBossLevel, enemyNestCount });
+  const scenarioRules = {
+    enemyProductionRateMultiplier: isBossLevel ? 1.25 : 1,
+  };
 
   return {
     levelNumber: normalizedLevel,
     seed: `ant-battle-level-${normalizedLevel}`,
     isBossLevel,
-    enemyNestCount: isBossLevel ? Math.min(2, band.enemyNestCount + 1) : band.enemyNestCount,
+    enemyNestCount,
     foodCount: band.foodCount + (isBossLevel ? 2 : 0),
     antBudget: band.antBudget + (isBossLevel ? 20 : 0),
-    label: isBossLevel ? 'Wasp pressure placeholder' : band.label,
-    objectiveText: isBossLevel ? 'Boss placeholder: survive the pressure spike and break the swarm nest.' : band.objectiveText,
+    label: isBossLevel ? 'Brood assault' : band.label,
+    objective,
+    objectiveText: objective.type === OBJECTIVE_TYPE.destroyTargetNest
+      ? `Destroy ${objective.targetLabel}. ${objective.rulesText}`
+      : enemyNestCount > 1
+        ? `Destroy all hostile nests. ${objective.rulesText}`.trim()
+        : 'Destroy the rival colony nest.',
     timeOfDay: band.timeOfDay,
     setup: {
       ...band.setup,
@@ -102,6 +132,7 @@ export const getLevelDefinition = (levelNumber = 1) => {
       enemyStartingPerNest: (band.setup?.enemyStartingPerNest ?? 14) + (isBossLevel ? 2 : 0),
       enemyWorkerRatio: Math.max(0.45, (band.setup?.enemyWorkerRatio ?? 0.82) - (isBossLevel ? 0.06 : 0)),
     },
+    scenarioRules,
     terrain: { ...band.terrain },
     atmosphere: { ...band.atmosphere },
   };

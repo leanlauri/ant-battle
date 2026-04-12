@@ -35,12 +35,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Immediate gameplay and UX slices
 
-- [ ] Make objective text correspond to real gameplay rule differences, not only flavor text.
-  - Add an explicit objective/rules model to level definitions.
-  - Drive victory conditions and scenario rules from that model.
-  - Ensure HUD/objective copy reflects the real rules in play.
-  - Docs: `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`
-
 - [ ] Add first boss-level scaffolding for every 10th level.
   - Replace the current boss placeholder with a real special-case ruleset.
   - Give boss levels distinct objective copy, setup pressure, and presentation cues.
@@ -217,12 +211,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ## In Progress
 
-- [ ] Make objective text correspond to real gameplay rule differences, not only flavor text.
-  - Add an explicit objective/rules model to level definitions.
-  - Drive victory conditions and scenario rules from that model.
-  - Ensure HUD/objective copy reflects the real rules in play.
-  - Docs: `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`
+_None._
 
 ## Complete
 
-_None tracked here yet. Earlier completed work remains documented in `IMPLEMENTATION_ROADMAP.md` and git history._
+- [x] Make objective text correspond to real gameplay rule differences, not only flavor text.
+  - Added an explicit objective/rules model to level definitions.
+  - Wired victory checks and boss pressure rules through that model.
+  - Updated HUD and victory copy to reflect the real active objective.
+  - Added coverage for normal and boss objective behavior.
+
