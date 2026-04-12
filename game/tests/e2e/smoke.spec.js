@@ -66,6 +66,10 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraProjectionType?.())).toBe('orthographic');
 
   const battlefieldCameraState = await page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraState?.());
+  expect(battlefieldCameraState.frustum.bottom).toBeLessThan(battlefieldCameraState.frustum.top * -1);
+  expect(battlefieldCameraState.frustum.near).toBeCloseTo(0.05, 3);
+  expect(battlefieldCameraState.frustum.far).toBeGreaterThanOrEqual(320);
+
   const initialPitch = Math.atan2(
     battlefieldCameraState.position.y - battlefieldCameraState.target.y,
     Math.abs(battlefieldCameraState.position.z - battlefieldCameraState.target.z),

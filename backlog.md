@@ -196,6 +196,12 @@ _None._
 
 ## Complete
 
+- [x] Fix battlefield camera clipping at the bottom of the screen.
+  - Re-biased the orthographic battlefield frustum slightly toward the lower screen edge instead of keeping it perfectly centered, so close tactical zoom keeps more foreground battlefield visible.
+  - Expanded the orthographic near/far safety range to reduce projection clipping during close inspection and target-focused camera movement.
+  - Added end-to-end coverage that asserts the tactical camera keeps the new lower-screen frustum bias and clipping-plane range while preserving the existing 45 degree tilt, zoom, and rotation behavior.
+  - Updated `UI_UX_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` to describe the foreground-safe tactical framing.
+
 - [x] Add live-runtime deterministic coverage for ant decisions and combat aftermath stream isolation.
   - Added a seeded live-runtime harness that runs the normal gameplay update order while a worker consumes real `ants-runtime` decision rolls and a fighter kill triggers real `ants-effects` aftermath.
   - Confirmed `ants-runtime` and `ants-effects` remain isolated from `food`, `enemy-economy`, and `ants-spawn` seed changes, while the relevant owning streams still diverge as expected.

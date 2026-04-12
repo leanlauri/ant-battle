@@ -22,6 +22,10 @@ const DEFAULT_CAMERA_OFFSET = DEFAULT_CAMERA_POSITION.clone().sub(DEFAULT_CAMERA
 const BATTLEFIELD_FIXED_POLAR_ANGLE = Math.PI / 4;
 const BATTLEFIELD_CAMERA_TILT_OFFSET = new THREE.Vector3(0, 40, 40);
 const BATTLEFIELD_ORTHOGRAPHIC_SIZE = 34;
+const BATTLEFIELD_FRUSTUM_TOP_RATIO = 0.9;
+const BATTLEFIELD_FRUSTUM_BOTTOM_RATIO = 1.1;
+const BATTLEFIELD_NEAR_PLANE = 0.05;
+const BATTLEFIELD_FAR_PLANE = 320;
 const BATTLEFIELD_MIN_ZOOM = 0.85;
 const BATTLEFIELD_MAX_ZOOM = 5.2;
 const BATTLEFIELD_EDGE_PADDING = 4;
@@ -31,10 +35,10 @@ const updateOrthographicFrustum = (orthographicCamera) => {
   const aspect = Math.max(0.001, window.innerWidth / Math.max(1, window.innerHeight));
   orthographicCamera.left = -BATTLEFIELD_ORTHOGRAPHIC_SIZE * aspect;
   orthographicCamera.right = BATTLEFIELD_ORTHOGRAPHIC_SIZE * aspect;
-  orthographicCamera.top = BATTLEFIELD_ORTHOGRAPHIC_SIZE;
-  orthographicCamera.bottom = -BATTLEFIELD_ORTHOGRAPHIC_SIZE;
-  orthographicCamera.near = 0.1;
-  orthographicCamera.far = 260;
+  orthographicCamera.top = BATTLEFIELD_ORTHOGRAPHIC_SIZE * BATTLEFIELD_FRUSTUM_TOP_RATIO;
+  orthographicCamera.bottom = -BATTLEFIELD_ORTHOGRAPHIC_SIZE * BATTLEFIELD_FRUSTUM_BOTTOM_RATIO;
+  orthographicCamera.near = BATTLEFIELD_NEAR_PLANE;
+  orthographicCamera.far = BATTLEFIELD_FAR_PLANE;
   orthographicCamera.updateProjectionMatrix();
 };
 
@@ -323,6 +327,16 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     mode: cameraMode,
     projectionType: camera?.isOrthographicCamera ? 'orthographic' : 'perspective',
     zoom: camera?.isOrthographicCamera ? camera.zoom : null,
+    frustum: camera?.isOrthographicCamera
+      ? {
+        left: camera.left,
+        right: camera.right,
+        top: camera.top,
+        bottom: camera.bottom,
+        near: camera.near,
+        far: camera.far,
+      }
+      : null,
     position: camera ? { x: camera.position.x, y: camera.position.y, z: camera.position.z } : null,
     target: controls ? { x: controls.target.x, y: controls.target.y, z: controls.target.z } : null,
     azimuthAngle: typeof controls?.getAzimuthalAngle === 'function' ? controls.getAzimuthalAngle() : null,

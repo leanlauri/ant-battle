@@ -60,6 +60,7 @@ Goals:
 - [x] The battlefield camera now uses a steeper orthographic tactical view with re-tuned zoom/framing, making the playfield read more top-down while keeping tap targeting and HUD camera switching intact
 - [x] The battlefield camera framing was refined again with a steeper plan-aligned tilt, deeper zoom range, and zoom-aware pan bounds so close mobile framing stays stable on the terrain without introducing sideways yaw
 - [x] Battlefield camera controls now keep a true 45 degree orthographic tactical tilt, allow target-stable rotation around the current focus, and zoom in closer for near-ant inspection without breaking tap targeting
+- [x] Battlefield camera foreground clipping was reduced by biasing the orthographic frustum slightly toward the lower screen edge and widening the near/far safety range, so close tactical zoom keeps the lower battlefield visible
 
 ### Next implementation slice
 1. Continue sweeping any remaining replay-sensitive live-runtime paths beyond the current food/enemy-economy/spawn plus live ant decision/effects integration coverage.
