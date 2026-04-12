@@ -44,24 +44,76 @@ const updateOrthographicFrustum = (orthographicCamera) => {
 
 const getBattlefieldCameraOffset = () => BATTLEFIELD_CAMERA_TILT_OFFSET.clone();
 
-const getBattlefieldVisibleHalfExtents = (zoom = 1) => {
+const getBattlefieldGroundFootprint = ({
+  cameraTarget = DEFAULT_CAMERA_TARGET,
+  zoom = 1,
+  cameraPosition = cameraTarget.clone().add(getBattlefieldCameraOffset()),
+} = {}) => {
   const aspect = Math.max(0.001, window.innerWidth / Math.max(1, window.innerHeight));
-  return {
-    halfWidth: (BATTLEFIELD_ORTHOGRAPHIC_SIZE * aspect) / Math.max(0.001, zoom),
-    halfDepth: BATTLEFIELD_ORTHOGRAPHIC_SIZE / Math.max(0.001, zoom),
-  };
+  const halfWidth = (BATTLEFIELD_ORTHOGRAPHIC_SIZE * aspect) / Math.max(0.001, zoom);
+  const top = (BATTLEFIELD_ORTHOGRAPHIC_SIZE * BATTLEFIELD_FRUSTUM_TOP_RATIO) / Math.max(0.001, zoom);
+  const bottom = (BATTLEFIELD_ORTHOGRAPHIC_SIZE * BATTLEFIELD_FRUSTUM_BOTTOM_RATIO) / Math.max(0.001, zoom);
+
+  const tempCamera = new THREE.OrthographicCamera(-halfWidth, halfWidth, top, -bottom, BATTLEFIELD_NEAR_PLANE, BATTLEFIELD_FAR_PLANE);
+  tempCamera.up.set(0, 1, 0);
+  tempCamera.position.copy(cameraPosition);
+  tempCamera.lookAt(cameraTarget);
+  tempCamera.updateMatrixWorld(true);
+
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(tempCamera.quaternion).normalize();
+  if (Math.abs(forward.y) < 1e-5) {
+    return {
+      minX: -halfWidth,
+      maxX: halfWidth,
+      minZ: -bottom,
+      maxZ: top,
+    };
+  }
+
+  const corners = [
+    new THREE.Vector3(-halfWidth, top, 0),
+    new THREE.Vector3(halfWidth, top, 0),
+    new THREE.Vector3(-halfWidth, -bottom, 0),
+    new THREE.Vector3(halfWidth, -bottom, 0),
+  ];
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+
+  for (const corner of corners) {
+    const origin = corner.clone().applyQuaternion(tempCamera.quaternion).add(tempCamera.position);
+    const t = (cameraTarget.y - origin.y) / forward.y;
+    const point = origin.addScaledVector(forward, t);
+    const offset = point.sub(cameraTarget);
+    minX = Math.min(minX, offset.x);
+    maxX = Math.max(maxX, offset.x);
+    minZ = Math.min(minZ, offset.z);
+    maxZ = Math.max(maxZ, offset.z);
+  }
+
+  return { minX, maxX, minZ, maxZ };
 };
 
-const clampBattlefieldTargetToTerrain = (target, zoom = 1) => {
+const clampBattlefieldTargetToTerrain = (target, zoom = 1, cameraPosition = target?.clone().add(getBattlefieldCameraOffset())) => {
   if (!target) return target;
   const terrainProfile = getActiveTerrainProfile();
-  const { halfWidth, halfDepth } = getBattlefieldVisibleHalfExtents(zoom);
   const terrainHalfWidth = (terrainProfile.width ?? 100) / 2;
   const terrainHalfDepth = (terrainProfile.depth ?? 100) / 2;
-  const maxOffsetX = Math.max(0, terrainHalfWidth - halfWidth - BATTLEFIELD_EDGE_PADDING);
-  const maxOffsetZ = Math.max(0, terrainHalfDepth - halfDepth - BATTLEFIELD_EDGE_PADDING);
-  target.x = THREE.MathUtils.clamp(target.x, -maxOffsetX, maxOffsetX);
-  target.z = THREE.MathUtils.clamp(target.z, -maxOffsetZ, maxOffsetZ);
+  const footprint = getBattlefieldGroundFootprint({
+    cameraTarget: target,
+    zoom,
+    cameraPosition,
+  });
+
+  const minTargetX = (-terrainHalfWidth + BATTLEFIELD_EDGE_PADDING) - footprint.minX;
+  const maxTargetX = (terrainHalfWidth - BATTLEFIELD_EDGE_PADDING) - footprint.maxX;
+  const minTargetZ = (-terrainHalfDepth + BATTLEFIELD_EDGE_PADDING) - footprint.minZ;
+  const maxTargetZ = (terrainHalfDepth - BATTLEFIELD_EDGE_PADDING) - footprint.maxZ;
+
+  target.x = THREE.MathUtils.clamp(target.x, minTargetX, maxTargetX);
+  target.z = THREE.MathUtils.clamp(target.z, minTargetZ, maxTargetZ);
   return target;
 };
 
@@ -220,7 +272,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const syncBattlefieldCameraToTarget = (target = controls?.target ?? DEFAULT_CAMERA_TARGET) => {
     if (!battlefieldCamera) return;
     const nextTarget = target.clone();
-    clampBattlefieldTargetToTerrain(nextTarget, battlefieldCamera.zoom);
+    clampBattlefieldTargetToTerrain(nextTarget, battlefieldCamera.zoom, battlefieldCamera.position.clone());
     nextTarget.y = sampleHeight(nextTarget.x, nextTarget.z);
     const currentOffset = battlefieldCamera.position.clone().sub(controls?.target ?? nextTarget);
     const hasExistingOffset = Number.isFinite(currentOffset.lengthSq()) && currentOffset.lengthSq() > 0.0001;
@@ -288,7 +340,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const enforceBattlefieldCameraConstraints = () => {
     if (!controls || !camera || cameraMode !== CAMERA_MODE.battlefield) return;
     const previousTarget = controls.target.clone();
-    clampBattlefieldTargetToTerrain(controls.target, camera.zoom);
+    clampBattlefieldTargetToTerrain(controls.target, camera.zoom, camera.position.clone());
     const desiredTargetY = sampleHeight(controls.target.x, controls.target.z);
     if (Math.abs(desiredTargetY - controls.target.y) > 1e-4) controls.target.y = desiredTargetY;
     const targetDelta = controls.target.clone().sub(previousTarget);
