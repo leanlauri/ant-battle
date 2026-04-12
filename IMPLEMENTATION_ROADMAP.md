@@ -51,6 +51,7 @@ Goals:
 - [x] Nest upgrade feedback now gives clear ready/shortfall/active messaging, success confirmation, and mobile-friendlier card wrapping in the compact overlay
 - [x] Runtime reinforcement spawning now uses its own deterministic `ants-spawn` seed stream, keeping upgrade/enemy production ant creation from perturbing ongoing AI decision rolls
 - [x] Delivered food regrowth is now covered by deterministic seed tests, confirming replenished food stays locked to the level `food` stream across replays
+- [x] Enemy production cooldown timing is now covered by deterministic runtime tests, confirming the `enemy-economy` stream keeps colony growth replay-stable for a level seed
 
 ### Next implementation slice
 1. Start making objective text correspond to actual rule variation instead of only presentation.

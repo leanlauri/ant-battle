@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { AntSystem } from './ant-system.js';
-import { ENEMY_ECONOMY_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
+import { FoodSystem, UPGRADE_CONFIG } from './food-system.js';
+import { runEnemyProductionStep } from './enemy-economy.js';
 import { getLevelDefinition } from './level-definition.js';
 import { getObjectiveStatus } from './objective-rules.js';
 import { PheromoneSystem } from './pheromone-system.js';
@@ -116,44 +117,15 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let antEffectRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-effects'));
   let enemyEconomyRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'enemy-economy'));
 
-  const randomEnemyProductionCooldown = () => {
-    const multiplier = currentLevelDefinition?.scenarioRules?.enemyProductionRateMultiplier ?? 1;
-    return THREE.MathUtils.lerp(
-      ENEMY_ECONOMY_CONFIG.productionCooldownMin,
-      ENEMY_ECONOMY_CONFIG.productionCooldownMax,
-      enemyEconomyRandom(),
-    ) / Math.max(0.1, multiplier);
-  };
-
   const runEnemyProduction = (dt) => {
-    if (!foodSystem || !antSystem) return;
-
-    for (const nest of foodSystem.nests) {
-      if (nest.faction !== 'enemy' || nest.collapsed) continue;
-
-      const cooldown = (enemyProductionCooldowns.get(nest.id) ?? randomEnemyProductionCooldown()) - dt;
-      if (cooldown > 0) {
-        enemyProductionCooldowns.set(nest.id, cooldown);
-        continue;
-      }
-
-      const stored = foodSystem.getNestStored(nest.id);
-      const roster = antSystem.getNestRosterSummary(nest.id);
-      let produced = false;
-
-      const shouldSpawnFighters = stored >= ENEMY_ECONOMY_CONFIG.fighterBatch.cost
-        && (roster.fighters < 2 || roster.workers - roster.fighters >= ENEMY_ECONOMY_CONFIG.fighterPressureThreshold);
-
-      if (shouldSpawnFighters && foodSystem.spendNestFood(nest.id, ENEMY_ECONOMY_CONFIG.fighterBatch.cost)) {
-        antSystem.spawnAntBatch({ nestId: nest.id, role: 'fighter', count: ENEMY_ECONOMY_CONFIG.fighterBatch.count });
-        produced = true;
-      } else if (stored >= ENEMY_ECONOMY_CONFIG.workerBatch.cost && foodSystem.spendNestFood(nest.id, ENEMY_ECONOMY_CONFIG.workerBatch.cost)) {
-        antSystem.spawnAntBatch({ nestId: nest.id, role: 'worker', count: ENEMY_ECONOMY_CONFIG.workerBatch.count });
-        produced = true;
-      }
-
-      enemyProductionCooldowns.set(nest.id, produced ? randomEnemyProductionCooldown() : 2.5);
-    }
+    runEnemyProductionStep({
+      dt,
+      foodSystem,
+      antSystem,
+      enemyProductionCooldowns,
+      levelDefinition: currentLevelDefinition,
+      random: enemyEconomyRandom,
+    });
   };
 
   const resetLevelRandomStreams = () => {

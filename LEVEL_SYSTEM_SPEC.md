@@ -75,6 +75,7 @@ Implementation note:
 - keep the `food` stream responsible for both initial placement and later regrowth so replenished food stays replay-stable for a seed
 - keep setup, runtime ant logic, combat aftermath effects, and enemy-economy rolls on separate substreams so adding one system does not silently perturb another
 - keep reinforcement / upgrade ant spawning on its own `ants-spawn` substream so runtime batch creation does not perturb ongoing ant decision rolls
+- keep regression coverage around replay-sensitive enemy production cooldown rolls so enemy colony growth remains seed-stable across replays
 
 ---
 

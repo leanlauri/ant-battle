@@ -35,10 +35,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Add deterministic gameplay-session coverage for seeded enemy economy runtime paths.
-  - Cover replay-sensitive production cooldown rolls so enemy colony growth stays locked to level seeds.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
 - [ ] Add broader determinism coverage for remaining runtime simulation paths.
   - Extend seed-lock tests beyond current ant/effects/runtime slices into any leftover replay-sensitive systems after food regrowth and enemy economy timing are covered.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
@@ -192,6 +188,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add deterministic gameplay-session coverage for seeded enemy economy runtime paths.
+  - Extracted the runtime enemy production step into a shared module so gameplay-session behavior can be replay-tested without browser scaffolding.
+  - Added deterministic coverage for seeded enemy production cooldown timing and initial cooldown derivation, keeping enemy colony growth locked to the `enemy-economy` stream.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` to document the replay-stable enemy economy coverage.
+
 
 - [x] Add deterministic runtime coverage for seeded food regrowth paths.
   - Added unit coverage that replays delivered food regrowth from the same level `food` stream and verifies different seeds diverge.
