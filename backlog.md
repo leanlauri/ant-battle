@@ -196,6 +196,11 @@ _None._
 
 ## Complete
 
+- [x] Fix battlefield camera foreground occlusion from terrain or horizon geometry.
+  - Softened terrain relief near the outer rim so the raised white horizon geometry no longer swells into the lower battlefield view during tactical zoom.
+  - Tightened battlefield edge clamping as orthographic zoom increases, preserving the current 45 degree tilt, rotation, targeting, and close-inspection feel while keeping the camera off problematic foreground edges.
+  - Added terrain coverage for the new rim attenuation behavior and updated `UI_UX_SPEC.md` plus `IMPLEMENTATION_ROADMAP.md` so the camera-safe horizon treatment is documented.
+
 - [x] Fix battlefield camera clipping at the bottom of the screen.
   - Re-biased the orthographic battlefield frustum slightly toward the lower screen edge instead of keeping it perfectly centered, so close tactical zoom keeps more foreground battlefield visible.
   - Expanded the orthographic near/far safety range to reduce projection clipping during close inspection and target-focused camera movement.

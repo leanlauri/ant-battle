@@ -8,6 +8,8 @@ export const TERRAIN_CONFIG = Object.freeze({
   maxHeight: 5,
   noiseScale: 0.055,
   octaves: 4,
+  edgeFadeStart: 0.76,
+  edgeHeightScale: 0.22,
 });
 
 let activeTerrainProfile = { ...TERRAIN_CONFIG };
@@ -85,13 +87,40 @@ const fractalNoise2D = (x, z, { octaves }) => {
   return totalAmplitude > 0 ? sum / totalAmplitude : 0;
 };
 
+export const getTerrainEdgeAttenuation = (x, z, {
+  width = activeTerrainProfile.width,
+  depth = activeTerrainProfile.depth,
+  edgeFadeStart = activeTerrainProfile.edgeFadeStart,
+  edgeHeightScale = activeTerrainProfile.edgeHeightScale,
+} = {}) => {
+  const halfWidth = Math.max(0.001, width / 2);
+  const halfDepth = Math.max(0.001, depth / 2);
+  const edgeDistance = Math.max(Math.abs(x) / halfWidth, Math.abs(z) / halfDepth);
+  const fade = THREE.MathUtils.clamp(
+    (edgeDistance - edgeFadeStart) / Math.max(0.001, 1 - edgeFadeStart),
+    0,
+    1,
+  );
+  return THREE.MathUtils.lerp(1, edgeHeightScale, smoothStep(fade));
+};
+
 export const sampleHeight = (x, z, {
   maxHeight = activeTerrainProfile.maxHeight,
   noiseScale = activeTerrainProfile.noiseScale,
   octaves = activeTerrainProfile.octaves,
+  width = activeTerrainProfile.width,
+  depth = activeTerrainProfile.depth,
+  edgeFadeStart = activeTerrainProfile.edgeFadeStart,
+  edgeHeightScale = activeTerrainProfile.edgeHeightScale,
 } = {}) => {
   const base = fractalNoise2D(x * noiseScale, z * noiseScale, { octaves });
-  return THREE.MathUtils.clamp(base * maxHeight, -maxHeight, maxHeight);
+  const attenuation = getTerrainEdgeAttenuation(x, z, {
+    width,
+    depth,
+    edgeFadeStart,
+    edgeHeightScale,
+  });
+  return THREE.MathUtils.clamp(base * maxHeight * attenuation, -maxHeight, maxHeight);
 };
 
 export const createTerrainGeometry = ({

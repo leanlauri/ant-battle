@@ -29,6 +29,7 @@ const BATTLEFIELD_FAR_PLANE = 320;
 const BATTLEFIELD_MIN_ZOOM = 0.85;
 const BATTLEFIELD_MAX_ZOOM = 5.2;
 const BATTLEFIELD_EDGE_PADDING = 4;
+const BATTLEFIELD_EDGE_PADDING_AT_MAX_ZOOM = 9;
 
 const updateOrthographicFrustum = (orthographicCamera) => {
   if (!orthographicCamera) return;
@@ -96,6 +97,15 @@ const getBattlefieldGroundFootprint = ({
   return { minX, maxX, minZ, maxZ };
 };
 
+const getBattlefieldEdgePadding = (zoom = 1) => {
+  const zoomAlpha = THREE.MathUtils.clamp(
+    (zoom - BATTLEFIELD_MIN_ZOOM) / Math.max(0.001, BATTLEFIELD_MAX_ZOOM - BATTLEFIELD_MIN_ZOOM),
+    0,
+    1,
+  );
+  return THREE.MathUtils.lerp(BATTLEFIELD_EDGE_PADDING, BATTLEFIELD_EDGE_PADDING_AT_MAX_ZOOM, zoomAlpha);
+};
+
 const clampBattlefieldTargetToTerrain = (target, zoom = 1, cameraPosition = target?.clone().add(getBattlefieldCameraOffset())) => {
   if (!target) return target;
   const terrainProfile = getActiveTerrainProfile();
@@ -106,11 +116,12 @@ const clampBattlefieldTargetToTerrain = (target, zoom = 1, cameraPosition = targ
     zoom,
     cameraPosition,
   });
+  const edgePadding = getBattlefieldEdgePadding(zoom);
 
-  const minTargetX = (-terrainHalfWidth + BATTLEFIELD_EDGE_PADDING) - footprint.minX;
-  const maxTargetX = (terrainHalfWidth - BATTLEFIELD_EDGE_PADDING) - footprint.maxX;
-  const minTargetZ = (-terrainHalfDepth + BATTLEFIELD_EDGE_PADDING) - footprint.minZ;
-  const maxTargetZ = (terrainHalfDepth - BATTLEFIELD_EDGE_PADDING) - footprint.maxZ;
+  const minTargetX = (-terrainHalfWidth + edgePadding) - footprint.minX;
+  const maxTargetX = (terrainHalfWidth - edgePadding) - footprint.maxX;
+  const minTargetZ = (-terrainHalfDepth + edgePadding) - footprint.minZ;
+  const maxTargetZ = (terrainHalfDepth - edgePadding) - footprint.maxZ;
 
   target.x = THREE.MathUtils.clamp(target.x, minTargetX, maxTargetX);
   target.z = THREE.MathUtils.clamp(target.z, minTargetZ, maxTargetZ);

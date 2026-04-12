@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
-import { TERRAIN_CONFIG, createTerrainGeometry, createTerrainMaterial, createTerrainOverlay, getTriangleCount } from '../src/terrain.js';
+import { TERRAIN_CONFIG, createTerrainGeometry, createTerrainMaterial, createTerrainOverlay, getTerrainEdgeAttenuation, getTriangleCount, sampleHeight } from '../src/terrain.js';
 
 describe('terrain bootstrap helpers', () => {
   test('creates a densely triangulated X/Z ground plane', () => {
@@ -21,6 +21,21 @@ describe('terrain bootstrap helpers', () => {
     expect(geometry.boundingBox.min.y).toBeGreaterThanOrEqual(-TERRAIN_CONFIG.maxHeight - 0.001);
     expect(geometry.boundingBox.max.y).toBeLessThanOrEqual(TERRAIN_CONFIG.maxHeight + 0.001);
     expect(geometry.boundingBox.max.y - geometry.boundingBox.min.y).toBeGreaterThan(4);
+  });
+
+  test('softens terrain relief near the outer rim to keep battlefield edges readable', () => {
+    const centerAttenuation = getTerrainEdgeAttenuation(0, 0);
+    const edgeAttenuation = getTerrainEdgeAttenuation(TERRAIN_CONFIG.width / 2, TERRAIN_CONFIG.depth / 2);
+
+    expect(centerAttenuation).toBeCloseTo(1, 5);
+    expect(edgeAttenuation).toBeLessThan(0.3);
+
+    const nearEdgeHeight = Math.abs(sampleHeight(TERRAIN_CONFIG.width / 2, 0));
+    const unattenuatedNearEdgeHeight = Math.abs(sampleHeight(TERRAIN_CONFIG.width / 2, 0, {
+      edgeFadeStart: 1,
+      edgeHeightScale: 1,
+    }));
+    expect(nearEdgeHeight).toBeLessThan(unattenuatedNearEdgeHeight * 0.3);
   });
 
   test('uses nearest-filtered gradient steps for toon shading', () => {

@@ -153,6 +153,7 @@ Recommended format:
 - battlefield two-finger drag should orbit around the current camera target while keeping that fixed tactical pitch
 - battlefield pan bounds should tighten as the player zooms in so close mobile framing stays stable instead of drifting off the playable terrain
 - battlefield orthographic framing should bias a little more view space toward the lower screen edge, with safe near/far clipping planes, so the foreground does not clip away during close tactical zoom
+- outer terrain relief should soften toward the map rim, and battlefield edge clamping should tighten further at close zoom, so raised horizon geometry does not cover the lower battlefield view
 
 ---
 
