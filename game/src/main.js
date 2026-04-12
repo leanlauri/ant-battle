@@ -482,6 +482,15 @@ window.__ANT_BATTLE_TEST_API__ = {
   getCameraProjectionType() {
     return gameplaySession.getCameraProjectionType();
   },
+  getCameraState() {
+    return gameplaySession.getCameraState();
+  },
+  setBattlefieldCameraZoom(zoom) {
+    return gameplaySession.setBattlefieldCameraZoom(zoom);
+  },
+  setBattlefieldCameraTarget(target) {
+    return gameplaySession.setBattlefieldCameraTarget(target);
+  },
   isDebugMenuVisible() {
     return app.debugMenuVisible;
   },

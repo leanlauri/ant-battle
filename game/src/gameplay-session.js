@@ -8,7 +8,7 @@ import { getLevelDefinition } from './level-definition.js';
 import { getObjectiveStatus } from './objective-rules.js';
 import { PheromoneSystem } from './pheromone-system.js';
 import { createSeededRandom, deriveSeed } from './seeded-random.js';
-import { createTerrainMesh, createTerrainOverlay, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
+import { createTerrainMesh, createTerrainOverlay, getActiveTerrainProfile, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
 
 const BUILD_ID_FALLBACK = '9ae531b';
 const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : BUILD_ID_FALLBACK;
@@ -19,11 +19,11 @@ const CAMERA_MODE = {
 const DEFAULT_CAMERA_TARGET = new THREE.Vector3(0, 2, 0);
 const DEFAULT_CAMERA_POSITION = new THREE.Vector3(36, 26, 36);
 const DEFAULT_CAMERA_OFFSET = DEFAULT_CAMERA_POSITION.clone().sub(DEFAULT_CAMERA_TARGET);
-const BATTLEFIELD_CAMERA_HEIGHT = 58;
-const BATTLEFIELD_CAMERA_FORWARD_OFFSET = 18;
+const BATTLEFIELD_CAMERA_DIAGONAL_OFFSET = new THREE.Vector3(16, 52, 18);
 const BATTLEFIELD_ORTHOGRAPHIC_SIZE = 34;
 const BATTLEFIELD_MIN_ZOOM = 0.85;
-const BATTLEFIELD_MAX_ZOOM = 2.4;
+const BATTLEFIELD_MAX_ZOOM = 3.2;
+const BATTLEFIELD_EDGE_PADDING = 4;
 
 const updateOrthographicFrustum = (orthographicCamera) => {
   if (!orthographicCamera) return;
@@ -37,7 +37,28 @@ const updateOrthographicFrustum = (orthographicCamera) => {
   orthographicCamera.updateProjectionMatrix();
 };
 
-const getBattlefieldCameraOffset = () => new THREE.Vector3(0, BATTLEFIELD_CAMERA_HEIGHT, BATTLEFIELD_CAMERA_FORWARD_OFFSET);
+const getBattlefieldCameraOffset = () => BATTLEFIELD_CAMERA_DIAGONAL_OFFSET.clone();
+
+const getBattlefieldVisibleHalfExtents = (zoom = 1) => {
+  const aspect = Math.max(0.001, window.innerWidth / Math.max(1, window.innerHeight));
+  return {
+    halfWidth: (BATTLEFIELD_ORTHOGRAPHIC_SIZE * aspect) / Math.max(0.001, zoom),
+    halfDepth: BATTLEFIELD_ORTHOGRAPHIC_SIZE / Math.max(0.001, zoom),
+  };
+};
+
+const clampBattlefieldTargetToTerrain = (target, zoom = 1) => {
+  if (!target) return target;
+  const terrainProfile = getActiveTerrainProfile();
+  const { halfWidth, halfDepth } = getBattlefieldVisibleHalfExtents(zoom);
+  const terrainHalfWidth = (terrainProfile.width ?? 100) / 2;
+  const terrainHalfDepth = (terrainProfile.depth ?? 100) / 2;
+  const maxOffsetX = Math.max(0, terrainHalfWidth - halfWidth - BATTLEFIELD_EDGE_PADDING);
+  const maxOffsetZ = Math.max(0, terrainHalfDepth - halfDepth - BATTLEFIELD_EDGE_PADDING);
+  target.x = THREE.MathUtils.clamp(target.x, -maxOffsetX, maxOffsetX);
+  target.z = THREE.MathUtils.clamp(target.z, -maxOffsetZ, maxOffsetZ);
+  return target;
+};
 
 const createBuildInfo = () => ({
   value: BUILD_ID,
@@ -194,6 +215,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const syncBattlefieldCameraToTarget = (target = controls?.target ?? DEFAULT_CAMERA_TARGET) => {
     if (!battlefieldCamera) return;
     const nextTarget = target.clone();
+    clampBattlefieldTargetToTerrain(nextTarget, battlefieldCamera.zoom);
     nextTarget.y = sampleHeight(nextTarget.x, nextTarget.z);
     battlefieldCamera.position.copy(nextTarget.clone().add(getBattlefieldCameraOffset()));
     battlefieldCamera.lookAt(nextTarget);
@@ -231,6 +253,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       controls.enableRotate = false;
       controls.minZoom = BATTLEFIELD_MIN_ZOOM;
       controls.maxZoom = BATTLEFIELD_MAX_ZOOM;
+      controls.zoomSpeed = 1.25;
     } else {
       camera = orbitCamera;
       if (!camera) return;
@@ -254,10 +277,46 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
   const enforceBattlefieldCameraConstraints = () => {
     if (!controls || !camera || cameraMode !== CAMERA_MODE.battlefield) return;
+    clampBattlefieldTargetToTerrain(controls.target, camera.zoom);
     const desiredTargetY = sampleHeight(controls.target.x, controls.target.z);
     if (Math.abs(desiredTargetY - controls.target.y) > 1e-4) controls.target.y = desiredTargetY;
     syncBattlefieldCameraToTarget(controls.target);
   };
+
+  const setBattlefieldCameraZoom = (zoom) => {
+    if (!battlefieldCamera) return null;
+    battlefieldCamera.zoom = THREE.MathUtils.clamp(zoom, BATTLEFIELD_MIN_ZOOM, BATTLEFIELD_MAX_ZOOM);
+    battlefieldCamera.updateProjectionMatrix();
+    if (cameraMode === CAMERA_MODE.battlefield) {
+      controls.minZoom = BATTLEFIELD_MIN_ZOOM;
+      controls.maxZoom = BATTLEFIELD_MAX_ZOOM;
+      enforceBattlefieldCameraConstraints();
+    }
+    return battlefieldCamera.zoom;
+  };
+
+  const setBattlefieldCameraTarget = ({ x, z }) => {
+    if (!controls) return null;
+    controls.target.set(x, controls.target.y, z);
+    if (cameraMode === CAMERA_MODE.battlefield) {
+      enforceBattlefieldCameraConstraints();
+    } else {
+      syncOrbitCameraToTarget(controls.target);
+    }
+    return {
+      x: controls.target.x,
+      y: controls.target.y,
+      z: controls.target.z,
+    };
+  };
+
+  const getCameraState = () => ({
+    mode: cameraMode,
+    projectionType: camera?.isOrthographicCamera ? 'orthographic' : 'perspective',
+    zoom: camera?.isOrthographicCamera ? camera.zoom : null,
+    position: camera ? { x: camera.position.x, y: camera.position.y, z: camera.position.z } : null,
+    target: controls ? { x: controls.target.x, y: controls.target.y, z: controls.target.z } : null,
+  });
 
   const setDebugVisualsVisible = (visible) => {
     debugVisualsVisible = !!visible;
@@ -551,6 +610,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       return cameraMode;
     },
     getCameraProjectionType: () => (camera?.isOrthographicCamera ? 'orthographic' : 'perspective'),
+    getCameraState,
+    setBattlefieldCameraZoom,
+    setBattlefieldCameraTarget,
     applyUpgrade: (upgradeId) => {
       if (!foodSystem || !antSystem) return false;
       const nest = foodSystem.getSelectedNest();

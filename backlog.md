@@ -205,6 +205,12 @@ _None._
 
 ## Complete
 
+- [x] Refine the orthographic battlefield camera framing.
+  - Tilted the battlefield camera into a slight diagonal orthographic view instead of a near-straight top-down look.
+  - Extended the battlefield zoom range so players can get closer without giving up targeting or HUD flow.
+  - Added zoom-aware battlefield pan bounds tied to the active terrain footprint so close mobile framing stays stable on the map.
+  - Added e2e coverage for the diagonal framing plus close-zoom clamp behavior, and updated `UI_UX_SPEC.md` plus `IMPLEMENTATION_ROADMAP.md` to document the refined camera behavior.
+
 - [x] Refine the battlefield camera into a steeper orthographic tactical view.
   - Switched the gameplay HUD battlefield mode from a locked perspective view to a steeper orthographic tactical camera, improving map readability.
   - Re-tuned battlefield framing and zoom bounds around the orthographic projection while keeping tap targeting and focus assignment working through the active camera.
