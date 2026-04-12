@@ -2,7 +2,83 @@ import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
 import { ANT_CONFIG, ANT_LOD, ANT_ROLE, AntSystem, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash, resolveNestCollapse } from '../src/ant-system.js';
 import { COLONY, FoodSystem } from '../src/food-system.js';
+import { createSeededRandom, deriveSeed } from '../src/seeded-random.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
+
+const createTestPheromoneSystem = () => ({
+  update() {},
+  deposit() {},
+  sample() { return new THREE.Vector3(); },
+});
+
+const createSeededAntSystem = ({
+  setupSeed = 'test-setup',
+  decisionSeed = 'test-runtime',
+  effectSeed = 'test-effects',
+} = {}) => {
+  const scene = new THREE.Scene();
+  const foodSystem = new FoodSystem({ scene, count: 0, enemyNestCount: 0 });
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+  camera.position.set(0, 16, 18);
+  camera.lookAt(0, 0, 0);
+
+  return new AntSystem({
+    scene,
+    camera,
+    foodSystem,
+    pheromoneSystem: createTestPheromoneSystem(),
+    foods: foodSystem.items,
+    nests: foodSystem.nests,
+    count: 1,
+    levelSetup: {
+      playerStartingCounts: { workers: 1, fighters: 0 },
+      enemyStartingPerNest: 0,
+      enemyWorkerRatio: 1,
+    },
+    setupRandom: createSeededRandom(setupSeed),
+    decisionRandom: createSeededRandom(decisionSeed),
+    effectRandom: createSeededRandom(effectSeed),
+  });
+};
+
+const snapshotDecisionAnt = (ant) => ({
+  action: ant.action,
+  targetX: Number(ant.target.x.toFixed(4)),
+  targetZ: Number(ant.target.z.toFixed(4)),
+  desiredX: Number(ant.desiredVelocity.x.toFixed(4)),
+  desiredZ: Number(ant.desiredVelocity.z.toFixed(4)),
+  headingX: Number(ant.heading.x.toFixed(4)),
+  headingZ: Number(ant.heading.z.toFixed(4)),
+});
+
+const round = (value) => Number(value.toFixed(4));
+
+const snapshotEffectState = (antSystem) => ({
+  groundSplats: antSystem.groundSplats.map((splat) => ({
+    rotationY: round(splat.mesh.rotation.y),
+    pieces: splat.mesh.children.map((child) => ({
+      x: round(child.position.x),
+      z: round(child.position.z),
+      scaleX: round(child.scale.x),
+      scaleY: round(child.scale.y),
+      opacity: round(child.material.opacity),
+    })),
+  })),
+  corpses: antSystem.corpseRemains.map((corpse) => ({
+    rotationY: round(corpse.mesh.rotation.y),
+    rotationZ: round(corpse.mesh.rotation.z),
+  })),
+  hitEffects: antSystem.hitEffects.map((effect) => ({
+    particles: effect.particles.map((particle) => ({
+      x: round(particle.mesh.position.x),
+      y: round(particle.mesh.position.y),
+      z: round(particle.mesh.position.z),
+      velocityX: round(particle.velocity.x),
+      velocityY: round(particle.velocity.y),
+      velocityZ: round(particle.velocity.z),
+    })),
+  })),
+});
 
 describe('ant system helpers', () => {
   test('creates the starting colony within the terrain bounds', () => {
@@ -264,5 +340,44 @@ describe('ant system helpers', () => {
     expect(roster.workers).toBeGreaterThanOrEqual(2);
     expect(roster.fighters).toBeGreaterThanOrEqual(1);
     expect(roster.total).toBe(roster.workers + roster.fighters);
+  });
+
+  test('replays runtime ant decisions from the same seeded stream', () => {
+    const runtimeSeed = deriveSeed('ant-battle-level-12', 'ants-runtime');
+    const first = createSeededAntSystem({ decisionSeed: runtimeSeed });
+    const second = createSeededAntSystem({ decisionSeed: runtimeSeed });
+    const third = createSeededAntSystem({ decisionSeed: deriveSeed('ant-battle-level-13', 'ants-runtime') });
+
+    for (const system of [first, second, third]) {
+      const ant = system.ants[0];
+      ant.position.set(0, ant.position.y, 0);
+      ant.heading.set(1, 0, 0);
+      ant.target.set(0, 0, 0);
+      ant.velocity.setScalar(0);
+      ant.desiredVelocity.setScalar(0);
+      ant.brainCooldown = 0;
+      ant.logicCooldown = 0;
+      system.update(0.2);
+    }
+
+    expect(snapshotDecisionAnt(first.ants[0])).toEqual(snapshotDecisionAnt(second.ants[0]));
+    expect(snapshotDecisionAnt(first.ants[0])).not.toEqual(snapshotDecisionAnt(third.ants[0]));
+  });
+
+  test('replays combat aftermath presentation from the same seeded effects stream', () => {
+    const effectSeed = deriveSeed('ant-battle-level-12', 'ants-effects');
+    const first = createSeededAntSystem({ effectSeed });
+    const second = createSeededAntSystem({ effectSeed });
+    const third = createSeededAntSystem({ effectSeed: deriveSeed('ant-battle-level-13', 'ants-effects') });
+    const position = new THREE.Vector3(2, 0, -1);
+
+    for (const system of [first, second, third]) {
+      system.spawnGroundSplat(position, COLONY.enemyAlpha, 0.9);
+      system.spawnCorpseRemains(position, COLONY.enemyAlpha, ANT_ROLE.fighter);
+      system.spawnHitEffect(position, COLONY.enemyAlpha, 1.1);
+    }
+
+    expect(snapshotEffectState(first)).toEqual(snapshotEffectState(second));
+    expect(snapshotEffectState(first)).not.toEqual(snapshotEffectState(third));
   });
 });

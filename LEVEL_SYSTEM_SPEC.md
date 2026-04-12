@@ -65,12 +65,14 @@ The seed controls at least:
 - time of day
 - palette variation
 - initial setup substreams, such as starting ant placement, enemy role mix, and repeatable enemy-economy cooldown rolls
+- runtime replay-sensitive substreams where practical, such as ant decision rolls and combat aftermath presentation
 
 ### Rule
 Replaying the same level number should generate the same base scenario unless explicit future modifiers are introduced.
 
 Implementation note:
 - derive named sub-seeds from the level seed so setup systems can stay deterministic without sharing one giant global random stream
+- keep setup, runtime ant logic, combat aftermath effects, and enemy-economy rolls on separate substreams so adding one system does not silently perturb another
 
 ---
 

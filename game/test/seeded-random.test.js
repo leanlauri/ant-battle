@@ -42,7 +42,9 @@ describe('seeded randomness utilities', () => {
   });
 
   test('derived sub-seeds keep setup streams isolated', () => {
-    expect(deriveSeed('level-3', 'food')).not.toBe(deriveSeed('level-3', 'ants'));
+    expect(deriveSeed('level-3', 'food')).not.toBe(deriveSeed('level-3', 'ants-setup'));
+    expect(deriveSeed('level-3', 'ants-setup')).not.toBe(deriveSeed('level-3', 'ants-runtime'));
+    expect(deriveSeed('level-3', 'ants-runtime')).not.toBe(deriveSeed('level-3', 'ants-effects'));
   });
 });
 
@@ -67,11 +69,11 @@ describe('seeded level setup paths', () => {
       enemyStartingPerNest: 6,
       enemyWorkerRatio: 0.5,
     };
-    const seed = deriveSeed('ant-battle-level-12', 'ants');
+    const seed = deriveSeed('ant-battle-level-12', 'ants-setup');
 
     const first = createRandomAntStates(80, nests, levelSetup, createSeededRandom(seed));
     const second = createRandomAntStates(80, nests, levelSetup, createSeededRandom(seed));
-    const third = createRandomAntStates(80, nests, levelSetup, createSeededRandom(deriveSeed('ant-battle-level-13', 'ants')));
+    const third = createRandomAntStates(80, nests, levelSetup, createSeededRandom(deriveSeed('ant-battle-level-13', 'ants-setup')));
 
     expect(simplifyAnts(first)).toEqual(simplifyAnts(second));
     expect(simplifyAnts(first)).not.toEqual(simplifyAnts(third));

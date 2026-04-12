@@ -35,11 +35,14 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Finish routing remaining gameplay randomness through deterministic level seeds.
-  - Cover runtime-only randomness still driven by `Math.random`, like combat aftermath particles and idle/wander decisions, where practical.
-  - Keep setup-focused seeded streams stable as more generators land.
-  - Add follow-up determinism coverage once more systems are routed.
+- [ ] Extend deterministic runtime randomness coverage beyond the initial ant/effects slice.
+  - Keep routing later moment-to-moment systems away from raw `Math.random` as new gameplay generators land.
+  - Preserve setup-focused seeded streams so level generation stays stable as runtime logic evolves.
   - Docs: `LEVEL_SYSTEM_SPEC.md`
+
+- [ ] Add broader determinism coverage for runtime simulation paths.
+  - Grow tests beyond setup generation so replay-sensitive ant and presentation systems stay locked to level seeds.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
   - Expand per-level generated fields beyond enemy nest count, budget, and atmosphere.
@@ -190,6 +193,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Route the first ant runtime/effects slice through deterministic level seeds.
+  - Split ant randomness into dedicated `ants-setup`, `ants-runtime`, and `ants-effects` substreams so setup stability no longer shifts when moment-to-moment logic changes.
+  - Routed idle/wander/patrol-style ant decision rolls and combat aftermath presentation rolls off raw `Math.random` and onto seeded streams.
+  - Added automated coverage that replays seeded runtime ant decisions and aftermath effects, and updated level-system/roadmap docs to describe the broader substream model.
 
 - [x] Add deterministic seeded randomness utilities and route initial level setup through them.
   - Added a shared seeded RNG helper with named sub-seeds so level setup systems can consume stable, isolated random streams.

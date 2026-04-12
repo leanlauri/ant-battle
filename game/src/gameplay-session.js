@@ -110,7 +110,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const enemyProductionCooldowns = new Map();
   let currentLevelDefinition = getLevelDefinition(1);
   let foodRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'food'));
-  let antRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants'));
+  let antSetupRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-setup'));
+  let antDecisionRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-runtime'));
+  let antEffectRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-effects'));
   let enemyEconomyRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'enemy-economy'));
 
   const randomEnemyProductionCooldown = () => {
@@ -155,7 +157,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
   const resetLevelRandomStreams = () => {
     foodRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'food'));
-    antRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants'));
+    antSetupRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-setup'));
+    antDecisionRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-runtime'));
+    antEffectRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-effects'));
     enemyEconomyRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'enemy-economy'));
   };
 
@@ -382,7 +386,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         count: currentLevelDefinition.antBudget,
         levelSetup: currentLevelDefinition.setup,
         objective: currentLevelDefinition.objective,
-        random: antRandom,
+        setupRandom: antSetupRandom,
+        decisionRandom: antDecisionRandom,
+        effectRandom: antEffectRandom,
       });
       setDebugVisualsVisible(debugVisualsVisible);
       publishHud();

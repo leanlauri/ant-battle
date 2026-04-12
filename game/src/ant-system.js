@@ -84,7 +84,6 @@ const ANT_COLONY_PALETTES = Object.freeze({
 
 const clampToTerrainBounds = (value, extent, padding = 1) => THREE.MathUtils.clamp(value, -extent / 2 + padding, extent / 2 - padding);
 const randomRangeWith = (random = Math.random) => createRandomRange(random);
-const randomRange = randomRangeWith();
 const cellCoord = (value, size) => Math.floor(value / size);
 const cellKey = (x, z) => `${x},${z}`;
 
@@ -136,8 +135,8 @@ export const querySpatialHash = (grid, x, z, cellSize = ANT_CONFIG.cellSize) => 
   return neighbors;
 };
 
-const chooseRole = () => {
-  const roll = Math.random();
+const chooseRole = (random = Math.random) => {
+  const roll = random();
   if (roll < 0.68) return ANT_ROLE.worker;
   return ANT_ROLE.fighter;
 };
@@ -289,7 +288,7 @@ const animateAntLegs = (mesh, ant) => {
 };
 
 export const createAntState = (id, x, z, overrides = {}, random = Math.random) => {
-  const role = overrides.role ?? chooseRole();
+  const role = overrides.role ?? chooseRole(random);
   const maxHp = overrides.maxHp ?? getMaxHpForRole(role);
   const colonyId = overrides.colonyId ?? overrides.faction ?? COLONY.player;
 
@@ -323,6 +322,7 @@ export const createAntState = (id, x, z, overrides = {}, random = Math.random) =
     dead: false,
     visible: true,
     lodBand: ANT_LOD.near,
+    random,
     ...overrides,
   };
 };
@@ -379,13 +379,14 @@ export const createRandomAntStates = (count = ANT_CONFIG.count, nests = [{ id: '
   return ants;
 };
 
-const chooseNextAction = (ant) => {
+const chooseNextAction = (ant, random = Math.random) => {
+  const randomRange = randomRangeWith(random);
   ant.targetFoodId = null;
   ant.carryingFoodId = null;
   ant.assistingFoodId = null;
   ant.queuedNestSlot = null;
   ant.nestApproachStage = 'queue';
-  if (Math.random() < ANT_CONFIG.idleChance && ant.role !== ANT_ROLE.fighter) {
+  if (random() < ANT_CONFIG.idleChance && ant.role !== ANT_ROLE.fighter) {
     ant.action = 'idle';
     ant.desiredVelocity.setScalar(0);
     return;
@@ -446,10 +447,11 @@ const chooseFocusAction = (ant, focusTarget) => {
   ant.desiredVelocity.copy(direction).multiplyScalar(ANT_CONFIG.speed * speedFactor);
 };
 
-const choosePatrolAction = (ant, homeNestPosition) => {
+const choosePatrolAction = (ant, homeNestPosition, random = Math.random) => {
+  const randomRange = randomRangeWith(random);
   ant.action = 'patrol';
   const patrolRadius = ant.role === ANT_ROLE.fighter ? randomRange(5, 11) : randomRange(4, 8);
-  const angle = Math.random() * Math.PI * 2;
+  const angle = random() * Math.PI * 2;
   ant.target.set(
     clampToTerrainBounds(homeNestPosition.x + Math.cos(angle) * patrolRadius, TERRAIN_CONFIG.width),
     0,
@@ -475,7 +477,7 @@ const getCarryApproachTarget = (ant, nestPosition) => {
   return ant.queuedNestSlot.entrancePosition;
 };
 
-const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusTarget, nestLookup) => {
+const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusTarget, nestLookup, random = Math.random) => {
   ant.lodBand = getLodBandForDistance(distanceToCamera);
   ant.brainInterval = getBrainIntervalForDistance(distanceToCamera);
   ant.logicInterval = getLogicIntervalForDistance(distanceToCamera);
@@ -496,14 +498,14 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
         const pressureDistance = ant.position.distanceTo(hostileNestPosition);
         const pressureRadius = 14;
         const pressureChance = 0.72;
-        if (pressureDistance > pressureRadius || Math.random() < pressureChance) {
+        if (pressureDistance > pressureRadius || random() < pressureChance) {
           chooseFocusAction(ant, hostileNestPosition);
           return;
         }
       }
     }
 
-    choosePatrolAction(ant, homeNestPosition);
+    choosePatrolAction(ant, homeNestPosition, random);
     return;
   }
 
@@ -539,7 +541,7 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
     const focusDistance = ant.position.distanceTo(colonyFocusTarget);
     const focusRadius = 17;
     const focusChance = 0.58;
-    if (ant.faction === ANT_FACTION.player && focusDistance > focusRadius && Math.random() < focusChance) {
+    if (ant.faction === ANT_FACTION.player && focusDistance > focusRadius && random() < focusChance) {
       chooseFocusAction(ant, colonyFocusTarget);
       return;
     }
@@ -559,7 +561,7 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
     return;
   }
 
-  chooseNextAction(ant);
+  chooseNextAction(ant, random);
 };
 
 const updateActionVelocity = (ant, foodSystem, foods) => {
@@ -571,7 +573,7 @@ const updateActionVelocity = (ant, foodSystem, foods) => {
   if (ant.action === 'assist-carry' && ant.assistingFoodId != null) {
     const food = getFoodById(foods, ant.assistingFoodId);
     if (!food || !food.carried || food.delivered || food.carriedByColonyId !== ant.colonyId) {
-      chooseNextAction(ant);
+      chooseNextAction(ant, ant.random);
       return;
     }
     const helperIndex = Math.max(0, food.supportAntIds.indexOf(ant.id));
@@ -586,7 +588,7 @@ const updateActionVelocity = (ant, foodSystem, foods) => {
   const toTarget = new THREE.Vector3(ant.target.x - ant.position.x, 0, ant.target.z - ant.position.z);
   if (toTarget.lengthSq() < 0.8 * 0.8) {
     if (ant.action === 'seek-food' || ant.action === 'carry-food' || ant.action === 'assist-carry') return;
-    chooseNextAction(ant);
+    chooseNextAction(ant, ant.random);
     return;
   }
 
@@ -759,7 +761,21 @@ export const resolveNestCollapse = (collapsedNest, ants, nests) => {
 };
 
 export class AntSystem {
-  constructor({ scene, camera, foodSystem, pheromoneSystem, foods = [], nests = [], count = ANT_CONFIG.count, levelSetup = {}, objective = null, random = Math.random } = {}) {
+  constructor({
+    scene,
+    camera,
+    foodSystem,
+    pheromoneSystem,
+    foods = [],
+    nests = [],
+    count = ANT_CONFIG.count,
+    levelSetup = {},
+    objective = null,
+    random = Math.random,
+    setupRandom = random,
+    decisionRandom = random,
+    effectRandom = random,
+  } = {}) {
     this.scene = scene;
     this.camera = camera;
     this.foodSystem = foodSystem;
@@ -768,8 +784,12 @@ export class AntSystem {
     this.nests = nests;
     this.nestLookup = new Map(nests.map((nest) => [nest.id, nest]));
     this.random = random;
-    this.randomRange = randomRangeWith(this.random);
-    this.ants = createRandomAntStates(count, nests, levelSetup, this.random);
+    this.setupRandom = setupRandom;
+    this.decisionRandom = decisionRandom;
+    this.effectRandom = effectRandom;
+    this.randomRange = randomRangeWith(this.decisionRandom);
+    this.ants = createRandomAntStates(count, nests, levelSetup, this.setupRandom);
+    for (const ant of this.ants) ant.random = this.decisionRandom;
     this.nextAntId = this.ants.reduce((max, ant) => Math.max(max, ant.id), -1) + 1;
     this.maxRenderAnts = Math.max(count, 320);
     this.meshes = [];
@@ -836,7 +856,7 @@ export class AntSystem {
     if (!nest || nest.collapsed || count <= 0) return 0;
 
     for (let i = 0; i < count; i += 1) {
-      const angle = this.random() * Math.PI * 2;
+      const angle = this.decisionRandom() * Math.PI * 2;
       const distance = this.randomRange(1.2, 4.6);
       const x = clampToTerrainBounds(nest.position.x + Math.cos(angle) * distance, TERRAIN_CONFIG.width);
       const z = clampToTerrainBounds(nest.position.z + Math.sin(angle) * distance, TERRAIN_CONFIG.depth);
@@ -845,7 +865,7 @@ export class AntSystem {
         colonyId: nest.colonyId,
         homeNestId: nest.id,
         role,
-      }, this.random);
+      }, this.decisionRandom);
       this.nextAntId += 1;
       this.ants.push(ant);
 
@@ -890,34 +910,36 @@ export class AntSystem {
   }
 
   spawnGroundSplat(position, colonyId, scale = 1) {
+    const random = this.effectRandom;
     const group = new THREE.Group();
-    const splatCount = 2 + Math.floor(Math.random() * 3);
+    const splatCount = 2 + Math.floor(random() * 3);
     for (let i = 0; i < splatCount; i += 1) {
       const material = new THREE.MeshBasicMaterial({
         color: getBloodColor(colonyId),
         transparent: true,
-        opacity: 0.34 + Math.random() * 0.12,
+        opacity: 0.34 + random() * 0.12,
         depthWrite: false,
       });
       material.userData.baseOpacity = material.opacity;
-      const radius = (0.1 + Math.random() * 0.12) * scale;
+      const radius = (0.1 + random() * 0.12) * scale;
       const mesh = new THREE.Mesh(new THREE.CircleGeometry(radius, 10), material);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(
-        (Math.random() - 0.5) * 0.28 * scale,
+        (random() - 0.5) * 0.28 * scale,
         0,
-        (Math.random() - 0.5) * 0.28 * scale,
+        (random() - 0.5) * 0.28 * scale,
       );
-      mesh.scale.set(1 + Math.random() * 0.35, 1 + Math.random() * 0.2, 1);
+      mesh.scale.set(1 + random() * 0.35, 1 + random() * 0.2, 1);
       group.add(mesh);
     }
-    group.rotation.y = Math.random() * Math.PI * 2;
+    group.rotation.y = random() * Math.PI * 2;
     group.position.set(position.x, sampleHeight(position.x, position.z) + 0.03, position.z);
     this.groundSplatGroup.add(group);
     this.groundSplats.push({ mesh: group, life: 18, maxLife: 18 });
   }
 
   spawnCorpseRemains(position, colonyId, role = ANT_ROLE.worker) {
+    const random = this.effectRandom;
     const palette = getAntPalette(role, colonyId);
     const group = new THREE.Group();
     const bodyMaterial = new THREE.MeshToonMaterial({ color: palette.body });
@@ -933,7 +955,7 @@ export class AntSystem {
     thorax.position.set(0.09, 0.03, 0.03);
     group.add(thorax);
 
-    group.rotation.set(0, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.7);
+    group.rotation.set(0, random() * Math.PI * 2, (random() - 0.5) * 0.7);
     group.position.set(position.x, sampleHeight(position.x, position.z) + 0.02, position.z);
     group.traverse((child) => {
       if (child.isMesh) {
@@ -946,6 +968,7 @@ export class AntSystem {
   }
 
   spawnHitEffect(position, colonyId, intensity = 1) {
+    const random = this.effectRandom;
     const particles = [];
     for (let i = 0; i < 4; i += 1) {
       const material = new THREE.MeshBasicMaterial({
@@ -958,12 +981,12 @@ export class AntSystem {
       const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.06 * intensity, 8), material);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.copy(position);
-      mesh.position.y += 0.12 + Math.random() * 0.12;
-      const angle = (i / 4) * Math.PI * 2 + Math.random() * 0.35;
-      const speed = 0.8 + Math.random() * 1.1;
+      mesh.position.y += 0.12 + random() * 0.12;
+      const angle = (i / 4) * Math.PI * 2 + random() * 0.35;
+      const speed = 0.8 + random() * 1.1;
       particles.push({
         mesh,
-        velocity: new THREE.Vector3(Math.cos(angle) * speed, 0.6 + Math.random() * 0.7, Math.sin(angle) * speed),
+        velocity: new THREE.Vector3(Math.cos(angle) * speed, 0.6 + random() * 0.7, Math.sin(angle) * speed),
       });
       this.hitEffectGroup.add(mesh);
     }
@@ -1056,7 +1079,7 @@ export class AntSystem {
 
       ant.brainCooldown -= dt;
       if (ant.brainCooldown <= 0) {
-        updateBrain(ant, distanceToCamera, this.foods, this.pheromoneSystem, this.focusTarget, this.nestLookup);
+        updateBrain(ant, distanceToCamera, this.foods, this.pheromoneSystem, this.focusTarget, this.nestLookup, ant.random ?? this.decisionRandom);
         ant.brainCooldown = ant.brainInterval;
       }
 
