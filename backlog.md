@@ -35,11 +35,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Extend deterministic runtime randomness coverage beyond the initial ant/effects slice.
-  - Keep routing later moment-to-moment systems away from raw `Math.random` as new gameplay generators land.
-  - Preserve setup-focused seeded streams so level generation stays stable as runtime logic evolves.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`
-
 - [ ] Add broader determinism coverage for runtime simulation paths.
   - Grow tests beyond setup generation so replay-sensitive ant and presentation systems stay locked to level seeds.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
