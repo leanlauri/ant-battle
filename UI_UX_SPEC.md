@@ -124,7 +124,7 @@ The game should have these top-level screens:
 Recommended format:
 - large number
 - ant icon or simple label
-- optional secondary line later for fighters or food
+- secondary lines for the current level, selected nest food, and camera mode are allowed when they stay readable on mobile
 
 ### Top center / upper area
 - upgrade cards when selected nest has options available
@@ -141,9 +141,7 @@ Recommended format:
 
 ## Optional later HUD additions
 - pause/menu button
-- current level label
 - enemy ant defeated count
-- selected nest food amount
 
 ## Camera access
 - the alternative battlefield camera must be reachable from the normal gameplay HUD, not only through hidden developer controls
@@ -183,6 +181,7 @@ Recommended format:
 - near the top of the screen
 - not covering the selected nest itself if possible
 - should not obscure top-right ant count
+- the upgrade panel should also show the selected nest's currently stored food so card affordability is obvious before opening detail text
 
 ## Behavior
 - tapping card applies upgrade immediately

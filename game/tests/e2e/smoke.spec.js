@@ -17,6 +17,8 @@ test('boots through title, level select, gameplay, and victory progression flow'
   const consoleErrors = [];
   const pageErrors = [];
 
+  await page.addInitScript(() => window.localStorage.clear());
+
   page.on('console', (msg) => {
     if (msg.type() === 'error') consoleErrors.push(msg.text());
   });
@@ -45,6 +47,8 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect(page.locator('#gameplayHud')).toBeVisible();
   await expect(page.locator('#gameplayLevelLabel')).toContainText('Level 1');
   await expect(page.locator('#antCountValue')).toHaveText('25');
+  await expect(page.locator('#selectedNestFoodValue')).toContainText('Selected nest food');
+  await expect(page.locator('#selectedNestFoodValue')).toContainText('0.0');
   await expect(page.locator('#selectedNestInfo')).toContainText('Home Nest');
   await expect(page.locator('#selectedNestInfo')).toContainText('Stored food');
   await expect(page.locator('#battleInfo')).toContainText('Battle:');
@@ -92,6 +96,7 @@ test('boots through title, level select, gameplay, and victory progression flow'
 
 test('upgrade overlay shows clear shortfall and success feedback on a mobile-sized viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => window.localStorage.clear());
   await page.goto('/');
 
   await page.locator('#startButton').click();
@@ -108,6 +113,8 @@ test('upgrade overlay shows clear shortfall and success feedback on a mobile-siz
   });
 
   await expect(page.locator('#nestUpgradePanel')).toBeVisible();
+  await expect(page.locator('#selectedNestFoodValue')).toContainText('5.0');
+  await expect(page.locator('#nestUpgradeFoodInfo')).toContainText('Stored food: 5.0');
   await page.evaluate(() => {
     window.__ANT_BATTLE_TEST_API__?.selectUpgrade?.('spawn-workers');
   });
@@ -118,6 +125,8 @@ test('upgrade overlay shows clear shortfall and success feedback on a mobile-siz
     window.__ANT_BATTLE_TEST_API__?.setNestStored?.('player-1', 20);
   });
 
+  await expect(page.locator('#selectedNestFoodValue')).toContainText('20.0');
+  await expect(page.locator('#nestUpgradeFoodInfo')).toContainText('Stored food: 20.0');
   await expect(page.locator('#upgradeDetailStatus')).toContainText('Ready. Spend 12 food');
   await page.locator('#upgradeConfirmButton').click({ force: true });
   await expect(page.locator('#upgradeDetailStatus')).toContainText('Worker reinforcements called up');

@@ -44,6 +44,7 @@ Goals:
 - [x] Nest collapse consequences now apply a first-pass colony loss and immediate reassignment model for surviving ants
 - [x] Selected nests now expose a first upgrade-card skeleton, including food-based nest repair and worker/fighter batch purchases
 - [x] Enemy nests now convert stored food into new worker/fighter batches over time, and selected-nest HUD feedback now shows local stored food more clearly
+- [x] The gameplay HUD now exposes the active player nest's stored food as a dedicated top-bar readout, and the upgrade panel mirrors that same value so nest-local affordability is obvious at a glance
 - [x] Direct HUD shell win/lose buttons are gone, smoke coverage now uses a hidden test hook instead of player-facing debug controls, and level-number-based scenario variation now changes enemy nest count and budget bands
 - [x] Levels now carry deterministic biome-like flavor data, including terrain roughness, time-of-day atmosphere, and objective text, which now affects battlefield shape and presentation in-game
 - [x] Nest upgrades now include persistent specialization choices, not only one-shot repair/reinforcement spends: worker-batch growth, fighter-batch growth, and nest fortification all persist per nest
@@ -58,9 +59,9 @@ Goals:
 - [x] The battlefield camera framing was refined again with a slight diagonal angle, deeper zoom range, and zoom-aware pan bounds so close mobile framing stays stable on the terrain
 
 ### Next implementation slice
-1. Make enemy nest selection visibly readable.
-2. Show the active player nest food count more explicitly in the gameplay HUD and upgrade flow.
-3. Keep broadening deterministic runtime coverage where replay-sensitive systems still meet live simulation behavior.
+1. Keep broadening deterministic runtime coverage where replay-sensitive systems still meet live simulation behavior.
+2. Replace coarse level bands with a richer deterministic level-definition model.
+3. Add visible death/aftermath presentation for ant combat.
 
 ---
 

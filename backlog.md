@@ -35,9 +35,10 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Immediate UI fixes
 
-- [ ] Show the active player nest food count in the gameplay HUD and upgrade UI.
-  - Surface how much food is currently stored in the selected player nest.
-  - Mirror that value in the upgrade panel/detail flow so affordability is obvious without guesswork.
+- [ ] Correct battlefield camera diagonal framing to use x-axis tilt, not y-axis yaw.
+  - The recent camera refinement interpreted “diagonal” as rotating around the y axis.
+  - Adjust battlefield framing so the camera remains plan-aligned in azimuth, but is tilted appropriately around the x axis.
+  - Preserve orthographic projection, closer zoom, stable bounds, and targeting clarity.
   - Docs: `UI_UX_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 ### Level generation and campaign progression
@@ -199,6 +200,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Show the active player nest food count in the gameplay HUD and upgrade UI.
+  - Added a dedicated gameplay top-bar readout for the selected player nest's stored food instead of leaving it only in the expanded HUD copy.
+  - Mirrored that same stored-food value in the nest upgrade panel so affordability is visible before reading per-card detail text.
+  - Extended Playwright coverage to assert both HUD and upgrade-panel food readouts update as nest storage changes, and hardened the smoke tests by clearing persisted campaign progress at boot.
+  - Updated `UI_UX_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` to document the explicit stored-food readouts.
 
 - [x] Make enemy nest selection visibly readable.
   - Tapping an enemy nest as the active focus target now also lights that nest with a clear world-space target ring, instead of only dropping a generic focus marker nearby.

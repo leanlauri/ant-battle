@@ -45,6 +45,7 @@ const refs = {
   backToTitleButton: document.getElementById('backToTitleButton'),
   gameplayHud: document.getElementById('gameplayHud'),
   antCountValue: document.getElementById('antCountValue'),
+  selectedNestFoodValue: document.getElementById('selectedNestFoodValue'),
   gameplayLevelLabel: document.getElementById('gameplayLevelLabel'),
   statusCardLabel: document.getElementById('statusCardLabel'),
   hud: document.getElementById('hud'),
@@ -57,6 +58,7 @@ const refs = {
   nestUpgradeOverlay: document.getElementById('nestUpgradeOverlay'),
   nestUpgradePanel: document.getElementById('nestUpgradePanel'),
   nestUpgradeTitle: document.getElementById('nestUpgradeTitle'),
+  nestUpgradeFoodInfo: document.getElementById('nestUpgradeFoodInfo'),
   upgradeCards: document.getElementById('upgradeCards'),
   upgradeDetail: document.getElementById('upgradeDetail'),
   upgradeDetailLabel: document.getElementById('upgradeDetailLabel'),
@@ -186,6 +188,7 @@ const renderUpgradeCards = (summary) => {
 
   refs.nestUpgradePanel.hidden = false;
   refs.nestUpgradeTitle.textContent = `${summary.selectedNestLabel ?? 'Nest'} upgrades`;
+  if (refs.nestUpgradeFoodInfo) refs.nestUpgradeFoodInfo.textContent = `Stored food: ${(summary?.selectedNestStored ?? 0).toFixed(1)}`;
   const clampedX = Math.min(window.innerWidth - 12, Math.max(12, anchor.x));
   const clampedY = Math.min(window.innerHeight - 12, Math.max(72, anchor.y));
   refs.nestUpgradePanel.style.left = `${clampedX}px`;
@@ -277,6 +280,7 @@ const gameplaySession = createGameplaySession({
     app.lastHudSummary = summary;
     refs.antCountValue.textContent = summary ? String(summary.playerAntCount) : '0';
     refs.statusCardLabel.textContent = summary?.isBossLevel ? 'Boss assault' : 'Player ants';
+    if (refs.selectedNestFoodValue) refs.selectedNestFoodValue.textContent = `Selected nest food ${(summary?.selectedNestStored ?? 0).toFixed(1)}`;
     refs.selectedNestInfo.textContent = summary?.selectedNestText ?? 'Home Nest • Nest HP -- • Stored food --';
     refs.focusInfo.textContent = summary?.focusText ?? 'Focus: No rally point set';
     refs.objectiveInfo.textContent = summary?.objectiveText ?? 'Objective: --';
