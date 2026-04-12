@@ -168,6 +168,10 @@ Reason:
 - clearer
 - less likely to create edge-case failures
 
+Implementation note:
+- keep deterministic live-runtime coverage around siege-triggered collapse so the killed subset, fallback reassignments, and collapse-state updates remain replay-stable for a level seed
+- keep collapse-side splats, corpse remains, and hit presentation isolated on the dedicated effects stream so presentation can vary without perturbing structural outcomes
+
 Later, a visual migration effect can be added.
 
 ## If no friendly nest exists

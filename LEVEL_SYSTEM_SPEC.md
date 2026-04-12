@@ -81,6 +81,7 @@ Implementation note:
 - keep live-runtime coverage around a real ant decision roll and combat-death aftermath so `ants-runtime` and `ants-effects` stay isolated from `food`, `enemy-economy`, and `ants-spawn` seed changes during the normal gameplay update order
 - keep live-runtime coverage around carried-food claim, assist-carry, delivery, and delivery-triggered regrow timers so those interactions stay stable when unrelated `enemy-economy`, `ants-spawn`, `ants-runtime`, or `ants-effects` seeds change
 - keep live-runtime coverage around player focus-target routing and seeded enemy pressure/patrol decisions so those AI paths stay isolated from `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seed changes
+- keep live-runtime coverage around siege-driven nest collapse, dead-ant fallout, and immediate colony reassignment so collapse aftermath stays structurally stable when unrelated `food`, `enemy-economy`, `ants-spawn`, or `ants-runtime` seeds change, while collapse-side presentation remains isolated on `ants-effects`
 
 ---
 

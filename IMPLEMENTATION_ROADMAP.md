@@ -58,6 +58,7 @@ Goals:
 - [x] Live runtime deterministic coverage now also exercises a real ant decision roll plus combat-death aftermath, confirming `ants-runtime` and `ants-effects` stay isolated from `food`, `enemy-economy`, and `ants-spawn` changes during the gameplay update order
 - [x] Live runtime deterministic coverage now also exercises worker claim, assist-carry, and delivery flow, confirming carried-food interactions stay stable when unrelated `enemy-economy`, `ants-spawn`, `ants-runtime`, and `ants-effects` seeds change while delivery-triggered regrow timers remain on the `food` stream
 - [x] Live runtime deterministic coverage now also exercises player focus-target routing and seeded enemy fighter pressure decisions, confirming those AI decision paths stay isolated from `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` changes during the gameplay update order
+- [x] Live runtime deterministic coverage now also exercises siege-driven enemy nest collapse plus immediate colony reassignment, confirming collapse aftermath stays structurally stable when unrelated `food`, `enemy-economy`, `ants-spawn`, or `ants-runtime` seeds change, while collapse-side presentation remains isolated on `ants-effects`
 - [x] The alternative battlefield camera is now exposed through the normal gameplay HUD with a visible mode label and toggle, so players/testers no longer need hidden dev controls to reach it
 - [x] The battlefield camera now uses a steeper orthographic tactical view with re-tuned zoom/framing, making the playfield read more top-down while keeping tap targeting and HUD camera switching intact
 - [x] The battlefield camera framing was refined again with a steeper plan-aligned tilt, deeper zoom range, and zoom-aware pan bounds so close mobile framing stays stable on the terrain without introducing sideways yaw
@@ -66,9 +67,9 @@ Goals:
 - [x] Battlefield foreground occlusion was reduced further by softening terrain relief near the outer rim and tightening battlefield edge clamping at close zoom, so raised horizon geometry no longer crowds the lower tactical view
 
 ### Next implementation slice
-1. Continue sweeping any remaining replay-sensitive live-runtime paths beyond the current food/enemy-economy/spawn, live ant decision/effects, carried-food delivery, and focus/pressure integration coverage.
-2. Replace coarse level bands with a richer deterministic level-definition model.
-3. Add visible death/aftermath presentation for ant combat.
+1. Replace coarse level bands with a richer deterministic level-definition model.
+2. Add visible death/aftermath presentation for ant combat.
+3. Tune enemy economy and production pacing across the campaign.
 
 ---
 

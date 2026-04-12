@@ -37,19 +37,9 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the current carry/delivery, focus/pressure, and other covered live simulation interactions.
+- [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the current carry/delivery, focus/pressure, collapse/migration, and other covered live simulation interactions.
   - Keep follow-up slices narrow and focused on one live simulation interaction at a time.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
-- [ ] Add live-runtime deterministic coverage for player focus-target routing and enemy fighter pressure decisions.
-  - Exercise real player focus-target influence plus seeded enemy pressure/patrol choice under the normal gameplay update order.
-  - Confirm those decision-path outcomes stay isolated from `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seed changes.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
-- [ ] Add live-runtime deterministic coverage for siege-driven nest collapse and migration aftermath.
-  - Exercise a real fighter siege, collapse handling, reassignment, and outcome updates under the normal gameplay update order.
-  - Confirm collapse-side presentation and colony reassignment stay replay-stable for a seed.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `COMBAT_AND_NEST_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
   - Expand per-level generated fields beyond enemy nest count, budget, and atmosphere.
@@ -200,6 +190,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add live-runtime deterministic coverage for siege-driven nest collapse and migration aftermath.
+  - Added a live-runtime harness that drives a real fighter siege into enemy nest collapse while food regrowth and enemy production still run in the normal gameplay update order.
+  - Confirmed the killed subset, fallback colony reassignment, and collapse outcome stats stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-runtime` seeds change, while collapse-side presentation still diverges only on `ants-effects`.
+  - Updated `LEVEL_SYSTEM_SPEC.md`, `COMBAT_AND_NEST_SPEC.md`, and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this collapse-and-migration coverage.
 
 - [x] Add live-runtime deterministic coverage for player focus-target routing and enemy fighter pressure decisions.
   - Added a live-runtime harness that exercises real player focus-target influence plus seeded enemy fighter pressure-versus-patrol choice under the normal gameplay update order while food regrowth and enemy production also run.
