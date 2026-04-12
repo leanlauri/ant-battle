@@ -37,8 +37,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Add deterministic coverage for any other remaining replay-sensitive runtime paths.
-  - Continue sweeping leftover simulation systems after enemy economy, spawned-ant integration, food regrowth, and cross-stream live-runtime coverage are covered.
+- [ ] Add deterministic coverage for any remaining replay-sensitive runtime paths after live ant decisions/effects.
+  - Continue sweeping leftover simulation systems once live ant decision/effects isolation is covered.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
+- [ ] Add live-runtime deterministic coverage for ant decisions and combat aftermath stream isolation.
+  - Exercise the gameplay update order while ant decision rolls and combat aftermath effects are active.
+  - Confirm `ants-runtime` and `ants-effects` stay isolated from `food`, `enemy-economy`, and `ants-spawn` seed changes.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
@@ -190,6 +195,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add live-runtime deterministic coverage for ant decisions and combat aftermath stream isolation.
+  - Added a seeded live-runtime harness that runs the normal gameplay update order while a worker consumes real `ants-runtime` decision rolls and a fighter kill triggers real `ants-effects` aftermath.
+  - Confirmed `ants-runtime` and `ants-effects` remain isolated from `food`, `enemy-economy`, and `ants-spawn` seed changes, while the relevant owning streams still diverge as expected.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` to document the broader live-runtime replay coverage.
 
 - [x] Refine battlefield camera controls for tactical play.
   - Battlefield mode now locks to a true 45 degree downward orthographic tactical tilt instead of the earlier shallower offset.
