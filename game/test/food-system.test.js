@@ -149,11 +149,25 @@ describe('food system helpers', () => {
     system.damageNest('player-1', 80);
 
     const options = system.getUpgradeOptions('player-1');
-    expect(options).toHaveLength(3);
+    expect(options).toHaveLength(6);
     expect(options.find((option) => option.id === UPGRADE_CONFIG.repairNest.id)?.disabled).toBe(false);
 
     const repaired = system.repairNest('player-1', UPGRADE_CONFIG.repairNest.repairHp, UPGRADE_CONFIG.repairNest.cost);
     expect(repaired).toBe(true);
     expect(system.nestStored).toBe(20 - UPGRADE_CONFIG.repairNest.cost);
+  });
+
+  test('persistent nest upgrades change batch sizes and max hp', () => {
+    const system = new FoodSystem({ scene: new Scene(), count: 0 });
+    system.nestStored = 80;
+
+    expect(system.unlockNestUpgrade('player-1', UPGRADE_CONFIG.broodChambers.id)).toBe(true);
+    expect(system.unlockNestUpgrade('player-1', UPGRADE_CONFIG.warNest.id)).toBe(true);
+    expect(system.unlockNestUpgrade('player-1', UPGRADE_CONFIG.fortifyNest.id)).toBe(true);
+
+    expect(system.getSpawnBatchProfile('player-1', 'worker').count).toBe(UPGRADE_CONFIG.spawnWorkers.count + UPGRADE_CONFIG.broodChambers.extraWorkers);
+    expect(system.getSpawnBatchProfile('player-1', 'fighter').count).toBe(UPGRADE_CONFIG.spawnFighters.count + UPGRADE_CONFIG.warNest.extraFighters);
+    expect(system.getNestById('player-1')?.maxHp).toBe(NEST_CONFIG.maxHp + UPGRADE_CONFIG.fortifyNest.extraMaxHp);
+    expect(system.getUpgradeOptions('player-1').find((option) => option.id === UPGRADE_CONFIG.broodChambers.id)?.disabled).toBe(true);
   });
 });

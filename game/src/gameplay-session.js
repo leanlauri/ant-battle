@@ -341,15 +341,23 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       if (upgradeId === UPGRADE_CONFIG.repairNest.id) {
         applied = foodSystem.repairNest(nest.id, UPGRADE_CONFIG.repairNest.repairHp, UPGRADE_CONFIG.repairNest.cost);
       } else if (upgradeId === UPGRADE_CONFIG.spawnWorkers.id) {
-        if (foodSystem.spendNestFood(nest.id, UPGRADE_CONFIG.spawnWorkers.cost)) {
-          antSystem.spawnAntBatch({ nestId: nest.id, role: 'worker', count: UPGRADE_CONFIG.spawnWorkers.count });
+        const batch = foodSystem.getSpawnBatchProfile(nest.id, 'worker');
+        if (foodSystem.spendNestFood(nest.id, batch.cost)) {
+          antSystem.spawnAntBatch({ nestId: nest.id, role: 'worker', count: batch.count });
           applied = true;
         }
       } else if (upgradeId === UPGRADE_CONFIG.spawnFighters.id) {
-        if (foodSystem.spendNestFood(nest.id, UPGRADE_CONFIG.spawnFighters.cost)) {
-          antSystem.spawnAntBatch({ nestId: nest.id, role: 'fighter', count: UPGRADE_CONFIG.spawnFighters.count });
+        const batch = foodSystem.getSpawnBatchProfile(nest.id, 'fighter');
+        if (foodSystem.spendNestFood(nest.id, batch.cost)) {
+          antSystem.spawnAntBatch({ nestId: nest.id, role: 'fighter', count: batch.count });
           applied = true;
         }
+      } else if (
+        upgradeId === UPGRADE_CONFIG.broodChambers.id
+        || upgradeId === UPGRADE_CONFIG.warNest.id
+        || upgradeId === UPGRADE_CONFIG.fortifyNest.id
+      ) {
+        applied = foodSystem.unlockNestUpgrade(nest.id, upgradeId);
       }
 
       if (applied) publishHud();

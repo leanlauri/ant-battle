@@ -27,6 +27,9 @@ export const UPGRADE_CONFIG = Object.freeze({
   repairNest: Object.freeze({ id: 'repair-nest', cost: 10, repairHp: 70, label: 'Repair Nest' }),
   spawnWorkers: Object.freeze({ id: 'spawn-workers', cost: 12, count: 6, label: 'Call Workers' }),
   spawnFighters: Object.freeze({ id: 'spawn-fighters', cost: 16, count: 3, label: 'Call Fighters' }),
+  broodChambers: Object.freeze({ id: 'brood-chambers', cost: 18, extraWorkers: 4, label: 'Brood Chambers' }),
+  warNest: Object.freeze({ id: 'war-nest', cost: 22, extraFighters: 2, label: 'War Nest' }),
+  fortifyNest: Object.freeze({ id: 'fortify-nest', cost: 20, extraMaxHp: 90, label: 'Fortify Nest' }),
 });
 
 export const ENEMY_ECONOMY_CONFIG = Object.freeze({
@@ -328,6 +331,11 @@ export class FoodSystem {
     this.queueAssignments = new Map();
 
     for (const nest of this.nests) {
+      nest.upgrades = {
+        broodChambers: false,
+        warNest: false,
+        fortifyNest: false,
+      };
       nest.mesh.position.copy(nest.position);
       scene.add(nest.mesh);
     }
@@ -385,6 +393,32 @@ export class FoodSystem {
     return this.getNestStored(nest.id);
   }
 
+  getNestUpgradeState(nestId) {
+    const nest = this.getNestById(nestId);
+    return {
+      broodChambers: !!nest?.upgrades?.broodChambers,
+      warNest: !!nest?.upgrades?.warNest,
+      fortifyNest: !!nest?.upgrades?.fortifyNest,
+    };
+  }
+
+  getSpawnBatchProfile(nestId, role) {
+    const upgrades = this.getNestUpgradeState(nestId);
+    if (role === 'worker') {
+      return {
+        cost: UPGRADE_CONFIG.spawnWorkers.cost,
+        count: UPGRADE_CONFIG.spawnWorkers.count + (upgrades.broodChambers ? UPGRADE_CONFIG.broodChambers.extraWorkers : 0),
+      };
+    }
+    if (role === 'fighter') {
+      return {
+        cost: UPGRADE_CONFIG.spawnFighters.cost,
+        count: UPGRADE_CONFIG.spawnFighters.count + (upgrades.warNest ? UPGRADE_CONFIG.warNest.extraFighters : 0),
+      };
+    }
+    return { cost: 0, count: 0 };
+  }
+
   spendNestFood(nestId, amount) {
     const available = this.getNestStored(nestId);
     if (available < amount) return false;
@@ -402,11 +436,41 @@ export class FoodSystem {
     return true;
   }
 
+  unlockNestUpgrade(nestId, upgradeId) {
+    const nest = this.getNestById(nestId);
+    if (!nest || nest.collapsed || nest.faction !== FACTION.player) return false;
+
+    if (upgradeId === UPGRADE_CONFIG.broodChambers.id) {
+      if (nest.upgrades.broodChambers || !this.spendNestFood(nestId, UPGRADE_CONFIG.broodChambers.cost)) return false;
+      nest.upgrades.broodChambers = true;
+      return true;
+    }
+
+    if (upgradeId === UPGRADE_CONFIG.warNest.id) {
+      if (nest.upgrades.warNest || !this.spendNestFood(nestId, UPGRADE_CONFIG.warNest.cost)) return false;
+      nest.upgrades.warNest = true;
+      return true;
+    }
+
+    if (upgradeId === UPGRADE_CONFIG.fortifyNest.id) {
+      if (nest.upgrades.fortifyNest || !this.spendNestFood(nestId, UPGRADE_CONFIG.fortifyNest.cost)) return false;
+      nest.upgrades.fortifyNest = true;
+      nest.maxHp += UPGRADE_CONFIG.fortifyNest.extraMaxHp;
+      nest.hp = Math.min(nest.maxHp, nest.hp + UPGRADE_CONFIG.fortifyNest.extraMaxHp);
+      this.updateNestVisual();
+      return true;
+    }
+
+    return false;
+  }
+
   getUpgradeOptions(nestId = this.selectedNestId) {
     const nest = this.getNestById(nestId);
     if (!nest || nest.faction !== FACTION.player || nest.collapsed) return [];
     const stored = this.getNestStored(nest.id);
     const needsRepair = nest.hp < nest.maxHp;
+    const workerBatch = this.getSpawnBatchProfile(nest.id, 'worker');
+    const fighterBatch = this.getSpawnBatchProfile(nest.id, 'fighter');
     return [
       {
         id: UPGRADE_CONFIG.repairNest.id,
@@ -419,18 +483,48 @@ export class FoodSystem {
       {
         id: UPGRADE_CONFIG.spawnWorkers.id,
         label: UPGRADE_CONFIG.spawnWorkers.label,
-        description: `Spawn ${UPGRADE_CONFIG.spawnWorkers.count} worker ants at this nest.`,
-        cost: UPGRADE_CONFIG.spawnWorkers.cost,
-        affordable: stored >= UPGRADE_CONFIG.spawnWorkers.cost,
-        disabled: stored < UPGRADE_CONFIG.spawnWorkers.cost,
+        description: `Spawn ${workerBatch.count} worker ants at this nest${nest.upgrades.broodChambers ? ' (brood bonus active)' : ''}.`,
+        cost: workerBatch.cost,
+        affordable: stored >= workerBatch.cost,
+        disabled: stored < workerBatch.cost,
       },
       {
         id: UPGRADE_CONFIG.spawnFighters.id,
         label: UPGRADE_CONFIG.spawnFighters.label,
-        description: `Spawn ${UPGRADE_CONFIG.spawnFighters.count} fighter ants at this nest.`,
-        cost: UPGRADE_CONFIG.spawnFighters.cost,
-        affordable: stored >= UPGRADE_CONFIG.spawnFighters.cost,
-        disabled: stored < UPGRADE_CONFIG.spawnFighters.cost,
+        description: `Spawn ${fighterBatch.count} fighter ants at this nest${nest.upgrades.warNest ? ' (war bonus active)' : ''}.`,
+        cost: fighterBatch.cost,
+        affordable: stored >= fighterBatch.cost,
+        disabled: stored < fighterBatch.cost,
+      },
+      {
+        id: UPGRADE_CONFIG.broodChambers.id,
+        label: UPGRADE_CONFIG.broodChambers.label,
+        description: nest.upgrades.broodChambers
+          ? 'Installed. Worker call-ups now bring a larger batch.'
+          : `Permanent. Worker call-ups spawn +${UPGRADE_CONFIG.broodChambers.extraWorkers} ants.`,
+        cost: UPGRADE_CONFIG.broodChambers.cost,
+        affordable: !nest.upgrades.broodChambers && stored >= UPGRADE_CONFIG.broodChambers.cost,
+        disabled: nest.upgrades.broodChambers || stored < UPGRADE_CONFIG.broodChambers.cost,
+      },
+      {
+        id: UPGRADE_CONFIG.warNest.id,
+        label: UPGRADE_CONFIG.warNest.label,
+        description: nest.upgrades.warNest
+          ? 'Installed. Fighter call-ups now bring a larger strike force.'
+          : `Permanent. Fighter call-ups spawn +${UPGRADE_CONFIG.warNest.extraFighters} ants.`,
+        cost: UPGRADE_CONFIG.warNest.cost,
+        affordable: !nest.upgrades.warNest && stored >= UPGRADE_CONFIG.warNest.cost,
+        disabled: nest.upgrades.warNest || stored < UPGRADE_CONFIG.warNest.cost,
+      },
+      {
+        id: UPGRADE_CONFIG.fortifyNest.id,
+        label: UPGRADE_CONFIG.fortifyNest.label,
+        description: nest.upgrades.fortifyNest
+          ? 'Installed. This nest now has a larger HP pool.'
+          : `Permanent. Gain +${UPGRADE_CONFIG.fortifyNest.extraMaxHp} max HP and restore that much immediately.`,
+        cost: UPGRADE_CONFIG.fortifyNest.cost,
+        affordable: !nest.upgrades.fortifyNest && stored >= UPGRADE_CONFIG.fortifyNest.cost,
+        disabled: nest.upgrades.fortifyNest || stored < UPGRADE_CONFIG.fortifyNest.cost,
       },
     ];
   }
