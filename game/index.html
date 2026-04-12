@@ -318,9 +318,11 @@
     #hud {
       position: fixed;
       left: 12px;
-      top: 12px;
+      bottom: 12px;
       max-width: min(360px, calc(100vw - 24px));
       overflow: hidden;
+      display: flex;
+      flex-direction: column-reverse;
     }
     #hud summary {
       list-style: none;
@@ -344,6 +346,9 @@
     #hudBody {
       padding: 0 12px 12px;
       border-top: 1px solid rgba(22, 49, 77, 0.08);
+      max-height: min(58vh, 460px);
+      overflow: auto;
+      overscroll-behavior: contain;
     }
     .hudRow { margin-top: 8px; }
     .hudToggle {
@@ -437,7 +442,13 @@
       .statusCard {
         align-self: flex-end;
       }
-      #hud { top: auto; bottom: 12px; }
+      #hud {
+        right: 12px;
+        max-width: calc(100vw - 24px);
+      }
+      #hudBody {
+        max-height: min(52vh, 360px);
+      }
     }
   </style>
 </head>
@@ -508,10 +519,10 @@
 
   <div id="gameplayHud" hidden>
     <div id="topBar">
-      <details id="hud" open>
+      <details id="hud">
         <summary>
           <span id="hudTitle">Ant Battle</span>
-          <span id="hudHint">tap to collapse</span>
+          <span id="hudHint">tap to expand</span>
         </summary>
         <div id="hudBody">
           <div class="hudRow" id="cameraInfo">Camera: waiting for gameplay...</div>
