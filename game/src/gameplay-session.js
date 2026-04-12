@@ -19,7 +19,7 @@ const CAMERA_MODE = {
 const DEFAULT_CAMERA_TARGET = new THREE.Vector3(0, 2, 0);
 const DEFAULT_CAMERA_POSITION = new THREE.Vector3(36, 26, 36);
 const DEFAULT_CAMERA_OFFSET = DEFAULT_CAMERA_POSITION.clone().sub(DEFAULT_CAMERA_TARGET);
-const BATTLEFIELD_CAMERA_DIAGONAL_OFFSET = new THREE.Vector3(16, 52, 18);
+const BATTLEFIELD_CAMERA_TILT_OFFSET = new THREE.Vector3(0, 52, 24);
 const BATTLEFIELD_ORTHOGRAPHIC_SIZE = 34;
 const BATTLEFIELD_MIN_ZOOM = 0.85;
 const BATTLEFIELD_MAX_ZOOM = 3.2;
@@ -37,7 +37,7 @@ const updateOrthographicFrustum = (orthographicCamera) => {
   orthographicCamera.updateProjectionMatrix();
 };
 
-const getBattlefieldCameraOffset = () => BATTLEFIELD_CAMERA_DIAGONAL_OFFSET.clone();
+const getBattlefieldCameraOffset = () => BATTLEFIELD_CAMERA_TILT_OFFSET.clone();
 
 const getBattlefieldVisibleHalfExtents = (zoom = 1) => {
   const aspect = Math.max(0.001, window.innerWidth / Math.max(1, window.innerHeight));

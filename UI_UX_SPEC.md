@@ -147,7 +147,7 @@ Recommended format:
 - the alternative battlefield camera must be reachable from the normal gameplay HUD, not only through hidden developer controls
 - show the current camera mode in readable text
 - provide a large tap target that switches between orbit and battlefield camera without opening a debug menu
-- the battlefield camera should favor a steeper tactical read than the orbit camera, using an orthographic, slight-diagonal framing that still keeps touch targeting trustworthy
+- the battlefield camera should favor a steeper tactical read than the orbit camera, using an orthographic, plan-aligned framing with a forward x-axis tilt rather than sideways y-axis yaw, while still keeping touch targeting trustworthy
 - battlefield pinch-zoom should allow a meaningfully closer tactical view than the initial default framing
 - battlefield pan bounds should tighten as the player zooms in so close mobile framing stays stable instead of drifting off the playable terrain
 

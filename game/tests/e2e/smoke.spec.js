@@ -66,7 +66,7 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraProjectionType?.())).toBe('orthographic');
 
   const battlefieldCameraState = await page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraState?.());
-  expect(Math.abs(battlefieldCameraState.position.x - battlefieldCameraState.target.x)).toBeGreaterThan(5);
+  expect(Math.abs(battlefieldCameraState.position.x - battlefieldCameraState.target.x)).toBeLessThan(0.001);
   expect(Math.abs(battlefieldCameraState.position.z - battlefieldCameraState.target.z)).toBeGreaterThan(5);
 
   await page.evaluate(() => {
