@@ -370,9 +370,12 @@
     }
     .upgradeCards {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 8px;
       margin-top: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding-bottom: 2px;
     }
     .upgradeChip {
       min-width: 0;
@@ -437,6 +440,10 @@
       justify-content: flex-end;
       gap: 8px;
       margin-top: 10px;
+    }
+    #upgradeConfirmButton {
+      min-width: 0;
+      padding: 10px 14px;
     }
     #nestUpgradeOverlay {
       position: fixed;
