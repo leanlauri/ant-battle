@@ -31,6 +31,7 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect(page.locator('h1')).toHaveText('Ant Battle');
   await expect(page.locator('#startButton')).toHaveText('Tap to Start');
   await expect(page.locator('#titleBuildBadge')).toContainText('Build:');
+  await expect(page.locator('#titleBuildBadge')).not.toHaveText('Build: --');
 
   await page.locator('#startButton').click();
   await expect(page.locator('#levelPageLabel')).toHaveText('Levels 1–20');

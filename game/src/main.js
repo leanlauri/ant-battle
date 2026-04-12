@@ -1,3 +1,4 @@
+/* global __BUILD_ID__ */
 import {
   LEVELS_PER_PAGE,
   TOTAL_LEVELS,
@@ -11,6 +12,8 @@ import {
 } from './campaign-state.js';
 import { createGameplaySession } from './gameplay-session.js';
 import { getLevelDefinition } from './level-definition.js';
+
+const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev';
 
 const APP_SCREEN = {
   title: 'title',
@@ -549,6 +552,6 @@ window.__ANT_BATTLE_DEV_API__ = {
   },
 };
 
-refs.titleBuildBadge.textContent = 'Build: --';
+refs.titleBuildBadge.textContent = `Build: ${BUILD_ID}`;
 renderDebugMenu();
 renderScreens();

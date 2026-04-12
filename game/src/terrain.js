@@ -167,6 +167,25 @@ export const createTerrainOverlay = (geometry) => {
   return wireframe;
 };
 
+export const createTerrainUnderlay = ({
+  width = activeTerrainProfile.width,
+  depth = activeTerrainProfile.depth,
+  maxHeight = activeTerrainProfile.maxHeight,
+} = {}) => {
+  const underlay = new THREE.Mesh(
+    new THREE.PlaneGeometry(width * 3, depth * 3, 1, 1),
+    new THREE.MeshToonMaterial({
+      color: 0xdbe7f4,
+      gradientMap: createToonGradient(),
+    }),
+  );
+  underlay.rotation.x = -Math.PI / 2;
+  underlay.position.y = -Math.max(10, maxHeight * 3);
+  underlay.receiveShadow = false;
+  underlay.castShadow = false;
+  return underlay;
+};
+
 export const createTerrainMesh = (options = {}) => {
   const geometry = createTerrainGeometry(options);
   const material = createTerrainMaterial();
