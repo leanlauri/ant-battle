@@ -19,10 +19,11 @@ const CAMERA_MODE = {
 const DEFAULT_CAMERA_TARGET = new THREE.Vector3(0, 2, 0);
 const DEFAULT_CAMERA_POSITION = new THREE.Vector3(36, 26, 36);
 const DEFAULT_CAMERA_OFFSET = DEFAULT_CAMERA_POSITION.clone().sub(DEFAULT_CAMERA_TARGET);
-const BATTLEFIELD_CAMERA_TILT_OFFSET = new THREE.Vector3(0, 52, 24);
+const BATTLEFIELD_FIXED_POLAR_ANGLE = Math.PI / 4;
+const BATTLEFIELD_CAMERA_TILT_OFFSET = new THREE.Vector3(0, 40, 40);
 const BATTLEFIELD_ORTHOGRAPHIC_SIZE = 34;
 const BATTLEFIELD_MIN_ZOOM = 0.85;
-const BATTLEFIELD_MAX_ZOOM = 3.2;
+const BATTLEFIELD_MAX_ZOOM = 5.2;
 const BATTLEFIELD_EDGE_PADDING = 4;
 
 const updateOrthographicFrustum = (orthographicCamera) => {
@@ -217,7 +218,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     const nextTarget = target.clone();
     clampBattlefieldTargetToTerrain(nextTarget, battlefieldCamera.zoom);
     nextTarget.y = sampleHeight(nextTarget.x, nextTarget.z);
-    battlefieldCamera.position.copy(nextTarget.clone().add(getBattlefieldCameraOffset()));
+    const currentOffset = battlefieldCamera.position.clone().sub(controls?.target ?? nextTarget);
+    const hasExistingOffset = Number.isFinite(currentOffset.lengthSq()) && currentOffset.lengthSq() > 0.0001;
+    battlefieldCamera.position.copy(nextTarget.clone().add(hasExistingOffset ? currentOffset : getBattlefieldCameraOffset()));
     battlefieldCamera.lookAt(nextTarget);
     battlefieldCamera.updateMatrixWorld();
   };
@@ -250,10 +253,13 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
       controls.touches.ONE = THREE.TOUCH.PAN;
       controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
-      controls.enableRotate = false;
+      controls.enableRotate = true;
+      controls.screenSpacePanning = true;
+      controls.minPolarAngle = BATTLEFIELD_FIXED_POLAR_ANGLE;
+      controls.maxPolarAngle = BATTLEFIELD_FIXED_POLAR_ANGLE;
       controls.minZoom = BATTLEFIELD_MIN_ZOOM;
       controls.maxZoom = BATTLEFIELD_MAX_ZOOM;
-      controls.zoomSpeed = 1.25;
+      controls.zoomSpeed = 1.4;
     } else {
       camera = orbitCamera;
       if (!camera) return;
@@ -277,10 +283,13 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
   const enforceBattlefieldCameraConstraints = () => {
     if (!controls || !camera || cameraMode !== CAMERA_MODE.battlefield) return;
+    const previousTarget = controls.target.clone();
     clampBattlefieldTargetToTerrain(controls.target, camera.zoom);
     const desiredTargetY = sampleHeight(controls.target.x, controls.target.z);
     if (Math.abs(desiredTargetY - controls.target.y) > 1e-4) controls.target.y = desiredTargetY;
-    syncBattlefieldCameraToTarget(controls.target);
+    const targetDelta = controls.target.clone().sub(previousTarget);
+    if (targetDelta.lengthSq() > 0.000001) camera.position.add(targetDelta);
+    controls.update();
   };
 
   const setBattlefieldCameraZoom = (zoom) => {
@@ -316,6 +325,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     zoom: camera?.isOrthographicCamera ? camera.zoom : null,
     position: camera ? { x: camera.position.x, y: camera.position.y, z: camera.position.z } : null,
     target: controls ? { x: controls.target.x, y: controls.target.y, z: controls.target.z } : null,
+    azimuthAngle: typeof controls?.getAzimuthalAngle === 'function' ? controls.getAzimuthalAngle() : null,
+    polarAngle: typeof controls?.getPolarAngle === 'function' ? controls.getPolarAngle() : null,
   });
 
   const setDebugVisualsVisible = (visible) => {
@@ -613,6 +624,18 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     getCameraState,
     setBattlefieldCameraZoom,
     setBattlefieldCameraTarget,
+    rotateBattlefieldCamera: (azimuthDelta) => {
+      if (!controls || !camera || cameraMode !== CAMERA_MODE.battlefield) return null;
+      const offset = camera.position.clone().sub(controls.target);
+      offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), azimuthDelta);
+      camera.position.copy(controls.target.clone().add(offset));
+      camera.lookAt(controls.target);
+      camera.updateMatrixWorld();
+      controls.update();
+      enforceBattlefieldCameraConstraints();
+      publishHud();
+      return getCameraState();
+    },
     applyUpgrade: (upgradeId) => {
       if (!foodSystem || !antSystem) return false;
       const nest = foodSystem.getSelectedNest();

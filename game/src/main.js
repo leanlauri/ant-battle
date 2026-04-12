@@ -495,6 +495,9 @@ window.__ANT_BATTLE_TEST_API__ = {
   setBattlefieldCameraTarget(target) {
     return gameplaySession.setBattlefieldCameraTarget(target);
   },
+  rotateBattlefieldCamera(azimuthDelta) {
+    return gameplaySession.rotateBattlefieldCamera(azimuthDelta);
+  },
   isDebugMenuVisible() {
     return app.debugMenuVisible;
   },

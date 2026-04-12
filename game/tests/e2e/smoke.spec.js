@@ -66,18 +66,28 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraProjectionType?.())).toBe('orthographic');
 
   const battlefieldCameraState = await page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraState?.());
-  expect(Math.abs(battlefieldCameraState.position.x - battlefieldCameraState.target.x)).toBeLessThan(0.001);
-  expect(Math.abs(battlefieldCameraState.position.z - battlefieldCameraState.target.z)).toBeGreaterThan(5);
+  const initialPitch = Math.atan2(
+    battlefieldCameraState.position.y - battlefieldCameraState.target.y,
+    Math.abs(battlefieldCameraState.position.z - battlefieldCameraState.target.z),
+  );
+  expect(Math.abs(initialPitch - (Math.PI / 4))).toBeLessThan(0.03);
+  expect(Math.abs(battlefieldCameraState.polarAngle - (Math.PI / 4))).toBeLessThan(0.03);
+
+  const rotatedBattlefieldState = await page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.rotateBattlefieldCamera?.(Math.PI / 6));
+  expect(Math.abs(rotatedBattlefieldState.azimuthAngle - battlefieldCameraState.azimuthAngle)).toBeGreaterThan(0.2);
+  expect(Math.abs(rotatedBattlefieldState.polarAngle - (Math.PI / 4))).toBeLessThan(0.03);
+  expect(Math.abs(rotatedBattlefieldState.target.x - battlefieldCameraState.target.x)).toBeLessThan(0.001);
+  expect(Math.abs(rotatedBattlefieldState.target.z - battlefieldCameraState.target.z)).toBeLessThan(0.001);
 
   await page.evaluate(() => {
-    window.__ANT_BATTLE_TEST_API__?.setBattlefieldCameraZoom?.(3.5);
+    window.__ANT_BATTLE_TEST_API__?.setBattlefieldCameraZoom?.(6.5);
     return window.__ANT_BATTLE_TEST_API__?.setBattlefieldCameraTarget?.({ x: 999, z: 999 });
   });
   const clampedBattlefieldState = await page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraState?.());
-  expect(clampedBattlefieldState.zoom).toBeLessThanOrEqual(3.2);
-  expect(clampedBattlefieldState.zoom).toBeGreaterThan(3);
-  expect(clampedBattlefieldState.target.x).toBeLessThan(35);
-  expect(clampedBattlefieldState.target.z).toBeLessThan(38);
+  expect(clampedBattlefieldState.zoom).toBeLessThanOrEqual(5.2);
+  expect(clampedBattlefieldState.zoom).toBeGreaterThan(5);
+  expect(clampedBattlefieldState.target.x).toBeLessThan(42);
+  expect(clampedBattlefieldState.target.z).toBeLessThan(45);
 
   await page.locator('body canvas').click({ position: { x: 520, y: 420 } });
   await expect(page.locator('#focusInfo')).not.toHaveText('Focus: No rally point set');

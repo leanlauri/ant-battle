@@ -33,6 +33,8 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ## Todo
 
+### Immediate UI fixes
+
 ### Level generation and campaign progression
 
 - [ ] Add deterministic coverage for any other remaining replay-sensitive runtime paths.
@@ -188,6 +190,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Refine battlefield camera controls for tactical play.
+  - Battlefield mode now locks to a true 45 degree downward orthographic tactical tilt instead of the earlier shallower offset.
+  - Two-finger battlefield gestures can rotate around the current camera target while keeping target stability, pinch zoom, and tap targeting intact.
+  - Increased the maximum close-in battlefield zoom so players can inspect combat much nearer to the ants.
+  - Added end-to-end coverage for fixed 45 degree pitch, target-stable battlefield rotation, and the tighter close-zoom clamp.
+  - Updated `UI_UX_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` to document the refined controls.
 
 - [x] Add deterministic integration coverage for remaining runtime stream interactions.
   - Thin slice shipped: a live runtime integration test now runs delivered-food regrowth alongside enemy production timing and seeded reinforcement spawning, mirroring the gameplay update order.

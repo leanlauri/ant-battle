@@ -148,7 +148,9 @@ Recommended format:
 - show the current camera mode in readable text
 - provide a large tap target that switches between orbit and battlefield camera without opening a debug menu
 - the battlefield camera should favor a steeper tactical read than the orbit camera, using an orthographic, plan-aligned framing with a forward x-axis tilt rather than sideways y-axis yaw, while still keeping touch targeting trustworthy
+- battlefield camera should hold a true 45 degree downward tilt in tactical mode
 - battlefield pinch-zoom should allow a meaningfully closer tactical view than the initial default framing
+- battlefield two-finger drag should orbit around the current camera target while keeping that fixed tactical pitch
 - battlefield pan bounds should tighten as the player zooms in so close mobile framing stays stable instead of drifting off the playable terrain
 
 ---
