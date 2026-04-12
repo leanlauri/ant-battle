@@ -30,7 +30,6 @@ const BATTLEFIELD_MIN_ZOOM = 0.85;
 const BATTLEFIELD_MAX_ZOOM = 5.2;
 const BATTLEFIELD_EDGE_PADDING = 4;
 const BATTLEFIELD_EDGE_PADDING_AT_MAX_ZOOM = 9;
-const BATTLEFIELD_FOREGROUND_EDGE_PADDING = 18;
 
 const updateOrthographicFrustum = (orthographicCamera) => {
   if (!orthographicCamera) return;
@@ -118,19 +117,11 @@ const clampBattlefieldTargetToTerrain = (target, zoom = 1, cameraPosition = targ
     cameraPosition,
   });
   const edgePadding = getBattlefieldEdgePadding(zoom);
-  const viewDirection = cameraPosition.clone().sub(target).normalize();
-  const foregroundExtraX = BATTLEFIELD_FOREGROUND_EDGE_PADDING * Math.abs(viewDirection.x);
-  const foregroundExtraZ = BATTLEFIELD_FOREGROUND_EDGE_PADDING * Math.abs(viewDirection.z);
 
-  const minEdgePaddingX = edgePadding + (viewDirection.x < -0.001 ? foregroundExtraX : 0);
-  const maxEdgePaddingX = edgePadding + (viewDirection.x > 0.001 ? foregroundExtraX : 0);
-  const minEdgePaddingZ = edgePadding + (viewDirection.z < -0.001 ? foregroundExtraZ : 0);
-  const maxEdgePaddingZ = edgePadding + (viewDirection.z > 0.001 ? foregroundExtraZ : 0);
-
-  const minTargetX = (-terrainHalfWidth + minEdgePaddingX) - footprint.minX;
-  const maxTargetX = (terrainHalfWidth - maxEdgePaddingX) - footprint.maxX;
-  const minTargetZ = (-terrainHalfDepth + minEdgePaddingZ) - footprint.minZ;
-  const maxTargetZ = (terrainHalfDepth - maxEdgePaddingZ) - footprint.maxZ;
+  const minTargetX = (-terrainHalfWidth + edgePadding) - footprint.minX;
+  const maxTargetX = (terrainHalfWidth - edgePadding) - footprint.maxX;
+  const minTargetZ = (-terrainHalfDepth + edgePadding) - footprint.minZ;
+  const maxTargetZ = (terrainHalfDepth - edgePadding) - footprint.maxZ;
 
   target.x = THREE.MathUtils.clamp(target.x, minTargetX, maxTargetX);
   target.z = THREE.MathUtils.clamp(target.z, minTargetZ, maxTargetZ);
@@ -318,6 +309,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     if (cameraMode === CAMERA_MODE.battlefield) {
       camera = battlefieldCamera;
       if (!camera) return;
+      antSystem?.setCamera?.(camera);
       updateOrthographicFrustum(camera);
       camera.zoom = THREE.MathUtils.clamp(nextZoom, BATTLEFIELD_MIN_ZOOM, BATTLEFIELD_MAX_ZOOM);
       camera.updateProjectionMatrix();
@@ -339,6 +331,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     } else {
       camera = orbitCamera;
       if (!camera) return;
+      antSystem?.setCamera?.(camera);
       syncOrbitCameraToTarget(nextTarget);
       controls = createControls(camera);
       if (!controls) return;

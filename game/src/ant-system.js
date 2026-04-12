@@ -854,6 +854,12 @@ export class AntSystem {
     }
   }
 
+  setCamera(camera) {
+    if (!camera) return false;
+    this.camera = camera;
+    return true;
+  }
+
   spawnAntBatch({ nestId, role, count }) {
     const nest = this.nestLookup.get(nestId);
     if (!nest || nest.collapsed || count <= 0) return 0;
