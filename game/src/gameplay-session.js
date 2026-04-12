@@ -6,6 +6,7 @@ import { ENEMY_ECONOMY_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.
 import { getLevelDefinition } from './level-definition.js';
 import { getObjectiveStatus } from './objective-rules.js';
 import { PheromoneSystem } from './pheromone-system.js';
+import { createSeededRandom, deriveSeed } from './seeded-random.js';
 import { createTerrainMesh, createTerrainOverlay, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
 
 const BUILD_ID_FALLBACK = '9ae531b';
@@ -107,13 +108,17 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const activePointerIds = new Set();
   const buildInfo = createBuildInfo();
   const enemyProductionCooldowns = new Map();
+  let currentLevelDefinition = getLevelDefinition(1);
+  let foodRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'food'));
+  let antRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants'));
+  let enemyEconomyRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'enemy-economy'));
 
   const randomEnemyProductionCooldown = () => {
     const multiplier = currentLevelDefinition?.scenarioRules?.enemyProductionRateMultiplier ?? 1;
     return THREE.MathUtils.lerp(
       ENEMY_ECONOMY_CONFIG.productionCooldownMin,
       ENEMY_ECONOMY_CONFIG.productionCooldownMax,
-      Math.random(),
+      enemyEconomyRandom(),
     ) / Math.max(0.1, multiplier);
   };
 
@@ -148,7 +153,11 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     }
   };
 
-  let currentLevelDefinition = getLevelDefinition(1);
+  const resetLevelRandomStreams = () => {
+    foodRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'food'));
+    antRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants'));
+    enemyEconomyRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'enemy-economy'));
+  };
 
   const projectWorldToScreen = (position) => {
     if (!camera || !renderer || !position) return null;
@@ -353,12 +362,14 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       terrain = createTerrainMesh();
       scene.add(terrain);
       scene.add(createTerrainOverlay(terrain.geometry));
+      resetLevelRandomStreams();
 
       foodSystem = new FoodSystem({
         scene,
         count: currentLevelDefinition.foodCount,
         enemyNestCount: currentLevelDefinition.enemyNestCount,
         nestOverrides: currentLevelDefinition.nestOverrides,
+        random: foodRandom,
       });
       pheromoneSystem = new PheromoneSystem();
       antSystem = new AntSystem({
@@ -371,6 +382,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         count: currentLevelDefinition.antBudget,
         levelSetup: currentLevelDefinition.setup,
         objective: currentLevelDefinition.objective,
+        random: antRandom,
       });
       setDebugVisualsVisible(debugVisualsVisible);
       publishHud();

@@ -33,25 +33,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ## Todo
 
-### Immediate gameplay and UX slices
-
-- [ ] Improve upgrade purchase feedback.
-  - Add clear success feedback when an upgrade is confirmed.
-  - Make unavailable states and shortfalls read clearly in the compact overlay.
-  - Check mobile readability and touch behavior.
-  - Docs: `IMPLEMENTATION_ROADMAP.md`, `UI_UX_SPEC.md`
-
-- [ ] Add level-card special iconography and shell treatment for every 10th level.
-  - Mark boss levels in level select.
-  - Distinguish them in victory/defeat/title-to-level-select presentation where useful.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `UI_UX_SPEC.md`
-
 ### Level generation and campaign progression
 
-- [ ] Add deterministic seeded randomness utilities and route level setup through them.
-  - Remove accidental nondeterminism from level generation/setup where practical.
-  - Make the same level number reproduce the same base scenario.
-  - Add tests that verify determinism.
+- [ ] Finish routing remaining gameplay randomness through deterministic level seeds.
+  - Cover runtime-only randomness still driven by `Math.random`, like combat aftermath particles and idle/wander decisions, where practical.
+  - Keep setup-focused seeded streams stable as more generators land.
+  - Add follow-up determinism coverage once more systems are routed.
   - Docs: `LEVEL_SYSTEM_SPEC.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
@@ -203,6 +190,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add deterministic seeded randomness utilities and route initial level setup through them.
+  - Added a shared seeded RNG helper with named sub-seeds so level setup systems can consume stable, isolated random streams.
+  - Routed food placement/regrowth, enemy role picks, starting ant spawn placement, spawned-ant placement, and enemy production cooldowns through level-derived seeds.
+  - Added seed-focused tests that verify identical seeds reproduce identical food and starting-ant setup, and updated roadmap/spec notes to describe substream usage.
+  - Left deeper moment-to-moment AI and presentation randomness on the follow-up Todo item.
 
 - [x] Improve upgrade purchase feedback.
   - Added explicit ready, shortfall, and already-active messaging in the compact upgrade detail overlay instead of generic disabled states.

@@ -327,6 +327,7 @@ Move from ad hoc scenarios to deterministic campaign generation.
 ### Implementation tasks
 1. Create level-definition schema
 2. Add seeded random utility
+   - shared helper should support derived per-system substreams so food placement, starting ant placement, and other setup rolls can replay cleanly per level
 3. Add level generator entry point
 4. Bind level select to generated levels
 5. Add first pass difficulty ramp table

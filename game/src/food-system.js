@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createRandomRange } from './seeded-random.js';
 import { TERRAIN_CONFIG, sampleHeight } from './terrain.js';
 
 export const FOOD_CONFIG = Object.freeze({
@@ -69,7 +70,7 @@ const COLONY_STYLE = Object.freeze({
   },
 });
 
-const randomRange = (min, max) => min + Math.random() * (max - min);
+const randomRangeWith = (random = Math.random) => createRandomRange(random);
 
 const deriveFoodWeight = (sizeScale) => {
   const normalized = (sizeScale - FOOD_CONFIG.sizeMinScale) / (FOOD_CONFIG.sizeMaxScale - FOOD_CONFIG.sizeMinScale);
@@ -82,21 +83,23 @@ const deriveFoodWeight = (sizeScale) => {
   };
 };
 
-const randomFoodPosition = (sizeScale = 1) => {
+const randomFoodPosition = (sizeScale = 1, random = Math.random) => {
+  const randomRange = randomRangeWith(random);
   const x = randomRange(-TERRAIN_CONFIG.width / 2 + 2, TERRAIN_CONFIG.width / 2 - 2);
   const z = randomRange(-TERRAIN_CONFIG.depth / 2 + 2, TERRAIN_CONFIG.depth / 2 - 2);
   const y = sampleHeight(x, z) + FOOD_CONFIG.size * sizeScale * 0.55;
   return new THREE.Vector3(x, y, z);
 };
 
-export const createFoodItems = (count = FOOD_CONFIG.count) => {
+export const createFoodItems = (count = FOOD_CONFIG.count, { random = Math.random } = {}) => {
   const foods = [];
+  const randomRange = randomRangeWith(random);
   for (let i = 0; i < count; i += 1) {
     const sizeScale = randomRange(FOOD_CONFIG.sizeMinScale, FOOD_CONFIG.sizeMaxScale);
     const profile = deriveFoodWeight(sizeScale);
     foods.push({
       id: i,
-      position: randomFoodPosition(sizeScale),
+      position: randomFoodPosition(sizeScale, random),
       sizeScale,
       weight: profile.weight,
       requiredCarriers: profile.requiredCarriers,
@@ -321,9 +324,11 @@ const computeNestScale = (nestStored, hpRatio = 1) => {
 };
 
 export class FoodSystem {
-  constructor({ scene, count = FOOD_CONFIG.count, enemyNestCount = 2, nestOverrides = null } = {}) {
+  constructor({ scene, count = FOOD_CONFIG.count, enemyNestCount = 2, nestOverrides = null, random = Math.random } = {}) {
     this.scene = scene;
-    this.items = createFoodItems(count);
+    this.random = random;
+    this.randomRange = randomRangeWith(this.random);
+    this.items = createFoodItems(count, { random: this.random });
     this.meshes = [];
     this.nestStoredById = new Map();
     this.nests = createNestDefinitions({ enemyNestCount, nestOverrides }).map((nest) => ({
@@ -689,7 +694,7 @@ export class FoodSystem {
     food.claimedBy = null;
     food.claimedByColonyId = null;
     food.supportAntIds = [];
-    food.regrowAt = randomRange(FOOD_CONFIG.regrowDelayMin, FOOD_CONFIG.regrowDelayMax);
+    food.regrowAt = this.randomRange(FOOD_CONFIG.regrowDelayMin, FOOD_CONFIG.regrowDelayMax);
     this.nestStoredById.set(nestId, this.getNestStored(nestId) + food.weight);
     this.releaseNestSlot(antId);
     this.updateNestVisual();
@@ -766,7 +771,7 @@ export class FoodSystem {
       if (!food.delivered || food.regrowAt == null) continue;
       food.regrowAt -= dt;
       if (food.regrowAt > 0) continue;
-      const sizeScale = randomRange(FOOD_CONFIG.sizeMinScale, FOOD_CONFIG.sizeMaxScale);
+      const sizeScale = this.randomRange(FOOD_CONFIG.sizeMinScale, FOOD_CONFIG.sizeMaxScale);
       const profile = deriveFoodWeight(sizeScale);
       food.delivered = false;
       food.carried = false;
@@ -779,7 +784,7 @@ export class FoodSystem {
       food.sizeScale = sizeScale;
       food.weight = profile.weight;
       food.requiredCarriers = profile.requiredCarriers;
-      food.position.copy(randomFoodPosition(sizeScale));
+      food.position.copy(randomFoodPosition(sizeScale, this.random));
     }
     this.updateVisuals();
   }

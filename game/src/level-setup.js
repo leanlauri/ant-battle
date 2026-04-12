@@ -1,6 +1,6 @@
 import { ANT_ROLE } from './ant-system.js';
 
-export const createEnemyRolePicker = (workerRatio = 0.82) => () => (Math.random() < workerRatio ? ANT_ROLE.worker : ANT_ROLE.fighter);
+export const createEnemyRolePicker = (workerRatio = 0.82, random = Math.random) => () => (random() < workerRatio ? ANT_ROLE.worker : ANT_ROLE.fighter);
 
 export const normalizeLevelSetup = (setup = {}) => ({
   playerStartingCounts: {

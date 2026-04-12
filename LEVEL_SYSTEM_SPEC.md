@@ -64,9 +64,13 @@ The seed controls at least:
 - food placement
 - time of day
 - palette variation
+- initial setup substreams, such as starting ant placement, enemy role mix, and repeatable enemy-economy cooldown rolls
 
 ### Rule
 Replaying the same level number should generate the same base scenario unless explicit future modifiers are introduced.
+
+Implementation note:
+- derive named sub-seeds from the level seed so setup systems can stay deterministic without sharing one giant global random stream
 
 ---
 
