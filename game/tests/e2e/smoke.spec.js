@@ -59,6 +59,7 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect(page.locator('#cameraModeValue')).toHaveText('Battlefield camera');
   await expect(page.locator('#cameraModeButton')).toHaveText('Switch to orbit camera');
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraMode?.())).toBe('battlefield');
+  await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraProjectionType?.())).toBe('orthographic');
 
   await page.locator('body canvas').click({ position: { x: 520, y: 420 } });
   await expect(page.locator('#focusInfo')).not.toHaveText('Focus: No rally point set');

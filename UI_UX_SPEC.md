@@ -148,6 +148,7 @@ Recommended format:
 - the alternative battlefield camera must be reachable from the normal gameplay HUD, not only through hidden developer controls
 - show the current camera mode in readable text
 - provide a large tap target that switches between orbit and battlefield camera without opening a debug menu
+- the battlefield camera should favor a steeper tactical read than the orbit camera, and may use orthographic projection if that improves map legibility without harming touch targeting
 
 ---
 
@@ -215,7 +216,8 @@ Recommended format:
 Recommended baseline:
 - tap on nest or terrain for game commands
 - pinch to zoom
-- two-finger drag for camera pan/orbit if needed
+- orbit camera may use two-finger drag for orbiting if needed
+- battlefield camera should prioritize simple tactical movement, with one-finger pan and pinch zoom over free rotation
 
 Avoid single-finger camera drag at first if it conflicts with tap-to-command clarity.
 

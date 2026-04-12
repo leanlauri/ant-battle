@@ -479,6 +479,9 @@ window.__ANT_BATTLE_TEST_API__ = {
   getCameraMode() {
     return app.cameraMode;
   },
+  getCameraProjectionType() {
+    return gameplaySession.getCameraProjectionType();
+  },
   isDebugMenuVisible() {
     return app.debugMenuVisible;
   },

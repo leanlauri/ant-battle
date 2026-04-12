@@ -54,11 +54,12 @@ Goals:
 - [x] Enemy production cooldown timing is now covered by deterministic runtime tests, confirming the `enemy-economy` stream keeps colony growth replay-stable for a level seed
 - [x] Live enemy-economy integration is now covered by deterministic seed tests, confirming production timing stays locked to `enemy-economy` while spawned reinforcement placement remains isolated on `ants-spawn`
 - [x] The alternative battlefield camera is now exposed through the normal gameplay HUD with a visible mode label and toggle, so players/testers no longer need hidden dev controls to reach it
+- [x] The battlefield camera now uses a steeper orthographic tactical view with re-tuned zoom/framing, making the playfield read more top-down while keeping tap targeting and HUD camera switching intact
 
 ### Next implementation slice
-1. Start making objective text correspond to actual rule variation instead of only presentation.
-2. Keep reducing remaining debug-flavoured presentation so the shell feels fully game-facing.
-3. Consider light wasp/boss-rule scaffolding for every 10th level, even before a full wasp faction exists.
+1. Make enemy nest selection visibly readable.
+2. Show the active player nest food count more explicitly in the gameplay HUD and upgrade flow.
+3. Keep broadening deterministic runtime coverage where replay-sensitive systems still meet live simulation behavior.
 
 ---
 

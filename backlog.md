@@ -205,6 +205,11 @@ _None._
 
 ## Complete
 
+- [x] Refine the battlefield camera into a steeper orthographic tactical view.
+  - Switched the gameplay HUD battlefield mode from a locked perspective view to a steeper orthographic tactical camera, improving map readability.
+  - Re-tuned battlefield framing and zoom bounds around the orthographic projection while keeping tap targeting and focus assignment working through the active camera.
+  - Added e2e coverage that asserts battlefield mode now flips the live gameplay camera to orthographic, and updated `UI_UX_SPEC.md` plus `IMPLEMENTATION_ROADMAP.md` to document the new camera behavior.
+
 - [x] Make the alternative camera toggle visible and reachable in the UI.
   - Moved the battlefield/orbit camera switch into the always-visible gameplay top bar instead of leaving it behind the hidden debug menu.
   - Added a readable live camera-mode label to the status card so players/testers can confirm the current mode at a glance.

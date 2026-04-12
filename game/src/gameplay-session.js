@@ -19,10 +19,25 @@ const CAMERA_MODE = {
 const DEFAULT_CAMERA_TARGET = new THREE.Vector3(0, 2, 0);
 const DEFAULT_CAMERA_POSITION = new THREE.Vector3(36, 26, 36);
 const DEFAULT_CAMERA_OFFSET = DEFAULT_CAMERA_POSITION.clone().sub(DEFAULT_CAMERA_TARGET);
-const BATTLEFIELD_CAMERA_POLAR_ANGLE = Math.atan2(
-  Math.hypot(DEFAULT_CAMERA_OFFSET.x, DEFAULT_CAMERA_OFFSET.z),
-  DEFAULT_CAMERA_OFFSET.y,
-);
+const BATTLEFIELD_CAMERA_HEIGHT = 58;
+const BATTLEFIELD_CAMERA_FORWARD_OFFSET = 18;
+const BATTLEFIELD_ORTHOGRAPHIC_SIZE = 34;
+const BATTLEFIELD_MIN_ZOOM = 0.85;
+const BATTLEFIELD_MAX_ZOOM = 2.4;
+
+const updateOrthographicFrustum = (orthographicCamera) => {
+  if (!orthographicCamera) return;
+  const aspect = Math.max(0.001, window.innerWidth / Math.max(1, window.innerHeight));
+  orthographicCamera.left = -BATTLEFIELD_ORTHOGRAPHIC_SIZE * aspect;
+  orthographicCamera.right = BATTLEFIELD_ORTHOGRAPHIC_SIZE * aspect;
+  orthographicCamera.top = BATTLEFIELD_ORTHOGRAPHIC_SIZE;
+  orthographicCamera.bottom = -BATTLEFIELD_ORTHOGRAPHIC_SIZE;
+  orthographicCamera.near = 0.1;
+  orthographicCamera.far = 260;
+  orthographicCamera.updateProjectionMatrix();
+};
+
+const getBattlefieldCameraOffset = () => new THREE.Vector3(0, BATTLEFIELD_CAMERA_HEIGHT, BATTLEFIELD_CAMERA_FORWARD_OFFSET);
 
 const createBuildInfo = () => ({
   value: BUILD_ID,
@@ -88,6 +103,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let renderer = null;
   let scene = null;
   let camera = null;
+  let orbitCamera = null;
+  let battlefieldCamera = null;
   let controls = null;
   let terrain = null;
   let foodSystem = null;
@@ -164,37 +181,82 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     controls.update();
   };
 
+  const createControls = (activeCamera) => {
+    if (!renderer || !activeCamera) return null;
+    const nextControls = new OrbitControls(activeCamera, renderer.domElement);
+    nextControls.enableDamping = true;
+    nextControls.dampingFactor = 0.08;
+    nextControls.target.copy(DEFAULT_CAMERA_TARGET);
+    nextControls.enablePan = true;
+    return nextControls;
+  };
+
+  const syncBattlefieldCameraToTarget = (target = controls?.target ?? DEFAULT_CAMERA_TARGET) => {
+    if (!battlefieldCamera) return;
+    const nextTarget = target.clone();
+    nextTarget.y = sampleHeight(nextTarget.x, nextTarget.z);
+    battlefieldCamera.position.copy(nextTarget.clone().add(getBattlefieldCameraOffset()));
+    battlefieldCamera.lookAt(nextTarget);
+    battlefieldCamera.updateMatrixWorld();
+  };
+
+  const syncOrbitCameraToTarget = (target = controls?.target ?? DEFAULT_CAMERA_TARGET) => {
+    if (!orbitCamera) return;
+    const nextTarget = target.clone();
+    orbitCamera.position.copy(nextTarget.clone().add(DEFAULT_CAMERA_OFFSET));
+    orbitCamera.lookAt(nextTarget);
+    orbitCamera.updateMatrixWorld();
+  };
+
   const applyCameraMode = () => {
-    if (!controls) return;
-    controls.enablePan = true;
+    if (!renderer) return;
+    const nextTarget = controls?.target?.clone() ?? DEFAULT_CAMERA_TARGET.clone();
+    const nextZoom = battlefieldCamera?.zoom ?? 1;
+    controls?.dispose();
+
     if (cameraMode === CAMERA_MODE.battlefield) {
+      camera = battlefieldCamera;
+      if (!camera) return;
+      updateOrthographicFrustum(camera);
+      camera.zoom = THREE.MathUtils.clamp(nextZoom, BATTLEFIELD_MIN_ZOOM, BATTLEFIELD_MAX_ZOOM);
+      camera.updateProjectionMatrix();
+      syncBattlefieldCameraToTarget(nextTarget);
+      controls = createControls(camera);
+      if (!controls) return;
       controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
       controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
       controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
       controls.touches.ONE = THREE.TOUCH.PAN;
       controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
-      controls.minPolarAngle = BATTLEFIELD_CAMERA_POLAR_ANGLE;
-      controls.maxPolarAngle = BATTLEFIELD_CAMERA_POLAR_ANGLE;
+      controls.enableRotate = false;
+      controls.minZoom = BATTLEFIELD_MIN_ZOOM;
+      controls.maxZoom = BATTLEFIELD_MAX_ZOOM;
     } else {
+      camera = orbitCamera;
+      if (!camera) return;
+      syncOrbitCameraToTarget(nextTarget);
+      controls = createControls(camera);
+      if (!controls) return;
       controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
       controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
       controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
       controls.touches.ONE = THREE.TOUCH.ROTATE;
       controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+      controls.enableRotate = true;
       controls.minPolarAngle = 0;
       controls.maxPolarAngle = Math.PI * 0.48;
+      controls.minDistance = 10;
+      controls.maxDistance = 120;
     }
+    controls.target.copy(nextTarget);
     controls.update();
   };
 
   const enforceBattlefieldCameraConstraints = () => {
     if (!controls || !camera || cameraMode !== CAMERA_MODE.battlefield) return;
     const desiredTargetY = sampleHeight(controls.target.x, controls.target.z);
-    const deltaY = desiredTargetY - controls.target.y;
-    if (Math.abs(deltaY) > 1e-4) {
-      controls.target.y = desiredTargetY;
-      camera.position.y += deltaY;
-    }
+    if (Math.abs(desiredTargetY - controls.target.y) > 1e-4) controls.target.y = desiredTargetY;
+    syncBattlefieldCameraToTarget(controls.target);
   };
 
   const setDebugVisualsVisible = (visible) => {
@@ -232,6 +294,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     renderer = null;
     scene = null;
     camera = null;
+    orbitCamera = null;
+    battlefieldCamera = null;
     controls = null;
     terrain = null;
     foodSystem = null;
@@ -296,17 +360,17 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       scene.background = new THREE.Color(currentLevelDefinition.atmosphere?.background ?? 0xdbe7f4);
       scene.fog = new THREE.Fog(currentLevelDefinition.atmosphere?.fog ?? 0xdbe7f4, 39, 104);
 
-      camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 260);
-      camera.position.copy(DEFAULT_CAMERA_POSITION);
-      camera.up.set(0, 1, 0);
-      camera.lookAt(0, 0, 0);
+      orbitCamera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 260);
+      orbitCamera.position.copy(DEFAULT_CAMERA_POSITION);
+      orbitCamera.up.set(0, 1, 0);
+      orbitCamera.lookAt(0, 0, 0);
 
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.08;
-      controls.target.copy(DEFAULT_CAMERA_TARGET);
-      controls.minDistance = 10;
-      controls.maxDistance = 120;
+      battlefieldCamera = new THREE.OrthographicCamera();
+      battlefieldCamera.up.set(0, 1, 0);
+      battlefieldCamera.zoom = 1.2;
+      updateOrthographicFrustum(battlefieldCamera);
+      syncBattlefieldCameraToTarget(DEFAULT_CAMERA_TARGET);
+
       applyCameraMode();
 
       scene.add(new THREE.HemisphereLight(
@@ -370,9 +434,14 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
       resizeHandler = () => {
         if (!renderer || !camera) return;
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
+        if (orbitCamera) {
+          orbitCamera.aspect = window.innerWidth / window.innerHeight;
+          orbitCamera.updateProjectionMatrix();
+        }
+        updateOrthographicFrustum(battlefieldCamera);
+        if (cameraMode === CAMERA_MODE.battlefield) enforceBattlefieldCameraConstraints();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        publishHud();
       };
       window.addEventListener('resize', resizeHandler);
 
@@ -478,8 +547,10 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       cameraMode = nextCameraMode === CAMERA_MODE.battlefield ? CAMERA_MODE.battlefield : CAMERA_MODE.orbit;
       applyCameraMode();
       if (cameraMode === CAMERA_MODE.battlefield) enforceBattlefieldCameraConstraints();
+      publishHud();
       return cameraMode;
     },
+    getCameraProjectionType: () => (camera?.isOrthographicCamera ? 'orthographic' : 'perspective'),
     applyUpgrade: (upgradeId) => {
       if (!foodSystem || !antSystem) return false;
       const nest = foodSystem.getSelectedNest();
