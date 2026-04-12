@@ -37,8 +37,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the current carry/delivery, focus/pressure, collapse/migration, and other covered live simulation interactions.
+- [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the currently covered live simulation interactions.
   - Keep follow-up slices narrow and focused on one live simulation interaction at a time.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
+- [ ] Add live-runtime deterministic coverage for worker idle-versus-wander fallback and fighter patrol fallback decisions.
+  - Exercise the unfocused fallback brain paths under the normal gameplay update order.
+  - Confirm those fallback decisions stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seeds change, while `ants-runtime` changes still diverge them.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
@@ -190,6 +195,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add live-runtime deterministic coverage for worker idle-versus-wander fallback and fighter patrol fallback decisions.
+  - Added a live-runtime harness that runs the normal gameplay update order while an unfocused player worker resolves its idle-versus-wander fallback and an unfocused player fighter resolves its patrol fallback.
+  - Confirmed those background brain-path outcomes stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seeds change, while `ants-runtime` changes still diverge them as expected.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this fallback-decision coverage.
+
 
 - [x] Add live-runtime deterministic coverage for siege-driven nest collapse and migration aftermath.
   - Added a live-runtime harness that drives a real fighter siege into enemy nest collapse while food regrowth and enemy production still run in the normal gameplay update order.
