@@ -36,6 +36,7 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
     battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down, ${antSystem.foodSystem?.getActiveEnemyNestCount?.() ?? 0} enemy nests still active.`,
     foodText: `Food: ${remainingFood} left, selected nest stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
     selectedNestStored: antSystem.foodSystem?.getSelectedNestStored?.() ?? 0,
+    selectedNestLabel,
     upgradeOptions: antSystem.foodSystem?.getUpgradeOptions?.() ?? [],
     buildText: `Build: ${buildInfo.value}`,
     playerAntCount: antSummary.playerTotal,
@@ -123,9 +124,22 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
   let currentLevelDefinition = getLevelDefinition(1);
 
+  const projectWorldToScreen = (position) => {
+    if (!camera || !renderer || !position) return null;
+    const projected = position.clone().project(camera);
+    if (projected.z < -1 || projected.z > 1) return null;
+    return {
+      x: ((projected.x + 1) / 2) * renderer.domElement.clientWidth,
+      y: ((-projected.y + 1) / 2) * renderer.domElement.clientHeight - 18,
+    };
+  };
+
   const publishHud = () => {
     if (!terrain || !antSystem) return;
-    onHudUpdate?.(formatHudSummary({ terrain, antSystem, buildInfo, levelDefinition: currentLevelDefinition }));
+    const summary = formatHudSummary({ terrain, antSystem, buildInfo, levelDefinition: currentLevelDefinition });
+    const selectedNest = antSystem.foodSystem?.getSelectedNest?.();
+    summary.upgradeAnchor = selectedNest ? projectWorldToScreen(selectedNest.position.clone().add(new THREE.Vector3(0, 4.2, 0))) : null;
+    onHudUpdate?.(summary);
   };
 
   const centerCameraOn = (position) => {

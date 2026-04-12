@@ -57,6 +57,9 @@ const refs = {
   battleInfo: document.getElementById('battleInfo'),
   foodInfo: document.getElementById('foodInfo'),
   buildInfo: document.getElementById('buildInfo'),
+  nestUpgradeOverlay: document.getElementById('nestUpgradeOverlay'),
+  nestUpgradePanel: document.getElementById('nestUpgradePanel'),
+  nestUpgradeTitle: document.getElementById('nestUpgradeTitle'),
   upgradeCards: document.getElementById('upgradeCards'),
   debugVisualsToggle: document.getElementById('debugVisualsToggle'),
   returnToLevelSelectButton: document.getElementById('returnToLevelSelectButton'),
@@ -79,16 +82,21 @@ const app = {
 };
 
 const renderUpgradeCards = (summary) => {
-  if (!refs.upgradeCards) return;
+  if (!refs.upgradeCards || !refs.nestUpgradePanel) return;
   refs.upgradeCards.replaceChildren();
   const options = summary?.upgradeOptions ?? [];
-  if (!options.length) {
-    const empty = document.createElement('div');
-    empty.className = 'upgradeCardCopy';
-    empty.textContent = 'Select a player nest to see upgrades.';
-    refs.upgradeCards.appendChild(empty);
+  const anchor = summary?.upgradeAnchor;
+  if (!options.length || !anchor || app.screen !== APP_SCREEN.gameplay) {
+    refs.nestUpgradePanel.hidden = true;
     return;
   }
+
+  refs.nestUpgradePanel.hidden = false;
+  refs.nestUpgradeTitle.textContent = `${summary.selectedNestLabel ?? 'Nest'} upgrades`;
+  const clampedX = Math.min(window.innerWidth - 12, Math.max(12, anchor.x));
+  const clampedY = Math.min(window.innerHeight - 12, Math.max(72, anchor.y));
+  refs.nestUpgradePanel.style.left = `${clampedX}px`;
+  refs.nestUpgradePanel.style.top = `${clampedY}px`;
 
   for (const option of options) {
     const button = document.createElement('button');
@@ -178,6 +186,7 @@ const renderScreens = () => {
   refs.defeatScreen.hidden = app.screen !== APP_SCREEN.defeat;
   refs.gameplayHud.hidden = !isGameplayVisible();
   refs.gameCanvasHost.hidden = !isGameplayVisible();
+  if (!isGameplayVisible() && refs.nestUpgradePanel) refs.nestUpgradePanel.hidden = true;
   document.body.dataset.screen = app.screen;
 
   refs.gameplayLevelLabel.textContent = `Level ${app.currentLevel}`;
