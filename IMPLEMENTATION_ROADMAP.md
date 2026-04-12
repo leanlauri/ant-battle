@@ -49,6 +49,7 @@ Goals:
 - [x] Nest upgrades now include persistent specialization choices, not only one-shot repair/reinforcement spends: worker-batch growth, fighter-batch growth, and nest fortification all persist per nest
 - [x] Level setup now affects opening colony compositions and enemy doctrine, so campaign fights differ in starting worker/fighter mixes rather than only map mood and overall budget
 - [x] Nest upgrade feedback now gives clear ready/shortfall/active messaging, success confirmation, and mobile-friendlier card wrapping in the compact overlay
+- [x] Runtime reinforcement spawning now uses its own deterministic `ants-spawn` seed stream, keeping upgrade/enemy production ant creation from perturbing ongoing AI decision rolls
 
 ### Next implementation slice
 1. Start making objective text correspond to actual rule variation instead of only presentation.

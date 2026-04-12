@@ -194,6 +194,11 @@ _None._
 
 ## Complete
 
+- [x] Extend deterministic runtime randomness coverage beyond the initial ant/effects slice.
+  - Thin slice shipped: ant reinforcement spawning now uses its own deterministic `ants-spawn` substream instead of consuming the runtime AI decision stream.
+  - Routed upgrade/enemy-production spawn placement and initial per-ant cooldown rolls through that isolated stream, so new runtime ant creation no longer perturbs ongoing AI decision rolls.
+  - Added deterministic coverage for seeded spawned batches and updated roadmap/level-system docs to describe the new substream split.
+
 - [x] Route the first ant runtime/effects slice through deterministic level seeds.
   - Split ant randomness into dedicated `ants-setup`, `ants-runtime`, and `ants-effects` substreams so setup stability no longer shifts when moment-to-moment logic changes.
   - Routed idle/wander/patrol-style ant decision rolls and combat aftermath presentation rolls off raw `Math.random` and onto seeded streams.

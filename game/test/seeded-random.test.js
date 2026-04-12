@@ -44,6 +44,8 @@ describe('seeded randomness utilities', () => {
   test('derived sub-seeds keep setup streams isolated', () => {
     expect(deriveSeed('level-3', 'food')).not.toBe(deriveSeed('level-3', 'ants-setup'));
     expect(deriveSeed('level-3', 'ants-setup')).not.toBe(deriveSeed('level-3', 'ants-runtime'));
+    expect(deriveSeed('level-3', 'ants-runtime')).not.toBe(deriveSeed('level-3', 'ants-spawn'));
+    expect(deriveSeed('level-3', 'ants-spawn')).not.toBe(deriveSeed('level-3', 'ants-effects'));
     expect(deriveSeed('level-3', 'ants-runtime')).not.toBe(deriveSeed('level-3', 'ants-effects'));
   });
 });

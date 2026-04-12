@@ -111,6 +111,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let currentLevelDefinition = getLevelDefinition(1);
   let foodRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'food'));
   let antSetupRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-setup'));
+  let antSpawnRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-spawn'));
   let antDecisionRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-runtime'));
   let antEffectRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-effects'));
   let enemyEconomyRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'enemy-economy'));
@@ -158,6 +159,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const resetLevelRandomStreams = () => {
     foodRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'food'));
     antSetupRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-setup'));
+    antSpawnRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-spawn'));
     antDecisionRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-runtime'));
     antEffectRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-effects'));
     enemyEconomyRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'enemy-economy'));
@@ -387,6 +389,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         levelSetup: currentLevelDefinition.setup,
         objective: currentLevelDefinition.objective,
         setupRandom: antSetupRandom,
+        spawnRandom: antSpawnRandom,
         decisionRandom: antDecisionRandom,
         effectRandom: antEffectRandom,
       });

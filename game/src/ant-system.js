@@ -3,7 +3,7 @@ import { COLONY, FOOD_CONFIG, NEST_CONFIG, findNearestCarryAssistFood, findNeare
 import { createEnemyRolePicker, normalizeLevelSetup } from './level-setup.js';
 import { PHEROMONE_CONFIG } from './pheromone-system.js';
 import { resolveObjectiveOutcome } from './objective-rules.js';
-import { createRandomRange } from './seeded-random.js';
+import { createRandomRange, DEFAULT_RANDOM_SOURCE } from './seeded-random.js';
 import { TERRAIN_CONFIG, sampleHeight } from './terrain.js';
 
 export const ANT_CONFIG = Object.freeze({
@@ -83,7 +83,7 @@ const ANT_COLONY_PALETTES = Object.freeze({
 });
 
 const clampToTerrainBounds = (value, extent, padding = 1) => THREE.MathUtils.clamp(value, -extent / 2 + padding, extent / 2 - padding);
-const randomRangeWith = (random = Math.random) => createRandomRange(random);
+const randomRangeWith = (random = DEFAULT_RANDOM_SOURCE) => createRandomRange(random);
 const cellCoord = (value, size) => Math.floor(value / size);
 const cellKey = (x, z) => `${x},${z}`;
 
@@ -135,7 +135,7 @@ export const querySpatialHash = (grid, x, z, cellSize = ANT_CONFIG.cellSize) => 
   return neighbors;
 };
 
-const chooseRole = (random = Math.random) => {
+const chooseRole = (random = DEFAULT_RANDOM_SOURCE) => {
   const roll = random();
   if (roll < 0.68) return ANT_ROLE.worker;
   return ANT_ROLE.fighter;
@@ -287,7 +287,7 @@ const animateAntLegs = (mesh, ant) => {
   }
 };
 
-export const createAntState = (id, x, z, overrides = {}, random = Math.random) => {
+export const createAntState = (id, x, z, overrides = {}, random = DEFAULT_RANDOM_SOURCE) => {
   const role = overrides.role ?? chooseRole(random);
   const maxHp = overrides.maxHp ?? getMaxHpForRole(role);
   const colonyId = overrides.colonyId ?? overrides.faction ?? COLONY.player;
@@ -327,7 +327,7 @@ export const createAntState = (id, x, z, overrides = {}, random = Math.random) =
   };
 };
 
-const spawnAroundNest = (nest, rolePicker, count, startId = 0, random = Math.random) => {
+const spawnAroundNest = (nest, rolePicker, count, startId = 0, random = DEFAULT_RANDOM_SOURCE) => {
   const ants = [];
   const randomRange = randomRangeWith(random);
   for (let i = 0; i < count; i += 1) {
@@ -345,7 +345,7 @@ const spawnAroundNest = (nest, rolePicker, count, startId = 0, random = Math.ran
   return ants;
 };
 
-const spawnPlayerStartingColony = (playerNest, startId = 0, playerStartingCounts = PLAYER_STARTING_COUNTS, random = Math.random) => {
+const spawnPlayerStartingColony = (playerNest, startId = 0, playerStartingCounts = PLAYER_STARTING_COUNTS, random = DEFAULT_RANDOM_SOURCE) => {
   const ants = [];
   let nextId = startId;
   const roleGroups = [
@@ -361,7 +361,7 @@ const spawnPlayerStartingColony = (playerNest, startId = 0, playerStartingCounts
   return ants;
 };
 
-export const createRandomAntStates = (count = ANT_CONFIG.count, nests = [{ id: 'player-1', faction: ANT_FACTION.player, position: new THREE.Vector3(0, 0, 0) }], levelSetup = {}, random = Math.random) => {
+export const createRandomAntStates = (count = ANT_CONFIG.count, nests = [{ id: 'player-1', faction: ANT_FACTION.player, position: new THREE.Vector3(0, 0, 0) }], levelSetup = {}, random = DEFAULT_RANDOM_SOURCE) => {
   const setup = normalizeLevelSetup(levelSetup);
   const playerNest = nests.find((nest) => nest.faction === ANT_FACTION.player) ?? nests[0];
   const enemyNests = nests.filter((nest) => nest.faction === ANT_FACTION.enemy);
@@ -379,7 +379,7 @@ export const createRandomAntStates = (count = ANT_CONFIG.count, nests = [{ id: '
   return ants;
 };
 
-const chooseNextAction = (ant, random = Math.random) => {
+const chooseNextAction = (ant, random = DEFAULT_RANDOM_SOURCE) => {
   const randomRange = randomRangeWith(random);
   ant.targetFoodId = null;
   ant.carryingFoodId = null;
@@ -447,7 +447,7 @@ const chooseFocusAction = (ant, focusTarget) => {
   ant.desiredVelocity.copy(direction).multiplyScalar(ANT_CONFIG.speed * speedFactor);
 };
 
-const choosePatrolAction = (ant, homeNestPosition, random = Math.random) => {
+const choosePatrolAction = (ant, homeNestPosition, random = DEFAULT_RANDOM_SOURCE) => {
   const randomRange = randomRangeWith(random);
   ant.action = 'patrol';
   const patrolRadius = ant.role === ANT_ROLE.fighter ? randomRange(5, 11) : randomRange(4, 8);
@@ -477,7 +477,7 @@ const getCarryApproachTarget = (ant, nestPosition) => {
   return ant.queuedNestSlot.entrancePosition;
 };
 
-const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusTarget, nestLookup, random = Math.random) => {
+const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusTarget, nestLookup, random = DEFAULT_RANDOM_SOURCE) => {
   ant.lodBand = getLodBandForDistance(distanceToCamera);
   ant.brainInterval = getBrainIntervalForDistance(distanceToCamera);
   ant.logicInterval = getLogicIntervalForDistance(distanceToCamera);
@@ -771,10 +771,11 @@ export class AntSystem {
     count = ANT_CONFIG.count,
     levelSetup = {},
     objective = null,
-    random = Math.random,
+    random = DEFAULT_RANDOM_SOURCE,
     setupRandom = random,
     decisionRandom = random,
     effectRandom = random,
+    spawnRandom = decisionRandom,
   } = {}) {
     this.scene = scene;
     this.camera = camera;
@@ -787,7 +788,9 @@ export class AntSystem {
     this.setupRandom = setupRandom;
     this.decisionRandom = decisionRandom;
     this.effectRandom = effectRandom;
+    this.spawnRandom = spawnRandom;
     this.randomRange = randomRangeWith(this.decisionRandom);
+    this.spawnRandomRange = randomRangeWith(this.spawnRandom);
     this.ants = createRandomAntStates(count, nests, levelSetup, this.setupRandom);
     for (const ant of this.ants) ant.random = this.decisionRandom;
     this.nextAntId = this.ants.reduce((max, ant) => Math.max(max, ant.id), -1) + 1;
@@ -856,8 +859,8 @@ export class AntSystem {
     if (!nest || nest.collapsed || count <= 0) return 0;
 
     for (let i = 0; i < count; i += 1) {
-      const angle = this.decisionRandom() * Math.PI * 2;
-      const distance = this.randomRange(1.2, 4.6);
+      const angle = this.spawnRandom() * Math.PI * 2;
+      const distance = this.spawnRandomRange(1.2, 4.6);
       const x = clampToTerrainBounds(nest.position.x + Math.cos(angle) * distance, TERRAIN_CONFIG.width);
       const z = clampToTerrainBounds(nest.position.z + Math.sin(angle) * distance, TERRAIN_CONFIG.depth);
       const ant = createAntState(this.nextAntId, x, z, {
@@ -865,7 +868,7 @@ export class AntSystem {
         colonyId: nest.colonyId,
         homeNestId: nest.id,
         role,
-      }, this.decisionRandom);
+      }, this.spawnRandom);
       this.nextAntId += 1;
       this.ants.push(ant);
 

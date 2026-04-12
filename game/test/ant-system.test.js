@@ -13,6 +13,7 @@ const createTestPheromoneSystem = () => ({
 
 const createSeededAntSystem = ({
   setupSeed = 'test-setup',
+  spawnSeed = 'test-spawn',
   decisionSeed = 'test-runtime',
   effectSeed = 'test-effects',
 } = {}) => {
@@ -36,6 +37,7 @@ const createSeededAntSystem = ({
       enemyWorkerRatio: 1,
     },
     setupRandom: createSeededRandom(setupSeed),
+    spawnRandom: createSeededRandom(spawnSeed),
     decisionRandom: createSeededRandom(decisionSeed),
     effectRandom: createSeededRandom(effectSeed),
   });
@@ -50,6 +52,17 @@ const snapshotDecisionAnt = (ant) => ({
   headingX: Number(ant.heading.x.toFixed(4)),
   headingZ: Number(ant.heading.z.toFixed(4)),
 });
+
+const snapshotSpawnedAnts = (ants) => ants.map((ant) => ({
+  id: ant.id,
+  role: ant.role,
+  homeNestId: ant.homeNestId,
+  x: Number(ant.position.x.toFixed(4)),
+  z: Number(ant.position.z.toFixed(4)),
+  brainCooldown: Number(ant.brainCooldown.toFixed(4)),
+  logicCooldown: Number(ant.logicCooldown.toFixed(4)),
+  gaitPhase: Number(ant.gaitPhase.toFixed(4)),
+}));
 
 const round = (value) => Number(value.toFixed(4));
 
@@ -362,6 +375,20 @@ describe('ant system helpers', () => {
 
     expect(snapshotDecisionAnt(first.ants[0])).toEqual(snapshotDecisionAnt(second.ants[0]));
     expect(snapshotDecisionAnt(first.ants[0])).not.toEqual(snapshotDecisionAnt(third.ants[0]));
+  });
+
+  test('replays spawned reinforcement batches from the same seeded spawn stream', () => {
+    const spawnSeed = deriveSeed('ant-battle-level-12', 'ants-spawn');
+    const first = createSeededAntSystem({ spawnSeed, decisionSeed: deriveSeed('ant-battle-level-12', 'ants-runtime-a') });
+    const second = createSeededAntSystem({ spawnSeed, decisionSeed: deriveSeed('ant-battle-level-12', 'ants-runtime-b') });
+    const third = createSeededAntSystem({ spawnSeed: deriveSeed('ant-battle-level-13', 'ants-spawn') });
+
+    for (const system of [first, second, third]) {
+      system.spawnAntBatch({ nestId: 'player-1', role: ANT_ROLE.worker, count: 3 });
+    }
+
+    expect(snapshotSpawnedAnts(first.ants.slice(-3))).toEqual(snapshotSpawnedAnts(second.ants.slice(-3)));
+    expect(snapshotSpawnedAnts(first.ants.slice(-3))).not.toEqual(snapshotSpawnedAnts(third.ants.slice(-3)));
   });
 
   test('replays combat aftermath presentation from the same seeded effects stream', () => {

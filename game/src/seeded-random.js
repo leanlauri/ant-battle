@@ -1,6 +1,8 @@
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 
+export const DEFAULT_RANDOM_SOURCE = () => Math.random();
+
 export const hashSeed = (value) => {
   const text = String(value ?? '');
   let hash = FNV_OFFSET;
@@ -26,4 +28,4 @@ export const createSeededRandom = (seed) => {
 
 export const deriveSeed = (seed, streamName) => `${String(seed ?? 'seed')}::${streamName}`;
 
-export const createRandomRange = (random = Math.random) => (min, max) => min + random() * (max - min);
+export const createRandomRange = (random = DEFAULT_RANDOM_SOURCE) => (min, max) => min + random() * (max - min);
