@@ -23,6 +23,7 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
   const focusTargetMeta = antSystem.foodSystem?.getFocusTargetMeta?.();
   const selectedNestHealth = antSystem.foodSystem?.getSelectedNestHealth?.();
   const selectedNestLabel = antSystem.foodSystem?.getSelectedNestLabel?.() ?? 'Home Nest';
+  const selectedNest = antSystem.foodSystem?.getSelectedNest?.();
 
   return {
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
@@ -36,6 +37,7 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
     battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down, ${antSystem.foodSystem?.getActiveEnemyNestCount?.() ?? 0} enemy nests still active.`,
     foodText: `Food: ${remainingFood} left, selected nest stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
     selectedNestStored: antSystem.foodSystem?.getSelectedNestStored?.() ?? 0,
+    selectedNestId: selectedNest?.id ?? null,
     selectedNestLabel,
     upgradeOptions: antSystem.foodSystem?.getUpgradeOptions?.() ?? [],
     buildText: `Build: ${buildInfo.value}`,

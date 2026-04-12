@@ -61,6 +61,11 @@ const refs = {
   nestUpgradePanel: document.getElementById('nestUpgradePanel'),
   nestUpgradeTitle: document.getElementById('nestUpgradeTitle'),
   upgradeCards: document.getElementById('upgradeCards'),
+  upgradeDetail: document.getElementById('upgradeDetail'),
+  upgradeDetailLabel: document.getElementById('upgradeDetailLabel'),
+  upgradeDetailCost: document.getElementById('upgradeDetailCost'),
+  upgradeDetailCopy: document.getElementById('upgradeDetailCopy'),
+  upgradeConfirmButton: document.getElementById('upgradeConfirmButton'),
   debugVisualsToggle: document.getElementById('debugVisualsToggle'),
   returnToLevelSelectButton: document.getElementById('returnToLevelSelectButton'),
   victoryLevelLabel: document.getElementById('victoryLevelLabel'),
@@ -79,6 +84,24 @@ const app = {
   currentPage: 0,
   progress: loadCampaignProgress() || createDefaultCampaignProgress(),
   lastHudSummary: null,
+  upgradeNestId: null,
+  selectedUpgradeId: null,
+};
+
+const UPGRADE_ICON = {
+  'repair-nest': 'fix',
+  'spawn-workers': 'wrk',
+  'spawn-fighters': 'fgt',
+  'brood-chambers': 'brood',
+  'war-nest': 'war',
+  'fortify-nest': 'hp',
+};
+
+const closeUpgradePanel = () => {
+  app.upgradeNestId = null;
+  app.selectedUpgradeId = null;
+  if (refs.nestUpgradePanel) refs.nestUpgradePanel.hidden = true;
+  if (refs.upgradeDetail) refs.upgradeDetail.hidden = true;
 };
 
 const renderUpgradeCards = (summary) => {
@@ -86,8 +109,9 @@ const renderUpgradeCards = (summary) => {
   refs.upgradeCards.replaceChildren();
   const options = summary?.upgradeOptions ?? [];
   const anchor = summary?.upgradeAnchor;
-  if (!options.length || !anchor || app.screen !== APP_SCREEN.gameplay) {
+  if (!options.length || !anchor || app.screen !== APP_SCREEN.gameplay || app.upgradeNestId !== summary?.selectedNestId) {
     refs.nestUpgradePanel.hidden = true;
+    if (refs.upgradeDetail) refs.upgradeDetail.hidden = true;
     return;
   }
 
@@ -101,27 +125,51 @@ const renderUpgradeCards = (summary) => {
   for (const option of options) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'upgradeCard';
-    button.disabled = !!option.disabled;
+    button.className = 'upgradeChip';
+    button.disabled = false;
     button.dataset.upgradeId = option.id;
+    button.dataset.active = app.selectedUpgradeId === option.id ? 'true' : 'false';
     button.innerHTML = `
-      <div class="upgradeCardTitle">
-        <span>${option.label}</span>
-        <span>${option.cost.toFixed(0)} food</span>
-      </div>
-      <div class="upgradeCardCopy">${option.description}${option.shortfall > 0 ? ` Need ${option.shortfall.toFixed(1)} more food.` : ''}</div>
+      <span class="upgradeChipIcon">${UPGRADE_ICON[option.id] ?? 'up'}</span>
+      <span>${option.cost.toFixed(0)}</span>
+      <span class="upgradeChipCost">food</span>
     `;
     button.addEventListener('click', () => {
-      gameplaySession.applyUpgrade(option.id);
+      app.selectedUpgradeId = option.id;
+      renderUpgradeCards(summary);
     });
     refs.upgradeCards.appendChild(button);
   }
+
+  const selectedOption = options.find((option) => option.id === app.selectedUpgradeId) ?? null;
+  if (!selectedOption || !refs.upgradeDetail) {
+    refs.upgradeDetail.hidden = true;
+    return;
+  }
+
+  refs.upgradeDetail.hidden = false;
+  refs.upgradeDetailLabel.textContent = selectedOption.label;
+  refs.upgradeDetailCost.textContent = `${selectedOption.cost.toFixed(0)} food`;
+  refs.upgradeDetailCopy.textContent = `${selectedOption.description}${selectedOption.shortfall > 0 ? ` Need ${selectedOption.shortfall.toFixed(1)} more food.` : ''}`;
+  refs.upgradeConfirmButton.disabled = !!selectedOption.disabled;
+  refs.upgradeConfirmButton.textContent = selectedOption.disabled
+    ? (selectedOption.shortfall > 0 ? 'Not enough food' : 'Unavailable')
+    : 'Confirm';
+  refs.upgradeConfirmButton.onclick = () => {
+    const applied = gameplaySession.applyUpgrade(selectedOption.id);
+    if (applied) app.selectedUpgradeId = null;
+  };
 };
 
 const gameplaySession = createGameplaySession({
   mount: refs.gameCanvasHost,
-  onNestSelected: () => {},
-  onFocusAssigned: () => {},
+  onNestSelected: (nest) => {
+    app.upgradeNestId = nest?.id ?? null;
+    app.selectedUpgradeId = null;
+  },
+  onFocusAssigned: () => {
+    closeUpgradePanel();
+  },
   onBattleResolved: (outcome, summary) => {
     app.lastHudSummary = summary;
     if (outcome === 'victory') openVictory();
@@ -187,6 +235,7 @@ const renderScreens = () => {
   refs.gameplayHud.hidden = !isGameplayVisible();
   refs.gameCanvasHost.hidden = !isGameplayVisible();
   if (!isGameplayVisible() && refs.nestUpgradePanel) refs.nestUpgradePanel.hidden = true;
+  if (!isGameplayVisible()) closeUpgradePanel();
   document.body.dataset.screen = app.screen;
 
   refs.gameplayLevelLabel.textContent = `Level ${app.currentLevel}`;

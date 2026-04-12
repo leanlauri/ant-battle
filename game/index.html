@@ -369,25 +369,59 @@
       color: var(--ink-soft);
     }
     .upgradeCards {
-      display: grid;
+      display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       margin-top: 8px;
     }
-    .upgradeCard {
-      text-align: left;
-      padding: 10px 12px;
-      border-radius: 14px;
+    .upgradeChip {
+      min-width: 0;
+      padding: 8px 10px;
+      border-radius: 999px;
       border: 1px solid rgba(22, 49, 77, 0.12);
       background: rgba(255, 255, 255, 0.82);
       box-shadow: 0 8px 18px rgba(19, 49, 77, 0.08);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
     }
-    .upgradeCard:disabled {
+    .upgradeChip[data-active="true"] {
+      border-color: rgba(68, 180, 96, 0.5);
+      box-shadow: 0 10px 22px rgba(68, 180, 96, 0.18);
+    }
+    .upgradeChip:disabled {
       opacity: 0.58;
       cursor: default;
       transform: none;
       box-shadow: none;
     }
-    .upgradeCardTitle {
+    .upgradeChipIcon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: rgba(22, 49, 77, 0.08);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .upgradeChipCost {
+      font-size: 12px;
+      color: var(--ink-soft);
+    }
+    .upgradeDetail {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(22, 49, 77, 0.1);
+      background: rgba(255, 255, 255, 0.82);
+    }
+    .upgradeDetail[hidden] { display: none !important; }
+    .upgradeDetailTitle {
       display: flex;
       justify-content: space-between;
       gap: 8px;
@@ -397,6 +431,12 @@
       margin-top: 4px;
       color: var(--ink-soft);
       font-size: 12px;
+    }
+    .upgradeDetailActions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 10px;
     }
     #nestUpgradeOverlay {
       position: fixed;
@@ -567,6 +607,16 @@
       <div id="nestUpgradePanel" class="nestUpgradePanel" hidden>
         <div class="upgradeTitle" id="nestUpgradeTitle">Nest upgrades</div>
         <div id="upgradeCards" class="upgradeCards"></div>
+        <div id="upgradeDetail" class="upgradeDetail" hidden>
+          <div class="upgradeDetailTitle">
+            <span id="upgradeDetailLabel">Upgrade</span>
+            <span id="upgradeDetailCost">0 food</span>
+          </div>
+          <div id="upgradeDetailCopy" class="upgradeCardCopy"></div>
+          <div class="upgradeDetailActions">
+            <button id="upgradeConfirmButton" type="button" class="primaryButton">Confirm</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
