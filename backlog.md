@@ -33,6 +33,18 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ## Todo
 
+### Immediate UI fixes
+
+- [ ] Make enemy nest selection visibly readable.
+  - Enemy nests can be selected/focused, but the selection ring is not visible enough or is not rendering correctly.
+  - Ensure enemy nest focus has a clear, consistent world-space ring or equivalent indicator like other important targets.
+  - Docs: `UI_UX_SPEC.md`
+
+- [ ] Show the active player nest food count in the gameplay HUD and upgrade UI.
+  - Surface how much food is currently stored in the selected player nest.
+  - Mirror that value in the upgrade panel/detail flow so affordability is obvious without guesswork.
+  - Docs: `UI_UX_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
 ### Level generation and campaign progression
 
 - [ ] Add deterministic integration coverage for remaining runtime stream interactions.
@@ -192,6 +204,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Make the alternative camera toggle visible and reachable in the UI.
+  - Moved the battlefield/orbit camera switch into the always-visible gameplay top bar instead of leaving it behind the hidden debug menu.
+  - Added a readable live camera-mode label to the status card so players/testers can confirm the current mode at a glance.
+  - Updated the gameplay smoke test to switch cameras through the real HUD control and documented the player-facing camera access expectation in `UI_UX_SPEC.md` and `IMPLEMENTATION_ROADMAP.md`.
 
 - [x] Add deterministic integration coverage for remaining runtime stream interactions.
   - Thin slice shipped: live enemy production plus real `AntSystem.spawnAntBatch` wiring is now covered by deterministic tests.

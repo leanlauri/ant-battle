@@ -319,13 +319,25 @@
       pointer-events: none;
     }
     .statusCard,
-    #hud {
+    #hud,
+    .topBarControl {
       pointer-events: auto;
       border-radius: 16px;
       background: rgba(246, 250, 255, 0.84);
       border: 1px solid rgba(22, 49, 77, 0.12);
       box-shadow: 0 10px 30px rgba(19, 49, 77, 0.12);
       backdrop-filter: blur(8px);
+    }
+    .topBarSide {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .topBarControl {
+      padding: 10px 14px;
+      min-height: 44px;
+      font-weight: 700;
     }
     .statusCard {
       padding: 12px 16px;
@@ -733,10 +745,14 @@
           </section>
         </div>
       </details>
-      <div class="statusCard">
-        <span id="statusCardLabel" class="statusLabel">Player ants</span>
-        <span id="antCountValue" class="statusValue">0</span>
-        <span id="gameplayLevelLabel" class="statusSubvalue">Level 1</span>
+      <div class="topBarSide">
+        <button id="cameraModeButton" type="button" class="topBarControl">Switch to battlefield camera</button>
+        <div class="statusCard">
+          <span id="statusCardLabel" class="statusLabel">Player ants</span>
+          <span id="antCountValue" class="statusValue">0</span>
+          <span id="gameplayLevelLabel" class="statusSubvalue">Level 1</span>
+          <span id="cameraModeValue" class="statusSubvalue">Orbit camera</span>
+        </div>
       </div>
     </div>
     <div id="nestUpgradeOverlay">

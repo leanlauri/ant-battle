@@ -53,6 +53,7 @@ Goals:
 - [x] Delivered food regrowth is now covered by deterministic seed tests, confirming replenished food stays locked to the level `food` stream across replays
 - [x] Enemy production cooldown timing is now covered by deterministic runtime tests, confirming the `enemy-economy` stream keeps colony growth replay-stable for a level seed
 - [x] Live enemy-economy integration is now covered by deterministic seed tests, confirming production timing stays locked to `enemy-economy` while spawned reinforcement placement remains isolated on `ants-spawn`
+- [x] The alternative battlefield camera is now exposed through the normal gameplay HUD with a visible mode label and toggle, so players/testers no longer need hidden dev controls to reach it
 
 ### Next implementation slice
 1. Start making objective text correspond to actual rule variation instead of only presentation.

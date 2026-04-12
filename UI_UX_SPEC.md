@@ -144,6 +144,11 @@ Recommended format:
 - enemy ant defeated count
 - selected nest food amount
 
+## Camera access
+- the alternative battlefield camera must be reachable from the normal gameplay HUD, not only through hidden developer controls
+- show the current camera mode in readable text
+- provide a large tap target that switches between orbit and battlefield camera without opening a debug menu
+
 ---
 
 ## 6. Upgrade card UI

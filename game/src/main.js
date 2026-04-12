@@ -66,6 +66,8 @@ const refs = {
   upgradeConfirmButton: document.getElementById('upgradeConfirmButton'),
   upgradeFeedbackToast: document.getElementById('upgradeFeedbackToast'),
   returnToLevelSelectButton: document.getElementById('returnToLevelSelectButton'),
+  cameraModeButton: document.getElementById('cameraModeButton'),
+  cameraModeValue: document.getElementById('cameraModeValue'),
   debugMenu: document.getElementById('debugMenu'),
   debugCameraModeLabel: document.getElementById('debugCameraModeLabel'),
   debugCameraOrbitButton: document.getElementById('debugCameraOrbitButton'),
@@ -114,6 +116,10 @@ const UPGRADE_ICON = {
 const getCurrentLevelDefinition = () => getLevelDefinition(app.currentLevel);
 
 const renderDebugMenu = () => {
+  if (refs.cameraModeValue) refs.cameraModeValue.textContent = app.cameraMode === CAMERA_MODE.battlefield ? 'Battlefield camera' : 'Orbit camera';
+  if (refs.cameraModeButton) refs.cameraModeButton.textContent = app.cameraMode === CAMERA_MODE.battlefield
+    ? 'Switch to orbit camera'
+    : 'Switch to battlefield camera';
   if (!refs.debugMenu) return;
   if (app.debugMenuVisible && refs.hud) refs.hud.open = true;
   refs.debugMenu.hidden = !app.debugMenuVisible;
@@ -426,6 +432,9 @@ refs.nextPageButton.addEventListener('click', () => {
 });
 refs.returnToLevelSelectButton.addEventListener('click', () => {
   openLevelSelect();
+});
+refs.cameraModeButton?.addEventListener('click', () => {
+  setCameraMode(app.cameraMode === CAMERA_MODE.battlefield ? CAMERA_MODE.orbit : CAMERA_MODE.battlefield);
 });
 refs.nextLevelButton.addEventListener('click', () => {
   if (app.currentLevel >= TOTAL_LEVELS) return;

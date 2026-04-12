@@ -50,14 +50,14 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect(page.locator('#battleInfo')).toContainText('Battle:');
   await expect(page.locator('#debugVisualsToggle')).toHaveCount(0);
   await expect(page.locator('#debugMenu')).toBeHidden();
+  await expect(page.locator('#cameraModeValue')).toHaveText('Orbit camera');
+  await expect(page.locator('#cameraModeButton')).toHaveText('Switch to battlefield camera');
   await expect(page.locator('body canvas')).toBeVisible();
   await expect(page.locator('#fatalOverlay')).toBeHidden();
 
-  await page.evaluate(() => window.__ANT_BATTLE_DEV_API__?.setDebugMenuVisible?.(true));
-  await expect(page.locator('#debugMenu')).toBeVisible();
-  await expect(page.locator('#debugCameraModeLabel')).toHaveText('Orbit camera');
-  await page.locator('#debugCameraBattlefieldButton').click();
-  await expect(page.locator('#debugCameraModeLabel')).toHaveText('Battlefield camera');
+  await page.locator('#cameraModeButton').click();
+  await expect(page.locator('#cameraModeValue')).toHaveText('Battlefield camera');
+  await expect(page.locator('#cameraModeButton')).toHaveText('Switch to orbit camera');
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraMode?.())).toBe('battlefield');
 
   await page.locator('body canvas').click({ position: { x: 520, y: 420 } });
