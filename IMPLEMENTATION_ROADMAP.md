@@ -54,12 +54,13 @@ Goals:
 - [x] Delivered food regrowth is now covered by deterministic seed tests, confirming replenished food stays locked to the level `food` stream across replays
 - [x] Enemy production cooldown timing is now covered by deterministic runtime tests, confirming the `enemy-economy` stream keeps colony growth replay-stable for a level seed
 - [x] Live enemy-economy integration is now covered by deterministic seed tests, confirming production timing stays locked to `enemy-economy` while spawned reinforcement placement remains isolated on `ants-spawn`
+- [x] Live runtime integration now also covers seeded food regrowth alongside enemy production and spawned reinforcements, confirming the `food`, `enemy-economy`, and `ants-spawn` streams stay isolated when they run together in the gameplay update order
 - [x] The alternative battlefield camera is now exposed through the normal gameplay HUD with a visible mode label and toggle, so players/testers no longer need hidden dev controls to reach it
 - [x] The battlefield camera now uses a steeper orthographic tactical view with re-tuned zoom/framing, making the playfield read more top-down while keeping tap targeting and HUD camera switching intact
 - [x] The battlefield camera framing was refined again with a steeper plan-aligned tilt, deeper zoom range, and zoom-aware pan bounds so close mobile framing stays stable on the terrain without introducing sideways yaw
 
 ### Next implementation slice
-1. Keep broadening deterministic runtime coverage where replay-sensitive systems still meet live simulation behavior.
+1. Continue sweeping any remaining replay-sensitive live-runtime paths beyond the current food/enemy-economy/spawn integration coverage.
 2. Replace coarse level bands with a richer deterministic level-definition model.
 3. Add visible death/aftermath presentation for ant combat.
 

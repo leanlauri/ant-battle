@@ -35,12 +35,8 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Add deterministic integration coverage for remaining runtime stream interactions.
-  - Extend seed-lock tests beyond isolated subsystem harnesses into runtime interactions where enemy economy, spawned reinforcements, and ant simulation meet.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
 - [ ] Add deterministic coverage for any other remaining replay-sensitive runtime paths.
-  - Continue sweeping leftover simulation systems after enemy economy, spawned-ant integration, and food regrowth are covered.
+  - Continue sweeping leftover simulation systems after enemy economy, spawned-ant integration, food regrowth, and cross-stream live-runtime coverage are covered.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
@@ -192,6 +188,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add deterministic integration coverage for remaining runtime stream interactions.
+  - Thin slice shipped: a live runtime integration test now runs delivered-food regrowth alongside enemy production timing and seeded reinforcement spawning, mirroring the gameplay update order.
+  - Verified that changing the `food` seed only changes regrowth results, while changing the `ants-spawn` seed only changes spawned ant placement, keeping the streams isolated during live simulation.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` to document the broader cross-stream runtime coverage.
 
 - [x] Correct battlefield camera diagonal framing to use x-axis tilt, not y-axis yaw.
   - Replaced the sideways battlefield-camera offset with a plan-aligned orthographic tilt so the tactical view no longer yaws across the map.

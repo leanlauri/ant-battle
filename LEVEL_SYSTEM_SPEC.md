@@ -77,6 +77,7 @@ Implementation note:
 - keep reinforcement / upgrade ant spawning on its own `ants-spawn` substream so runtime batch creation does not perturb ongoing ant decision rolls
 - keep regression coverage around replay-sensitive enemy production cooldown rolls so enemy colony growth remains seed-stable across replays
 - keep integration coverage around live enemy production plus spawned-ant batch creation so `enemy-economy` timing and `ants-spawn` placement stay isolated from each other
+- keep a live-runtime integration test where delivered-food regrowth runs alongside enemy production and spawned reinforcements, so `food`, `enemy-economy`, and `ants-spawn` streams do not perturb one another
 
 ---
 
