@@ -41,16 +41,16 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
   - Ensure HUD/objective copy reflects the real rules in play.
   - Docs: `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`
 
-- [ ] Remove remaining debug-flavoured gameplay presentation from the player-facing HUD.
-  - Audit labels, copy, panel names, hidden test hooks, and shell text.
-  - Keep dev/test affordances only where they are invisible to normal play.
-  - Docs: `IMPLEMENTATION_ROADMAP.md`, `UI_UX_SPEC.md`
-
 - [ ] Add first boss-level scaffolding for every 10th level.
   - Replace the current boss placeholder with a real special-case ruleset.
   - Give boss levels distinct objective copy, setup pressure, and presentation cues.
   - Do this in a way that can later evolve into a real wasp faction.
   - Docs: `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`, `FACTION_AND_UNIT_SPEC.md`
+
+- [ ] Remove remaining debug-flavoured gameplay presentation from the player-facing HUD.
+  - Audit labels, copy, panel names, hidden test hooks, and shell text.
+  - Keep dev/test affordances only where they are invisible to normal play.
+  - Docs: `IMPLEMENTATION_ROADMAP.md`, `UI_UX_SPEC.md`
 
 - [ ] Improve upgrade purchase feedback.
   - Add clear success feedback when an upgrade is confirmed.
@@ -58,19 +58,24 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
   - Check mobile readability and touch behavior.
   - Docs: `IMPLEMENTATION_ROADMAP.md`, `UI_UX_SPEC.md`
 
-### Level generation and campaign progression
+- [ ] Add level-card special iconography and shell treatment for every 10th level.
+  - Mark boss levels in level select.
+  - Distinguish them in victory/defeat/title-to-level-select presentation where useful.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `UI_UX_SPEC.md`
 
-- [ ] Replace coarse level bands with a richer deterministic level-definition model.
-  - Expand per-level generated fields beyond enemy nest count, budget, and atmosphere.
-  - Add explicit map size tiers, terrain complexity ramps, and food distribution settings.
-  - Keep level replays deterministic by seed.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+### Level generation and campaign progression
 
 - [ ] Add deterministic seeded randomness utilities and route level setup through them.
   - Remove accidental nondeterminism from level generation/setup where practical.
   - Make the same level number reproduce the same base scenario.
   - Add tests that verify determinism.
   - Docs: `LEVEL_SYSTEM_SPEC.md`
+
+- [ ] Replace coarse level bands with a richer deterministic level-definition model.
+  - Expand per-level generated fields beyond enemy nest count, budget, and atmosphere.
+  - Add explicit map size tiers, terrain complexity ramps, and food distribution settings.
+  - Keep level replays deterministic by seed.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Add campaign-safe terrain scaling.
   - Scale map footprint, relief complexity, choke points, and key resource regions across level progression.
@@ -84,12 +89,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
   - Repair or regenerate invalid maps.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
-- [ ] Add level-card special iconography and shell treatment for every 10th level.
-  - Mark boss levels in level select.
-  - Distinguish them in victory/defeat/title-to-level-select presentation where useful.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `UI_UX_SPEC.md`
-
 ### Enemy AI, factions, and strategic variety
+
+- [ ] Tune enemy economy and production pacing across the campaign.
+  - Revisit worker/fighter ratios, spawn timing, starting budgets, and snowball behavior.
+  - Keep early levels teachable and late levels intense but fair.
+  - Docs: `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Introduce explicit enemy faction behavior profiles.
   - Move from a single simple enemy doctrine to named profile data with biases.
@@ -106,11 +111,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
   - Scale from early one-enemy maps toward later 3 to 5 faction maps.
   - Preserve readability with curated palettes and pressure tuning.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `FACTION_AND_UNIT_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
-- [ ] Tune enemy economy and production pacing across the campaign.
-  - Revisit worker/fighter ratios, spawn timing, starting budgets, and snowball behavior.
-  - Keep early levels teachable and late levels intense but fair.
-  - Docs: `IMPLEMENTATION_ROADMAP.md`
 
 ### Combat, aftermath, and nest systems
 
@@ -198,13 +198,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
   - Cover terrain/setup generation paths, not only level-definition data.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
-- [ ] Add combat and collapse rule tests for edge cases.
-  - Target nest destruction, reassignment, defeat triggers, and siege behavior.
-  - Docs: `COMBAT_AND_NEST_SPEC.md`
-
 - [ ] Expand e2e coverage beyond the current smoke test.
   - Cover gameplay loss, upgrade flow, and at least one boss-level flow once scaffolding exists.
   - Docs: `IMPLEMENTATION_ROADMAP.md`
+
+- [ ] Add combat and collapse rule tests for edge cases.
+  - Target nest destruction, reassignment, defeat triggers, and siege behavior.
+  - Docs: `COMBAT_AND_NEST_SPEC.md`
 
 - [ ] Track and improve performance under larger colony sizes.
   - Watch mobile FPS, combat targeting cost, overlay update cost, and later multi-faction growth.
@@ -217,7 +217,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ## In Progress
 
-_None._
+- [ ] Make objective text correspond to real gameplay rule differences, not only flavor text.
+  - Add an explicit objective/rules model to level definitions.
+  - Drive victory conditions and scenario rules from that model.
+  - Ensure HUD/objective copy reflects the real rules in play.
+  - Docs: `IMPLEMENTATION_ROADMAP.md`, `LEVEL_SYSTEM_SPEC.md`
 
 ## Complete
 
