@@ -49,15 +49,11 @@ const refs = {
   statusCardLabel: document.getElementById('statusCardLabel'),
   hud: document.getElementById('hud'),
   hudHint: document.getElementById('hudHint'),
-  cameraInfo: document.getElementById('cameraInfo'),
-  meshInfo: document.getElementById('meshInfo'),
-  antInfo: document.getElementById('antInfo'),
   selectedNestInfo: document.getElementById('selectedNestInfo'),
   focusInfo: document.getElementById('focusInfo'),
   objectiveInfo: document.getElementById('objectiveInfo'),
   battleInfo: document.getElementById('battleInfo'),
   foodInfo: document.getElementById('foodInfo'),
-  buildInfo: document.getElementById('buildInfo'),
   nestUpgradeOverlay: document.getElementById('nestUpgradeOverlay'),
   nestUpgradePanel: document.getElementById('nestUpgradePanel'),
   nestUpgradeTitle: document.getElementById('nestUpgradeTitle'),
@@ -67,7 +63,6 @@ const refs = {
   upgradeDetailCost: document.getElementById('upgradeDetailCost'),
   upgradeDetailCopy: document.getElementById('upgradeDetailCopy'),
   upgradeConfirmButton: document.getElementById('upgradeConfirmButton'),
-  debugVisualsToggle: document.getElementById('debugVisualsToggle'),
   returnToLevelSelectButton: document.getElementById('returnToLevelSelectButton'),
   victoryKicker: document.getElementById('victoryKicker'),
   victoryLevelLabel: document.getElementById('victoryLevelLabel'),
@@ -89,6 +84,7 @@ const app = {
   lastHudSummary: null,
   upgradeNestId: null,
   selectedUpgradeId: null,
+  debugVisualsEnabled: false,
 };
 
 const UPGRADE_ICON = {
@@ -184,15 +180,11 @@ const gameplaySession = createGameplaySession({
     app.lastHudSummary = summary;
     refs.antCountValue.textContent = summary ? String(summary.playerAntCount) : '0';
     refs.statusCardLabel.textContent = summary?.isBossLevel ? 'Boss assault' : 'Player ants';
-    refs.cameraInfo.textContent = summary?.cameraText ?? 'Camera: waiting for gameplay...';
-    refs.meshInfo.textContent = summary?.terrainText ?? 'Terrain: --';
-    refs.antInfo.textContent = summary?.antText ?? 'Ants: --';
-    refs.selectedNestInfo.textContent = summary?.selectedNestText ?? 'Selected nest: Home Nest';
-    refs.focusInfo.textContent = summary?.focusText ?? 'Focus: none';
+    refs.selectedNestInfo.textContent = summary?.selectedNestText ?? 'Home Nest • Nest HP -- • Stored food --';
+    refs.focusInfo.textContent = summary?.focusText ?? 'Focus: No rally point set';
     refs.objectiveInfo.textContent = summary?.objectiveText ?? 'Objective: --';
-    refs.battleInfo.textContent = summary?.battleText ?? 'Battle: 0 enemy down, 0 player lost, 0 enemies still active.';
-    refs.foodInfo.textContent = summary?.foodText ?? 'Food: --';
-    refs.buildInfo.textContent = summary?.buildText ?? 'Build: --';
+    refs.battleInfo.textContent = summary?.battleText ?? 'Battle: 0 enemies defeated, 0 ants lost, 0 enemy nests destroyed.';
+    refs.foodInfo.textContent = summary?.foodText ?? 'Field food remaining: --';
     renderUpgradeCards(summary);
     refs.titleBuildBadge.textContent = summary?.buildText ?? 'Build: --';
     if (refs.hud && refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
@@ -271,7 +263,7 @@ const changeScreen = async (nextScreen, { restartGameplay = false } = {}) => {
 
   if (shouldShowGameplay && (!wasGameplayVisible || restartGameplay)) {
     await gameplaySession.start(app.currentLevel);
-    gameplaySession.setDebugVisualsVisible(refs.debugVisualsToggle.checked);
+    gameplaySession.setDebugVisualsVisible(app.debugVisualsEnabled);
   }
 };
 
@@ -332,9 +324,6 @@ refs.nextPageButton.addEventListener('click', () => {
   app.currentPage = Math.min(getPageCount(TOTAL_LEVELS) - 1, app.currentPage + 1);
   renderLevelGrid();
 });
-refs.debugVisualsToggle.addEventListener('change', () => {
-  gameplaySession.setDebugVisualsVisible(refs.debugVisualsToggle.checked);
-});
 refs.returnToLevelSelectButton.addEventListener('click', () => {
   openLevelSelect();
 });
@@ -366,6 +355,17 @@ window.__ANT_BATTLE_TEST_API__ = {
       return true;
     }
     return false;
+  },
+};
+
+window.__ANT_BATTLE_DEV_API__ = {
+  setDebugVisualsVisible(visible) {
+    app.debugVisualsEnabled = !!visible;
+    gameplaySession.setDebugVisualsVisible(app.debugVisualsEnabled);
+    return app.debugVisualsEnabled;
+  },
+  getDebugVisualsVisible() {
+    return app.debugVisualsEnabled;
   },
 };
 

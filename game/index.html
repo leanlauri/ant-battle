@@ -560,7 +560,7 @@
         <div class="heroPanel">
           <p class="kicker">Mobile-first colony strategy</p>
           <h1>Ant Battle</h1>
-          <p class="heroCopy">A playable shell is taking shape. Start the campaign, pick a level, and drop into the prototype battlefield.</p>
+          <p class="heroCopy">Start the campaign, grow your colony, and crush the rival nests across a 100-level war.</p>
           <div class="buttonRow">
             <button id="startButton" type="button" class="primaryButton">Tap to Start</button>
           </div>
@@ -593,7 +593,7 @@
       <div class="overlayPanel">
         <p class="kicker" id="victoryKicker">Victory</p>
         <h2 id="victoryLevelLabel">Level complete</h2>
-        <p id="victorySummary" class="overlayCopy">You won the shell flow battle.</p>
+        <p id="victorySummary" class="overlayCopy">Your colony held the field.</p>
         <div class="buttonRow">
           <button id="nextLevelButton" type="button" class="primaryButton">Play next level</button>
           <button id="victoryLevelSelectButton" type="button" class="secondaryButton">Level select</button>
@@ -622,19 +622,11 @@
           <span id="hudHint">tap to expand</span>
         </summary>
         <div id="hudBody">
-          <div class="hudRow" id="cameraInfo">Camera: waiting for gameplay...</div>
-          <div class="hudRow" id="meshInfo">Terrain: --</div>
-          <div class="hudRow" id="antInfo">Ants: --</div>
-          <div class="hudRow" id="selectedNestInfo">Selected nest: Home Nest</div>
-          <div class="hudRow" id="focusInfo">Focus: none</div>
+          <div class="hudRow" id="selectedNestInfo">Home Nest • Nest HP -- • Stored food --</div>
+          <div class="hudRow" id="focusInfo">Focus: No rally point set</div>
           <div class="hudRow" id="objectiveInfo">Objective: --</div>
-          <div class="hudRow" id="battleInfo">Battle: 0 enemy down, 0 player lost, 0 enemies still active.</div>
-          <div class="hudRow" id="foodInfo">Food: --</div>
-          <div class="hudRow" id="buildInfo">Build: --</div>
-          <label class="hudRow hudToggle">
-            <input id="debugVisualsToggle" type="checkbox" />
-            <span>Debug visuals</span>
-          </label>
+          <div class="hudRow" id="battleInfo">Battle: 0 enemies defeated, 0 ants lost, 0 enemy nests destroyed.</div>
+          <div class="hudRow" id="foodInfo">Field food remaining: --</div>
           <div class="hudRow shellActions">
             <button id="returnToLevelSelectButton" type="button" class="shellButton">Level select</button>
           </div>

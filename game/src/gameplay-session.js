@@ -2,11 +2,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { AntSystem } from './ant-system.js';
-import { ENEMY_ECONOMY_CONFIG, FOOD_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
+import { ENEMY_ECONOMY_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
 import { getLevelDefinition } from './level-definition.js';
 import { getObjectiveStatus } from './objective-rules.js';
 import { PheromoneSystem } from './pheromone-system.js';
-import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
+import { createTerrainMesh, createTerrainOverlay, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
 
 const BUILD_ID_FALLBACK = '9ae531b';
 const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : BUILD_ID_FALLBACK;
@@ -16,7 +16,7 @@ const createBuildInfo = () => ({
   source: typeof __BUILD_ID__ !== 'undefined' ? 'bundle' : 'fallback',
 });
 
-const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) => {
+const formatHudSummary = ({ antSystem, buildInfo, levelDefinition }) => {
   const objectiveStatus = getObjectiveStatus({ objective: levelDefinition?.objective, foodSystem: antSystem.foodSystem });
   const antSummary = antSystem.getSummary();
   const remainingFood = antSystem.foods.filter((item) => !item.delivered).length;
@@ -33,17 +33,16 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
       : `Level ${levelDefinition?.levelNumber ?? 1} • ${levelDefinition?.label ?? 'Skirmish'}`,
     bossTitle: levelDefinition?.boss?.title ?? null,
     isBossLevel: !!levelDefinition?.isBossLevel,
-    cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
-    terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${levelDefinition?.terrain?.maxHeight ?? TERRAIN_CONFIG.maxHeight}, ${levelDefinition?.terrain?.maxHeight ?? TERRAIN_CONFIG.maxHeight}], ${levelDefinition?.label ?? 'sandbox'} (${levelDefinition?.timeOfDay ?? 'day'}).`,
-    antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, opening ${levelDefinition?.setup?.playerStartingCounts?.workers ?? 0}/${levelDefinition?.setup?.playerStartingCounts?.fighters ?? 0}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
-    selectedNestText: `Selected nest: ${selectedNestLabel}${selectedNestHealth ? `, HP ${selectedNestHealth.hp}/${selectedNestHealth.maxHp}${selectedNestHealth.collapsed ? ' (collapsed)' : ''}` : ''}, stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}`,
+    selectedNestText: `${selectedNestLabel}${selectedNestHealth
+      ? ` • Nest HP ${selectedNestHealth.hp}/${selectedNestHealth.maxHp}${selectedNestHealth.collapsed ? ' • Collapsed' : ''}`
+      : ''} • Stored food ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}`,
     focusText: focusTarget
-      ? `Focus: ${focusTargetMeta?.label ?? 'terrain'} at x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
-      : 'Focus: none',
+      ? `Focus: ${focusTargetMeta?.label ?? 'Marked ground'}`
+      : 'Focus: No rally point set',
     objectiveText: objectiveStatus.hudText,
     objectiveCompletionText: objectiveStatus.completionText,
-    battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down. ${objectiveStatus.battleSuffix}`,
-    foodText: `Food: ${remainingFood} left, selected nest stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}, max carriers ${heaviestFood}, sense ~${FOOD_CONFIG.senseDistance}m.`,
+    battleText: `Battle: ${antSummary.enemyAntsDefeated} enemies defeated, ${antSummary.playerAntsLost} ants lost, ${antSummary.enemyNestsDestroyed} enemy nest${antSummary.enemyNestsDestroyed === 1 ? '' : 's'} destroyed. ${objectiveStatus.battleSuffix}`,
+    foodText: `Field food remaining: ${remainingFood} cluster${remainingFood === 1 ? '' : 's'} • Largest haul needs ${heaviestFood} carrier${heaviestFood === 1 ? '' : 's'}`,
     selectedNestStored: antSystem.foodSystem?.getSelectedNestStored?.() ?? 0,
     selectedNestId: selectedNest?.id ?? null,
     selectedNestLabel,

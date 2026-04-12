@@ -44,11 +44,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
   - Ensure tap interactions for nest selection, targeting, and upgrades still feel reliable.
   - Docs: `UI_UX_SPEC.md`
 
-- [ ] Remove remaining debug-flavoured gameplay presentation from the player-facing HUD.
-  - Audit labels, copy, panel names, hidden test hooks, and shell text.
-  - Keep dev/test affordances only where they are invisible to normal play.
-  - Docs: `IMPLEMENTATION_ROADMAP.md`, `UI_UX_SPEC.md`
-
 - [ ] Improve upgrade purchase feedback.
   - Add clear success feedback when an upgrade is confirmed.
   - Make unavailable states and shortfalls read clearly in the compact overlay.
@@ -214,12 +209,15 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ## In Progress
 
-- [ ] Remove remaining debug-flavoured gameplay presentation from the player-facing HUD.
-  - Audit labels, copy, panel names, hidden test hooks, and shell text.
-  - Keep dev/test affordances only where they are invisible to normal play.
-  - Docs: `IMPLEMENTATION_ROADMAP.md`, `UI_UX_SPEC.md`
+_None._
 
 ## Complete
+
+- [x] Remove remaining debug-flavoured gameplay presentation from the player-facing HUD.
+  - Rewrote title and victory shell copy to sound game-facing instead of prototype-facing.
+  - Removed gameplay HUD telemetry rows for camera, terrain, render counts, and build/debug controls, keeping the panel focused on nest state, focus, objective, battle, and food.
+  - Kept debug visuals available only through the hidden `window.__ANT_BATTLE_DEV_API__` hook instead of a player-facing toggle.
+  - Updated the Playwright smoke test to cover the slimmer HUD and assert the visible debug control is gone.
 
 - [x] Add first boss-level scaffolding for every 10th level.
   - Boss levels now resolve to a deterministic brood-assault profile with tiered pressure values, distinct copy, and shell-facing labels.

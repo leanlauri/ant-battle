@@ -44,16 +44,16 @@ test('boots through title, level select, gameplay, and victory progression flow'
 
   await expect(page.locator('#gameplayHud')).toBeVisible();
   await expect(page.locator('#gameplayLevelLabel')).toContainText('Level 1');
-  await expect(page.locator('#antInfo')).toContainText('Ants:');
-  await expect(page.locator('#antInfo')).toContainText('classes W/F');
   await expect(page.locator('#antCountValue')).toHaveText('25');
-  await expect(page.locator('#selectedNestInfo')).toContainText('Selected nest: Home Nest');
+  await expect(page.locator('#selectedNestInfo')).toContainText('Home Nest');
+  await expect(page.locator('#selectedNestInfo')).toContainText('Stored food');
   await expect(page.locator('#battleInfo')).toContainText('Battle:');
+  await expect(page.locator('#debugVisualsToggle')).toHaveCount(0);
   await expect(page.locator('body canvas')).toBeVisible();
   await expect(page.locator('#fatalOverlay')).toBeHidden();
 
   await page.locator('body canvas').click({ position: { x: 520, y: 420 } });
-  await expect(page.locator('#focusInfo')).not.toHaveText('Focus: none');
+  await expect(page.locator('#focusInfo')).not.toHaveText('Focus: No rally point set');
 
   await page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.forceOutcome?.('victory'));
   await expect(page.locator('#victoryLevelLabel')).toHaveText('Level 1 complete');
