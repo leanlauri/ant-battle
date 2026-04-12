@@ -397,6 +397,42 @@
       flex-wrap: wrap;
       gap: 8px;
     }
+    .debugMenu {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(22, 49, 77, 0.08);
+    }
+    .debugMenu[hidden] {
+      display: none !important;
+    }
+    .debugMenuHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .debugMenuNote {
+      font-size: 12px;
+      color: var(--ink-soft);
+      margin-top: 6px;
+    }
+    .debugButtonRow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .debugButton {
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(22, 49, 77, 0.12);
+      background: rgba(255, 255, 255, 0.82);
+      font-weight: 700;
+    }
+    .debugButton[data-active="true"] {
+      border-color: rgba(68, 180, 96, 0.5);
+      box-shadow: 0 8px 18px rgba(68, 180, 96, 0.14);
+    }
     .upgradeTitle {
       font-size: 12px;
       font-weight: 800;
@@ -630,6 +666,18 @@
           <div class="hudRow shellActions">
             <button id="returnToLevelSelectButton" type="button" class="shellButton">Level select</button>
           </div>
+          <section id="debugMenu" class="debugMenu" hidden>
+            <div class="debugMenuHeader">
+              <span class="upgradeTitle">Debug menu</span>
+              <span id="debugCameraModeLabel" class="debugMenuNote">Orbit camera</span>
+            </div>
+            <div class="debugButtonRow">
+              <button id="debugCameraOrbitButton" type="button" class="debugButton">Orbit camera</button>
+              <button id="debugCameraBattlefieldButton" type="button" class="debugButton">Battlefield camera</button>
+              <button id="debugVisualsButton" type="button" class="debugButton">Debug visuals off</button>
+            </div>
+            <div class="debugMenuNote">Battlefield camera uses one-finger drag to pan, pinch to zoom, and two-finger drag to orbit.</div>
+          </section>
         </div>
       </details>
       <div class="statusCard">

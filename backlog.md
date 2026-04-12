@@ -35,15 +35,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Immediate gameplay and UX slices
 
-- [ ] Add an alternative camera mode, toggleable from the debug menu.
-  - Keep the current camera available, but add a second mode for more direct battlefield control.
-  - Single-finger drag should translate the camera target across the map while keeping camera height/pitch constrained.
-  - Pinch should zoom.
-  - Two-finger drag should rotate/orbit around the current camera target.
-  - Do not allow pitching further up or down; preserve the roughly three-quarters perspective.
-  - Ensure tap interactions for nest selection, targeting, and upgrades still feel reliable.
-  - Docs: `UI_UX_SPEC.md`
-
 - [ ] Improve upgrade purchase feedback.
   - Add clear success feedback when an upgrade is confirmed.
   - Make unavailable states and shortfalls read clearly in the compact overlay.
@@ -212,6 +203,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add an alternative camera mode, toggleable from the debug menu.
+  - Added a hidden debug menu section that can be revealed through the dev API without restoring player-facing debug clutter.
+  - Added a battlefield camera mode alongside the existing orbit camera, with one-finger pan, pinch zoom, two-finger orbit, and fixed-pitch constraints.
+  - Kept tap targeting reliable by suppressing selection/command clicks during multi-touch gestures.
+  - Added e2e coverage for revealing the debug menu and switching camera mode.
 
 - [x] Remove remaining debug-flavoured gameplay presentation from the player-facing HUD.
   - Rewrote title and victory shell copy to sound game-facing instead of prototype-facing.

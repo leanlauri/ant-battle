@@ -64,6 +64,11 @@ const refs = {
   upgradeDetailCopy: document.getElementById('upgradeDetailCopy'),
   upgradeConfirmButton: document.getElementById('upgradeConfirmButton'),
   returnToLevelSelectButton: document.getElementById('returnToLevelSelectButton'),
+  debugMenu: document.getElementById('debugMenu'),
+  debugCameraModeLabel: document.getElementById('debugCameraModeLabel'),
+  debugCameraOrbitButton: document.getElementById('debugCameraOrbitButton'),
+  debugCameraBattlefieldButton: document.getElementById('debugCameraBattlefieldButton'),
+  debugVisualsButton: document.getElementById('debugVisualsButton'),
   victoryKicker: document.getElementById('victoryKicker'),
   victoryLevelLabel: document.getElementById('victoryLevelLabel'),
   victorySummary: document.getElementById('victorySummary'),
@@ -76,6 +81,11 @@ const refs = {
   defeatLevelSelectButton: document.getElementById('defeatLevelSelectButton'),
 };
 
+const CAMERA_MODE = {
+  orbit: 'orbit',
+  battlefield: 'battlefield',
+};
+
 const app = {
   screen: APP_SCREEN.title,
   currentLevel: 1,
@@ -85,6 +95,8 @@ const app = {
   upgradeNestId: null,
   selectedUpgradeId: null,
   debugVisualsEnabled: false,
+  debugMenuVisible: false,
+  cameraMode: CAMERA_MODE.orbit,
 };
 
 const UPGRADE_ICON = {
@@ -97,6 +109,19 @@ const UPGRADE_ICON = {
 };
 
 const getCurrentLevelDefinition = () => getLevelDefinition(app.currentLevel);
+
+const renderDebugMenu = () => {
+  if (!refs.debugMenu) return;
+  if (app.debugMenuVisible && refs.hud) refs.hud.open = true;
+  refs.debugMenu.hidden = !app.debugMenuVisible;
+  if (refs.debugCameraModeLabel) refs.debugCameraModeLabel.textContent = app.cameraMode === CAMERA_MODE.battlefield ? 'Battlefield camera' : 'Orbit camera';
+  if (refs.debugCameraOrbitButton) refs.debugCameraOrbitButton.dataset.active = String(app.cameraMode === CAMERA_MODE.orbit);
+  if (refs.debugCameraBattlefieldButton) refs.debugCameraBattlefieldButton.dataset.active = String(app.cameraMode === CAMERA_MODE.battlefield);
+  if (refs.debugVisualsButton) {
+    refs.debugVisualsButton.dataset.active = String(app.debugVisualsEnabled);
+    refs.debugVisualsButton.textContent = app.debugVisualsEnabled ? 'Debug visuals on' : 'Debug visuals off';
+  }
+};
 
 const closeUpgradePanel = () => {
   app.upgradeNestId = null;
@@ -192,6 +217,14 @@ const gameplaySession = createGameplaySession({
   onFatalError: showFatalError,
 });
 
+const setCameraMode = (cameraMode) => {
+  const nextCameraMode = cameraMode === CAMERA_MODE.battlefield ? CAMERA_MODE.battlefield : CAMERA_MODE.orbit;
+  app.cameraMode = nextCameraMode;
+  gameplaySession.setCameraMode(nextCameraMode);
+  renderDebugMenu();
+  return app.cameraMode;
+};
+
 const isGameplayVisible = () => [APP_SCREEN.gameplay, APP_SCREEN.victory, APP_SCREEN.defeat].includes(app.screen);
 
 const renderLevelGrid = () => {
@@ -264,6 +297,7 @@ const changeScreen = async (nextScreen, { restartGameplay = false } = {}) => {
   if (shouldShowGameplay && (!wasGameplayVisible || restartGameplay)) {
     await gameplaySession.start(app.currentLevel);
     gameplaySession.setDebugVisualsVisible(app.debugVisualsEnabled);
+    gameplaySession.setCameraMode(app.cameraMode);
   }
 };
 
@@ -343,6 +377,17 @@ refs.defeatLevelSelectButton.addEventListener('click', () => {
 refs.hud?.addEventListener('toggle', () => {
   if (refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
 });
+refs.debugCameraOrbitButton?.addEventListener('click', () => {
+  setCameraMode(CAMERA_MODE.orbit);
+});
+refs.debugCameraBattlefieldButton?.addEventListener('click', () => {
+  setCameraMode(CAMERA_MODE.battlefield);
+});
+refs.debugVisualsButton?.addEventListener('click', () => {
+  app.debugVisualsEnabled = !app.debugVisualsEnabled;
+  gameplaySession.setDebugVisualsVisible(app.debugVisualsEnabled);
+  renderDebugMenu();
+});
 
 window.__ANT_BATTLE_TEST_API__ = {
   forceOutcome(outcome) {
@@ -356,18 +401,40 @@ window.__ANT_BATTLE_TEST_API__ = {
     }
     return false;
   },
+  getCameraMode() {
+    return app.cameraMode;
+  },
+  isDebugMenuVisible() {
+    return app.debugMenuVisible;
+  },
 };
 
 window.__ANT_BATTLE_DEV_API__ = {
   setDebugVisualsVisible(visible) {
     app.debugVisualsEnabled = !!visible;
     gameplaySession.setDebugVisualsVisible(app.debugVisualsEnabled);
+    renderDebugMenu();
     return app.debugVisualsEnabled;
   },
   getDebugVisualsVisible() {
     return app.debugVisualsEnabled;
   },
+  setDebugMenuVisible(visible) {
+    app.debugMenuVisible = !!visible;
+    renderDebugMenu();
+    return app.debugMenuVisible;
+  },
+  getDebugMenuVisible() {
+    return app.debugMenuVisible;
+  },
+  setCameraMode(cameraMode) {
+    return setCameraMode(cameraMode);
+  },
+  getCameraMode() {
+    return app.cameraMode;
+  },
 };
 
 refs.titleBuildBadge.textContent = 'Build: --';
+renderDebugMenu();
 renderScreens();

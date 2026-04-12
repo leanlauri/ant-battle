@@ -10,6 +10,17 @@ import { createTerrainMesh, createTerrainOverlay, resetActiveTerrainProfile, sam
 
 const BUILD_ID_FALLBACK = '9ae531b';
 const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : BUILD_ID_FALLBACK;
+const CAMERA_MODE = {
+  orbit: 'orbit',
+  battlefield: 'battlefield',
+};
+const DEFAULT_CAMERA_TARGET = new THREE.Vector3(0, 2, 0);
+const DEFAULT_CAMERA_POSITION = new THREE.Vector3(36, 26, 36);
+const DEFAULT_CAMERA_OFFSET = DEFAULT_CAMERA_POSITION.clone().sub(DEFAULT_CAMERA_TARGET);
+const BATTLEFIELD_CAMERA_POLAR_ANGLE = Math.atan2(
+  Math.hypot(DEFAULT_CAMERA_OFFSET.x, DEFAULT_CAMERA_OFFSET.z),
+  DEFAULT_CAMERA_OFFSET.y,
+);
 
 const createBuildInfo = () => ({
   value: BUILD_ID,
@@ -91,6 +102,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let clock = null;
   let debugVisualsVisible = false;
   let battleResolved = false;
+  let cameraMode = CAMERA_MODE.orbit;
+  let multiTouchGesture = false;
+  const activePointerIds = new Set();
   const buildInfo = createBuildInfo();
   const enemyProductionCooldowns = new Map();
 
@@ -163,6 +177,39 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     controls.update();
   };
 
+  const applyCameraMode = () => {
+    if (!controls) return;
+    controls.enablePan = true;
+    if (cameraMode === CAMERA_MODE.battlefield) {
+      controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+      controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+      controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+      controls.touches.ONE = THREE.TOUCH.PAN;
+      controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
+      controls.minPolarAngle = BATTLEFIELD_CAMERA_POLAR_ANGLE;
+      controls.maxPolarAngle = BATTLEFIELD_CAMERA_POLAR_ANGLE;
+    } else {
+      controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+      controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+      controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+      controls.touches.ONE = THREE.TOUCH.ROTATE;
+      controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+      controls.minPolarAngle = 0;
+      controls.maxPolarAngle = Math.PI * 0.48;
+    }
+    controls.update();
+  };
+
+  const enforceBattlefieldCameraConstraints = () => {
+    if (!controls || !camera || cameraMode !== CAMERA_MODE.battlefield) return;
+    const desiredTargetY = sampleHeight(controls.target.x, controls.target.z);
+    const deltaY = desiredTargetY - controls.target.y;
+    if (Math.abs(deltaY) > 1e-4) {
+      controls.target.y = desiredTargetY;
+      camera.position.y += deltaY;
+    }
+  };
+
   const setDebugVisualsVisible = (visible) => {
     debugVisualsVisible = !!visible;
     if (debugVisualsGroup) debugVisualsGroup.visible = debugVisualsVisible;
@@ -181,10 +228,15 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       resizeHandler = null;
     }
     if (pointerDownHandler && renderer?.domElement) renderer.domElement.removeEventListener('pointerdown', pointerDownHandler);
-    if (pointerUpHandler && renderer?.domElement) renderer.domElement.removeEventListener('pointerup', pointerUpHandler);
+    if (pointerUpHandler && renderer?.domElement) {
+      renderer.domElement.removeEventListener('pointerup', pointerUpHandler);
+      renderer.domElement.removeEventListener('pointercancel', pointerUpHandler);
+    }
     pointerDownHandler = null;
     pointerUpHandler = null;
     pointerDown = null;
+    multiTouchGesture = false;
+    activePointerIds.clear();
     controls?.dispose();
     renderer?.dispose();
     if (typeof renderer?.forceContextLoss === 'function') renderer.forceContextLoss();
@@ -216,6 +268,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     const dt = Math.min(maxFrameDt, clock.getDelta());
     accumulator += dt;
     controls.update();
+    enforceBattlefieldCameraConstraints();
 
     let substeps = 0;
     while (!battleResolved && accumulator >= fixedStep && substeps < maxSubsteps) {
@@ -257,18 +310,17 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       scene.fog = new THREE.Fog(currentLevelDefinition.atmosphere?.fog ?? 0xdbe7f4, 39, 104);
 
       camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 260);
-      camera.position.set(36, 26, 36);
+      camera.position.copy(DEFAULT_CAMERA_POSITION);
       camera.up.set(0, 1, 0);
       camera.lookAt(0, 0, 0);
 
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.08;
-      controls.target.set(0, 2, 0);
+      controls.target.copy(DEFAULT_CAMERA_TARGET);
       controls.minDistance = 10;
       controls.maxDistance = 120;
-      controls.maxPolarAngle = Math.PI * 0.48;
-      controls.enablePan = true;
+      applyCameraMode();
 
       scene.add(new THREE.HemisphereLight(
         currentLevelDefinition.atmosphere?.hemiSky ?? 0xf2f7ff,
@@ -334,10 +386,23 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
       pointerDownHandler = (event) => {
-        pointerDown = { x: event.clientX, y: event.clientY };
+        activePointerIds.add(event.pointerId);
+        if (activePointerIds.size > 1) {
+          multiTouchGesture = true;
+          pointerDown = null;
+          return;
+        }
+        pointerDown = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
       };
       pointerUpHandler = (event) => {
-        if (!pointerDown || !camera || !terrain || !foodSystem || !antSystem) return;
+        const releasedFinalPointer = activePointerIds.size <= 1;
+        activePointerIds.delete(event.pointerId);
+        if (multiTouchGesture) {
+          if (releasedFinalPointer) multiTouchGesture = false;
+          pointerDown = null;
+          return;
+        }
+        if (!pointerDown || pointerDown.pointerId !== event.pointerId || !camera || !terrain || !foodSystem || !antSystem) return;
         const travel = Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y);
         pointerDown = null;
         if (travel > 8) return;
@@ -397,6 +462,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       };
       renderer.domElement.addEventListener('pointerdown', pointerDownHandler);
       renderer.domElement.addEventListener('pointerup', pointerUpHandler);
+      renderer.domElement.addEventListener('pointercancel', pointerUpHandler);
 
       clock = new THREE.Clock();
       running = true;
@@ -415,6 +481,12 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     start,
     stop,
     setDebugVisualsVisible,
+    setCameraMode: (nextCameraMode) => {
+      cameraMode = nextCameraMode === CAMERA_MODE.battlefield ? CAMERA_MODE.battlefield : CAMERA_MODE.orbit;
+      applyCameraMode();
+      if (cameraMode === CAMERA_MODE.battlefield) enforceBattlefieldCameraConstraints();
+      return cameraMode;
+    },
     applyUpgrade: (upgradeId) => {
       if (!foodSystem || !antSystem) return false;
       const nest = foodSystem.getSelectedNest();
