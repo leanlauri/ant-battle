@@ -451,6 +451,7 @@
     }
     .upgradeChip {
       min-width: 0;
+      min-height: 44px;
       padding: 8px 10px;
       border-radius: 999px;
       border: 1px solid rgba(22, 49, 77, 0.12);
@@ -464,6 +465,10 @@
     .upgradeChip[data-active="true"] {
       border-color: rgba(68, 180, 96, 0.5);
       box-shadow: 0 10px 22px rgba(68, 180, 96, 0.18);
+    }
+    .upgradeChip[data-affordable="false"] {
+      border-color: rgba(191, 121, 58, 0.28);
+      background: rgba(255, 247, 238, 0.94);
     }
     .upgradeChip:disabled {
       opacity: 0.58;
@@ -499,8 +504,31 @@
     .upgradeDetailTitle {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       gap: 8px;
       font-weight: 800;
+    }
+    .upgradeDetailStatus {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+      background: rgba(22, 49, 77, 0.06);
+      color: var(--ink-soft);
+    }
+    .upgradeDetailStatus[data-kind="ready"] {
+      background: rgba(68, 180, 96, 0.12);
+      color: #1d6c34;
+    }
+    .upgradeDetailStatus[data-kind="warning"] {
+      background: rgba(215, 143, 63, 0.16);
+      color: #8a5314;
+    }
+    .upgradeDetailStatus[data-kind="success"] {
+      background: rgba(68, 180, 96, 0.16);
+      color: #155926;
     }
     .upgradeCardCopy {
       margin-top: 4px;
@@ -536,6 +564,31 @@
       transform: translate(-50%, -100%);
     }
     .nestUpgradePanel[hidden] { display: none !important; }
+    .upgradeFeedbackToast {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(68, 180, 96, 0.16);
+      border: 1px solid rgba(68, 180, 96, 0.26);
+      color: #155926;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+    .upgradeFeedbackToast[hidden] { display: none !important; }
+    @media (max-width: 640px) {
+      .upgradeCards {
+        flex-wrap: wrap;
+      }
+      .upgradeChip {
+        justify-content: center;
+        flex: 1 1 calc(50% - 8px);
+      }
+      .nestUpgradePanel {
+        width: min(340px, calc(100vw - 16px));
+        padding: 12px;
+      }
+    }
     #fatalOverlay {
       display: none;
       align-items: center;
@@ -696,10 +749,12 @@
             <span id="upgradeDetailCost">0 food</span>
           </div>
           <div id="upgradeDetailCopy" class="upgradeCardCopy"></div>
+          <div id="upgradeDetailStatus" class="upgradeDetailStatus">Ready</div>
           <div class="upgradeDetailActions">
             <button id="upgradeConfirmButton" type="button" class="primaryButton">Confirm</button>
           </div>
         </div>
+        <div id="upgradeFeedbackToast" class="upgradeFeedbackToast" hidden></div>
       </div>
     </div>
   </div>

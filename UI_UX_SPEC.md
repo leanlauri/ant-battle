@@ -179,6 +179,8 @@ Recommended format:
 - tapping card applies upgrade immediately
 - card disappears if no longer affordable/available
 - use short confirmation feedback, visual pulse or pop
+- when a card is selected, the compact detail overlay should explain whether it is ready, short on food, or already active
+- unavailable states should say exactly what is missing rather than only disabling the confirm button
 
 ---
 

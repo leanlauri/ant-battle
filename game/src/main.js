@@ -62,7 +62,9 @@ const refs = {
   upgradeDetailLabel: document.getElementById('upgradeDetailLabel'),
   upgradeDetailCost: document.getElementById('upgradeDetailCost'),
   upgradeDetailCopy: document.getElementById('upgradeDetailCopy'),
+  upgradeDetailStatus: document.getElementById('upgradeDetailStatus'),
   upgradeConfirmButton: document.getElementById('upgradeConfirmButton'),
+  upgradeFeedbackToast: document.getElementById('upgradeFeedbackToast'),
   returnToLevelSelectButton: document.getElementById('returnToLevelSelectButton'),
   debugMenu: document.getElementById('debugMenu'),
   debugCameraModeLabel: document.getElementById('debugCameraModeLabel'),
@@ -94,6 +96,7 @@ const app = {
   lastHudSummary: null,
   upgradeNestId: null,
   selectedUpgradeId: null,
+  upgradeFeedback: null,
   debugVisualsEnabled: false,
   debugMenuVisible: false,
   cameraMode: CAMERA_MODE.orbit,
@@ -126,8 +129,41 @@ const renderDebugMenu = () => {
 const closeUpgradePanel = () => {
   app.upgradeNestId = null;
   app.selectedUpgradeId = null;
+  app.upgradeFeedback = null;
   if (refs.nestUpgradePanel) refs.nestUpgradePanel.hidden = true;
   if (refs.upgradeDetail) refs.upgradeDetail.hidden = true;
+  if (refs.upgradeFeedbackToast) refs.upgradeFeedbackToast.hidden = true;
+};
+
+const getUpgradeDisabledReason = (option) => {
+  if (!option?.disabled) return null;
+  if (option.shortfall > 0) return `Need ${option.shortfall.toFixed(1)} more food before this nest can afford ${option.label.toLowerCase()}.`;
+  if (option.id === 'repair-nest') return 'This nest is already at full health.';
+  return 'This upgrade is already active for this nest.';
+};
+
+const getUpgradeReadyText = (option) => {
+  if (!option || option.disabled) return null;
+  return `Ready. Spend ${option.cost.toFixed(0)} food to confirm ${option.label.toLowerCase()}.`;
+};
+
+const getUpgradeSuccessText = (option) => {
+  if (!option) return 'Upgrade confirmed.';
+  if (option.id === 'repair-nest') return 'Nest repaired.';
+  if (option.id === 'spawn-workers') return 'Worker reinforcements called up.';
+  if (option.id === 'spawn-fighters') return 'Fighter reinforcements called up.';
+  return `${option.label} is now active.`;
+};
+
+const setUpgradeFeedback = (feedback) => {
+  app.upgradeFeedback = feedback;
+  if (!feedback?.expiresAt) return;
+  window.setTimeout(() => {
+    if (app.upgradeFeedback?.expiresAt === feedback.expiresAt) {
+      app.upgradeFeedback = null;
+      renderUpgradeCards(app.lastHudSummary);
+    }
+  }, Math.max(0, feedback.expiresAt - Date.now()));
 };
 
 const renderUpgradeCards = (summary) => {
@@ -138,6 +174,7 @@ const renderUpgradeCards = (summary) => {
   if (!options.length || !anchor || app.screen !== APP_SCREEN.gameplay || app.upgradeNestId !== summary?.selectedNestId) {
     refs.nestUpgradePanel.hidden = true;
     if (refs.upgradeDetail) refs.upgradeDetail.hidden = true;
+    if (refs.upgradeFeedbackToast) refs.upgradeFeedbackToast.hidden = true;
     return;
   }
 
@@ -155,6 +192,8 @@ const renderUpgradeCards = (summary) => {
     button.disabled = false;
     button.dataset.upgradeId = option.id;
     button.dataset.active = app.selectedUpgradeId === option.id ? 'true' : 'false';
+    button.dataset.affordable = option.disabled ? 'false' : 'true';
+    button.setAttribute('aria-label', `${option.label}, ${option.cost.toFixed(0)} food${option.shortfall > 0 ? `, needs ${option.shortfall.toFixed(1)} more food` : ''}`);
     button.innerHTML = `
       <span class="upgradeChipIcon">${UPGRADE_ICON[option.id] ?? 'up'}</span>
       <span>${option.cost.toFixed(0)}</span>
@@ -170,21 +209,47 @@ const renderUpgradeCards = (summary) => {
   const selectedOption = options.find((option) => option.id === app.selectedUpgradeId) ?? null;
   if (!selectedOption || !refs.upgradeDetail) {
     refs.upgradeDetail.hidden = true;
+    if (refs.upgradeFeedbackToast) refs.upgradeFeedbackToast.hidden = !app.upgradeFeedback?.text;
     return;
   }
 
   refs.upgradeDetail.hidden = false;
   refs.upgradeDetailLabel.textContent = selectedOption.label;
   refs.upgradeDetailCost.textContent = `${selectedOption.cost.toFixed(0)} food`;
-  refs.upgradeDetailCopy.textContent = `${selectedOption.description}${selectedOption.shortfall > 0 ? ` Need ${selectedOption.shortfall.toFixed(1)} more food.` : ''}`;
+  refs.upgradeDetailCopy.textContent = selectedOption.description;
+  const disabledReason = getUpgradeDisabledReason(selectedOption);
+  const successFeedback = app.upgradeFeedback && app.upgradeFeedback.kind === 'success' ? app.upgradeFeedback : null;
+  if (refs.upgradeDetailStatus) {
+    refs.upgradeDetailStatus.dataset.kind = successFeedback?.upgradeId === selectedOption.id
+      ? 'success'
+      : (disabledReason ? 'warning' : 'ready');
+    refs.upgradeDetailStatus.textContent = successFeedback?.upgradeId === selectedOption.id
+      ? successFeedback.text
+      : (disabledReason ?? getUpgradeReadyText(selectedOption) ?? 'Unavailable');
+  }
   refs.upgradeConfirmButton.disabled = !!selectedOption.disabled;
   refs.upgradeConfirmButton.textContent = selectedOption.disabled
-    ? (selectedOption.shortfall > 0 ? 'Not enough food' : 'Unavailable')
+    ? (selectedOption.shortfall > 0 ? `Need ${selectedOption.shortfall.toFixed(1)} more food` : 'Already active')
     : 'Confirm';
+  refs.upgradeConfirmButton.title = disabledReason ?? '';
   refs.upgradeConfirmButton.onclick = () => {
     const applied = gameplaySession.applyUpgrade(selectedOption.id);
-    if (applied) app.selectedUpgradeId = null;
+    if (applied) {
+      setUpgradeFeedback({
+        kind: 'success',
+        text: getUpgradeSuccessText(selectedOption),
+        upgradeId: selectedOption.id,
+        expiresAt: Date.now() + 2200,
+      });
+      app.selectedUpgradeId = selectedOption.id;
+    }
   };
+
+  if (refs.upgradeFeedbackToast) {
+    const toast = app.upgradeFeedback;
+    refs.upgradeFeedbackToast.hidden = !toast?.text;
+    refs.upgradeFeedbackToast.textContent = toast?.text ?? '';
+  }
 };
 
 const gameplaySession = createGameplaySession({
@@ -192,6 +257,7 @@ const gameplaySession = createGameplaySession({
   onNestSelected: (nest) => {
     app.upgradeNestId = nest?.id ?? null;
     app.selectedUpgradeId = null;
+    app.upgradeFeedback = null;
   },
   onFocusAssigned: () => {
     closeUpgradePanel();
@@ -406,6 +472,26 @@ window.__ANT_BATTLE_TEST_API__ = {
   },
   isDebugMenuVisible() {
     return app.debugMenuVisible;
+  },
+  setSelectedNest(nestId) {
+    const changed = gameplaySession.setSelectedNest(nestId);
+    if (changed) {
+      app.upgradeNestId = nestId;
+      app.selectedUpgradeId = null;
+      app.upgradeFeedback = null;
+    }
+    return changed;
+  },
+  setNestStored(nestId, amount) {
+    return gameplaySession.setNestStored(nestId, amount);
+  },
+  getUpgradeOptions(nestId) {
+    return gameplaySession.getUpgradeOptions(nestId);
+  },
+  selectUpgrade(upgradeId) {
+    app.selectedUpgradeId = upgradeId;
+    renderUpgradeCards(app.lastHudSummary);
+    return app.selectedUpgradeId;
   },
 };
 

@@ -204,6 +204,12 @@ _None._
 
 ## Complete
 
+- [x] Improve upgrade purchase feedback.
+  - Added explicit ready, shortfall, and already-active messaging in the compact upgrade detail overlay instead of generic disabled states.
+  - Added a short success confirmation toast/status after upgrade confirmation and kept worker/fighter call-up feedback visible.
+  - Improved mobile readability by letting upgrade chips wrap and by covering the flow in Playwright on a phone-sized viewport.
+  - Updated docs in `IMPLEMENTATION_ROADMAP.md` and `UI_UX_SPEC.md`.
+
 - [x] Add an alternative camera mode, toggleable from the debug menu.
   - Added a hidden debug menu section that can be revealed through the dev API without restoring player-facing debug clutter.
   - Added a battlefield camera mode alongside the existing orbit camera, with one-finger pan, pinch zoom, two-finger orbit, and fixed-pitch constraints.
@@ -227,4 +233,3 @@ _None._
   - Wired victory checks and boss pressure rules through that model.
   - Updated HUD and victory copy to reflect the real active objective.
   - Added coverage for normal and boss objective behavior.
-

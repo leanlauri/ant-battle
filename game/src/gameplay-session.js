@@ -518,5 +518,24 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       if (applied) publishHud();
       return applied;
     },
+    setSelectedNest: (nestId) => {
+      if (!foodSystem) return false;
+      const changed = foodSystem.setSelectedNest(nestId);
+      if (changed) publishHud();
+      return changed;
+    },
+    setNestStored: (nestId, amount) => {
+      if (!foodSystem) return false;
+      const nest = foodSystem.getNestById(nestId);
+      if (!nest) return false;
+      foodSystem.nestStoredById.set(nestId, Math.max(0, amount));
+      foodSystem.updateNestVisual();
+      publishHud();
+      return true;
+    },
+    getUpgradeOptions: (nestId) => {
+      if (!foodSystem) return [];
+      return foodSystem.getUpgradeOptions(nestId);
+    },
   };
 };

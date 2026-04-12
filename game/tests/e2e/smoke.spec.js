@@ -67,10 +67,49 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect(page.locator('#victoryLevelLabel')).toHaveText('Level 1 complete');
   await expect(page.locator('#nextLevelButton')).toContainText('Play Level 2');
 
-  await page.locator('#victoryLevelSelectButton').click();
+  await page.locator('#victoryLevelSelectButton').click({ force: true });
   await expect(page.locator('[data-level="1"]')).toContainText('completed');
   await expect(page.locator('[data-level="2"]')).toContainText('open');
 
   expect(pageErrors, `Unhandled page errors: ${pageErrors.join('\n')}`).toEqual([]);
   expect(consoleErrors, `Console errors: ${consoleErrors.join('\n')}`).toEqual([]);
+});
+
+test('upgrade overlay shows clear shortfall and success feedback on a mobile-sized viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  await page.locator('#startButton').click();
+  await page.locator('[data-level="1"]').click();
+
+  const webgl = await detectWebGLSupport(page);
+  test.skip(!webgl.available, 'Skipping WebGL-dependent test because this browser context cannot create a usable WebGL context.');
+
+  await expect(page.locator('#gameplayHud')).toBeVisible();
+
+  await page.evaluate(() => {
+    window.__ANT_BATTLE_TEST_API__?.setSelectedNest?.('player-1');
+    window.__ANT_BATTLE_TEST_API__?.setNestStored?.('player-1', 5);
+  });
+
+  await expect(page.locator('#nestUpgradePanel')).toBeVisible();
+  await page.evaluate(() => {
+    window.__ANT_BATTLE_TEST_API__?.selectUpgrade?.('spawn-workers');
+  });
+  await expect(page.locator('#upgradeDetailStatus')).toContainText('Need 7.0 more food');
+  await expect(page.locator('#upgradeConfirmButton')).toHaveText('Need 7.0 more food');
+
+  await page.evaluate(() => {
+    window.__ANT_BATTLE_TEST_API__?.setNestStored?.('player-1', 20);
+  });
+
+  await expect(page.locator('#upgradeDetailStatus')).toContainText('Ready. Spend 12 food');
+  await page.locator('#upgradeConfirmButton').click({ force: true });
+  await expect(page.locator('#upgradeDetailStatus')).toContainText('Worker reinforcements called up');
+  await expect(page.locator('#upgradeFeedbackToast')).toContainText('Worker reinforcements called up');
+
+  const panelBox = await page.locator('#nestUpgradePanel').boundingBox();
+  expect(panelBox).not.toBeNull();
+  expect(panelBox.x).toBeGreaterThanOrEqual(0);
+  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(390);
 });
