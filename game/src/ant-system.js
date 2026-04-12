@@ -662,6 +662,12 @@ const applyNestYield = (ant, grid, nestPosition) => {
   return true;
 };
 
+const getEffectiveCameraDistance = (camera, worldPosition, cameraWorldPosition) => {
+  const rawDistance = worldPosition.distanceTo(cameraWorldPosition);
+  if (!camera?.isOrthographicCamera) return rawDistance;
+  return rawDistance / Math.max(0.001, camera.zoom || 1);
+};
+
 const updateVisibility = (ant, mesh, distance, frustum) => {
   const inFrustum = frustum.containsPoint(ant.position);
   ant.visible = inFrustum || distance < ANT_CONFIG.cullDistance;
@@ -1080,7 +1086,7 @@ export class AntSystem {
         continue;
       }
 
-      const distanceToCamera = ant.position.distanceTo(this.cameraWorldPosition);
+      const distanceToCamera = getEffectiveCameraDistance(this.camera, ant.position, this.cameraWorldPosition);
 
       ant.lodBand = getLodBandForDistance(distanceToCamera);
       ant.brainInterval = getBrainIntervalForDistance(distanceToCamera);

@@ -30,6 +30,8 @@ const BATTLEFIELD_MIN_ZOOM = 0.85;
 const BATTLEFIELD_MAX_ZOOM = 5.2;
 const BATTLEFIELD_EDGE_PADDING = 4;
 const BATTLEFIELD_EDGE_PADDING_AT_MAX_ZOOM = 9;
+const PERSPECTIVE_FOG_NEAR = 39;
+const PERSPECTIVE_FOG_FAR = 104;
 
 const updateOrthographicFrustum = (orthographicCamera) => {
   if (!orthographicCamera) return;
@@ -126,6 +128,19 @@ const clampBattlefieldTargetToTerrain = (target, zoom = 1, cameraPosition = targ
   target.x = THREE.MathUtils.clamp(target.x, minTargetX, maxTargetX);
   target.z = THREE.MathUtils.clamp(target.z, minTargetZ, maxTargetZ);
   return target;
+};
+
+const syncSceneFog = (sceneRef, activeCamera) => {
+  const fog = sceneRef?.fog;
+  if (!fog || !activeCamera) return;
+  if (activeCamera.isOrthographicCamera) {
+    const zoom = Math.max(0.001, activeCamera.zoom || 1);
+    fog.near = Math.max(6, PERSPECTIVE_FOG_NEAR / zoom);
+    fog.far = Math.max(fog.near + 12, PERSPECTIVE_FOG_FAR / zoom);
+    return;
+  }
+  fog.near = PERSPECTIVE_FOG_NEAR;
+  fog.far = PERSPECTIVE_FOG_FAR;
 };
 
 const createBuildInfo = () => ({
@@ -314,6 +329,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       camera.zoom = THREE.MathUtils.clamp(nextZoom, BATTLEFIELD_MIN_ZOOM, BATTLEFIELD_MAX_ZOOM);
       camera.updateProjectionMatrix();
       syncBattlefieldCameraToTarget(nextTarget);
+      syncSceneFog(scene, camera);
       controls = createControls(camera);
       if (!controls) return;
       controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
@@ -333,6 +349,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       if (!camera) return;
       antSystem?.setCamera?.(camera);
       syncOrbitCameraToTarget(nextTarget);
+      syncSceneFog(scene, camera);
       controls = createControls(camera);
       if (!controls) return;
       controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
@@ -369,6 +386,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       controls.minZoom = BATTLEFIELD_MIN_ZOOM;
       controls.maxZoom = BATTLEFIELD_MAX_ZOOM;
       enforceBattlefieldCameraConstraints();
+      syncSceneFog(scene, battlefieldCamera);
     }
     return battlefieldCamera.zoom;
   };
@@ -469,6 +487,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     accumulator += dt;
     controls.update();
     enforceBattlefieldCameraConstraints();
+    syncSceneFog(scene, camera);
 
     let substeps = 0;
     while (!battleResolved && accumulator >= fixedStep && substeps < maxSubsteps) {
@@ -507,7 +526,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
       scene = new THREE.Scene();
       scene.background = new THREE.Color(currentLevelDefinition.atmosphere?.background ?? 0xdbe7f4);
-      scene.fog = new THREE.Fog(currentLevelDefinition.atmosphere?.fog ?? 0xdbe7f4, 39, 104);
+      scene.fog = new THREE.Fog(currentLevelDefinition.atmosphere?.fog ?? 0xdbe7f4, PERSPECTIVE_FOG_NEAR, PERSPECTIVE_FOG_FAR);
 
       orbitCamera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 260);
       orbitCamera.position.copy(DEFAULT_CAMERA_POSITION);

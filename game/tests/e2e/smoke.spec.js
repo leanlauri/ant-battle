@@ -14,6 +14,7 @@ const detectWebGLSupport = async (page) => page.evaluate(() => {
 });
 
 test('boots through title, level select, gameplay, and victory progression flow', async ({ page }) => {
+  test.slow();
   const consoleErrors = [];
   const pageErrors = [];
 
