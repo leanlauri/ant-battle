@@ -112,6 +112,24 @@ describe('ant system helpers', () => {
     expect(ants.some((ant) => ant.faction === 'enemy' && ant.role === ANT_ROLE.worker)).toBe(true);
   });
 
+  test('supports level-specific opening setups and enemy doctrine', () => {
+    const nests = [
+      { id: 'player-1', faction: 'player', colonyId: COLONY.player, position: new THREE.Vector3(0, 0, 0) },
+      { id: 'enemy-1', faction: 'enemy', colonyId: COLONY.enemyAlpha, position: new THREE.Vector3(10, 0, 10) },
+    ];
+
+    const ants = createRandomAntStates(160, nests, {
+      playerStartingCounts: { workers: 6, fighters: 4 },
+      enemyStartingPerNest: 12,
+      enemyWorkerRatio: 0,
+    });
+
+    expect(ants.filter((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.worker)).toHaveLength(6);
+    expect(ants.filter((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.fighter)).toHaveLength(4);
+    expect(ants.filter((ant) => ant.faction === 'enemy')).toHaveLength(12);
+    expect(ants.filter((ant) => ant.faction === 'enemy' && ant.role === ANT_ROLE.fighter)).toHaveLength(12);
+  });
+
   test('fighters can select the nearest hostile active nest for siege', () => {
     const fighter = createRandomAntStates(1)[0];
     fighter.role = ANT_ROLE.fighter;

@@ -9,6 +9,8 @@ describe('level definition', () => {
     expect(level.antBudget).toBe(120);
     expect(level.timeOfDay).toBe('bright day');
     expect(level.objectiveText).toContain('rival colony');
+    expect(level.setup.playerStartingCounts.workers).toBe(24);
+    expect(level.setup.enemyWorkerRatio).toBeGreaterThan(0.8);
   });
 
   test('mid campaign levels escalate to split-front battles', () => {
@@ -17,6 +19,7 @@ describe('level definition', () => {
     expect(level.foodCount).toBeGreaterThan(24);
     expect(level.antBudget).toBeGreaterThan(160);
     expect(level.terrain.maxHeight).toBeGreaterThan(getLevelDefinition(1).terrain.maxHeight);
+    expect(level.setup.playerStartingCounts.fighters).toBeGreaterThan(getLevelDefinition(1).setup.playerStartingCounts.fighters);
   });
 
   test('boss levels get extra pressure while staying deterministic', () => {

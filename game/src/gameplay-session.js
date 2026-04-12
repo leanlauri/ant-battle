@@ -26,7 +26,7 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
   return {
     cameraText: 'Camera: drag to orbit, pinch or wheel to zoom.',
     terrainText: `Terrain: ${getTriangleCount(terrain.geometry)} tris, x/z [-50, 50], y [-${levelDefinition?.terrain?.maxHeight ?? TERRAIN_CONFIG.maxHeight}, ${levelDefinition?.terrain?.maxHeight ?? TERRAIN_CONFIG.maxHeight}], ${levelDefinition?.label ?? 'sandbox'} (${levelDefinition?.timeOfDay ?? 'day'}).`,
-    antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
+    antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, opening ${levelDefinition?.setup?.playerStartingCounts?.workers ?? 0}/${levelDefinition?.setup?.playerStartingCounts?.fighters ?? 0}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
     selectedNestText: `Selected nest: ${selectedNestLabel}${selectedNestHealth ? `, HP ${selectedNestHealth.hp}/${selectedNestHealth.maxHp}${selectedNestHealth.collapsed ? ' (collapsed)' : ''}` : ''}, stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}`,
     focusText: focusTarget
       ? `Focus: x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
@@ -268,7 +268,16 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
       foodSystem = new FoodSystem({ scene, count: currentLevelDefinition.foodCount, enemyNestCount: currentLevelDefinition.enemyNestCount });
       pheromoneSystem = new PheromoneSystem();
-      antSystem = new AntSystem({ scene, camera, foodSystem, pheromoneSystem, foods: foodSystem.items, nests: foodSystem.nests, count: currentLevelDefinition.antBudget });
+      antSystem = new AntSystem({
+        scene,
+        camera,
+        foodSystem,
+        pheromoneSystem,
+        foods: foodSystem.items,
+        nests: foodSystem.nests,
+        count: currentLevelDefinition.antBudget,
+        levelSetup: currentLevelDefinition.setup,
+      });
       setDebugVisualsVisible(debugVisualsVisible);
       publishHud();
 

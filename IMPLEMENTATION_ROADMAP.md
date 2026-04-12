@@ -47,11 +47,12 @@ Goals:
 - [x] Direct HUD shell win/lose buttons are gone, smoke coverage now uses a hidden test hook instead of player-facing debug controls, and level-number-based scenario variation now changes enemy nest count and budget bands
 - [x] Levels now carry deterministic biome-like flavor data, including terrain roughness, time-of-day atmosphere, and objective text, which now affects battlefield shape and presentation in-game
 - [x] Nest upgrades now include persistent specialization choices, not only one-shot repair/reinforcement spends: worker-batch growth, fighter-batch growth, and nest fortification all persist per nest
+- [x] Level setup now affects opening colony compositions and enemy doctrine, so campaign fights differ in starting worker/fighter mixes rather than only map mood and overall budget
 
 ### Next implementation slice
-1. Add more faction/setup differentiation per level so campaign fights are not only budget variants.
+1. Start making objective text correspond to actual rule variation instead of only presentation.
 2. Keep reducing remaining debug-flavoured presentation so the shell feels fully game-facing.
-3. Start making objective text correspond to actual rule variation instead of only presentation.
+3. Consider light wasp/boss-rule scaffolding for every 10th level, even before a full wasp faction exists.
 
 ---
 
