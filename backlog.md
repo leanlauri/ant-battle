@@ -35,8 +35,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Add broader determinism coverage for runtime simulation paths.
-  - Grow tests beyond setup generation so replay-sensitive ant and presentation systems stay locked to level seeds.
+- [ ] Add deterministic gameplay-session coverage for seeded enemy economy runtime paths.
+  - Cover replay-sensitive production cooldown rolls so enemy colony growth stays locked to level seeds.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
+- [ ] Add broader determinism coverage for remaining runtime simulation paths.
+  - Extend seed-lock tests beyond current ant/effects/runtime slices into any leftover replay-sensitive systems after food regrowth and enemy economy timing are covered.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
@@ -188,6 +192,10 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add deterministic runtime coverage for seeded food regrowth paths.
+  - Added unit coverage that replays delivered food regrowth from the same level `food` stream and verifies different seeds diverge.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so food regrowth is explicitly documented as part of the seeded replay model.
 
 - [x] Extend deterministic runtime randomness coverage beyond the initial ant/effects slice.
   - Thin slice shipped: ant reinforcement spawning now uses its own deterministic `ants-spawn` substream instead of consuming the runtime AI decision stream.

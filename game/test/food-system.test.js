@@ -3,7 +3,20 @@ import * as THREE from 'three';
 import { Scene } from 'three';
 import { COLONY, FACTION, FOOD_CONFIG, NEST_CONFIG, UPGRADE_CONFIG, createFoodItems, createNestDefinitions, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor, getNestPosition } from '../src/food-system.js';
 import { FoodSystem } from '../src/food-system.js';
+import { createSeededRandom, deriveSeed } from '../src/seeded-random.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
+
+const simplifyFood = (food) => ({
+  delivered: food.delivered,
+  carried: food.carried,
+  regrowAt: food.regrowAt,
+  sizeScale: Number(food.sizeScale.toFixed(4)),
+  weight: Number(food.weight.toFixed(4)),
+  requiredCarriers: food.requiredCarriers,
+  x: Number(food.position.x.toFixed(4)),
+  y: Number(food.position.y.toFixed(4)),
+  z: Number(food.position.z.toFixed(4)),
+});
 
 describe('food system helpers', () => {
   test('creates food items within terrain bounds', () => {
@@ -197,5 +210,22 @@ describe('food system helpers', () => {
     const workerCall = system.getUpgradeOptions('player-1').find((option) => option.id === UPGRADE_CONFIG.spawnWorkers.id);
 
     expect(workerCall?.shortfall).toBe(UPGRADE_CONFIG.spawnWorkers.cost - 5);
+  });
+
+  test('replays delivered food regrowth from the same seeded food stream', () => {
+    const seed = deriveSeed('ant-battle-level-12', 'food');
+    const first = new FoodSystem({ scene: new Scene(), count: 1, random: createSeededRandom(seed) });
+    const second = new FoodSystem({ scene: new Scene(), count: 1, random: createSeededRandom(seed) });
+    const third = new FoodSystem({ scene: new Scene(), count: 1, random: createSeededRandom(deriveSeed('ant-battle-level-13', 'food')) });
+
+    for (const system of [first, second, third]) {
+      const food = system.items[0];
+      system.pickUpFood(food.id, 77, COLONY.player);
+      system.dropFoodInNest(food.id, 77, 'player-1');
+      system.update(FOOD_CONFIG.regrowDelayMax + 1);
+    }
+
+    expect(simplifyFood(first.items[0])).toEqual(simplifyFood(second.items[0]));
+    expect(simplifyFood(first.items[0])).not.toEqual(simplifyFood(third.items[0]));
   });
 });
