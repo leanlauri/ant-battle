@@ -37,14 +37,14 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Level generation and campaign progression
 
-- [ ] Add deterministic coverage for any remaining replay-sensitive runtime paths after live ant decisions/effects.
-  - Continue sweeping leftover simulation systems once live ant decision/effects isolation is covered.
+- [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the current food, enemy-economy, spawn, and live ant decision/effects coverage.
+  - Keep follow-up slices narrow and focused on one live simulation interaction at a time.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
-- [ ] Add live-runtime deterministic coverage for ant decisions and combat aftermath stream isolation.
-  - Exercise the gameplay update order while ant decision rolls and combat aftermath effects are active.
-  - Confirm `ants-runtime` and `ants-effects` stay isolated from `food`, `enemy-economy`, and `ants-spawn` seed changes.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+- [ ] Add live-runtime deterministic coverage for siege-driven nest collapse and migration aftermath.
+  - Exercise a real fighter siege, collapse handling, reassignment, and outcome updates under the normal gameplay update order.
+  - Confirm collapse-side presentation and colony reassignment stay replay-stable for a seed.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `COMBAT_AND_NEST_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
   - Expand per-level generated fields beyond enemy nest count, budget, and atmosphere.
@@ -195,6 +195,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add live-runtime deterministic coverage for carried-food support and delivery interactions.
+  - Added a live-runtime harness that exercises real worker claim, assist-carry, and nest delivery flow under the normal gameplay update order while enemy production also runs.
+  - Confirmed those carried-food interactions stay stable when unrelated `enemy-economy`, `ants-spawn`, `ants-runtime`, and `ants-effects` seeds change, while delivery-triggered regrow timing still diverges on the `food` stream.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this carry-and-delivery coverage.
 
 - [x] Fix battlefield camera foreground occlusion from terrain or horizon geometry.
   - Softened terrain relief near the outer rim so the raised white horizon geometry no longer swells into the lower battlefield view during tactical zoom.

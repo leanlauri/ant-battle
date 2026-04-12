@@ -79,6 +79,7 @@ Implementation note:
 - keep integration coverage around live enemy production plus spawned-ant batch creation so `enemy-economy` timing and `ants-spawn` placement stay isolated from each other
 - keep a live-runtime integration test where delivered-food regrowth runs alongside enemy production and spawned reinforcements, so `food`, `enemy-economy`, and `ants-spawn` streams do not perturb one another
 - keep live-runtime coverage around a real ant decision roll and combat-death aftermath so `ants-runtime` and `ants-effects` stay isolated from `food`, `enemy-economy`, and `ants-spawn` seed changes during the normal gameplay update order
+- keep live-runtime coverage around carried-food claim, assist-carry, delivery, and delivery-triggered regrow timers so those interactions stay stable when unrelated `enemy-economy`, `ants-spawn`, `ants-runtime`, or `ants-effects` seeds change
 
 ---
 

@@ -482,6 +482,173 @@ const simulateLiveDecisionEffectsIntegration = ({
   };
 };
 
+const createLiveCarryDeliveryHarness = ({
+  foodSeed,
+  economySeed,
+  spawnSeed,
+  decisionSeed,
+  effectSeed,
+  stored = 80,
+  scenarioRules = { enemyProductionRateMultiplier: 2 },
+} = {}) => {
+  const scene = new THREE.Scene();
+  const foodSystem = new FoodSystem({ scene, count: 1, enemyNestCount: 1, random: createSeededRandom(foodSeed) });
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+  camera.position.set(0, 16, 18);
+  camera.lookAt(0, 0, 0);
+
+  const antSystem = new AntSystem({
+    scene,
+    camera,
+    foodSystem,
+    pheromoneSystem: {
+      update() {},
+      deposit() {},
+      sample() { return new THREE.Vector3(); },
+    },
+    foods: foodSystem.items,
+    nests: foodSystem.nests,
+    count: 12,
+    levelSetup: {
+      playerStartingCounts: { workers: 2, fighters: 0 },
+      enemyStartingPerNest: 0,
+      enemyWorkerRatio: 1,
+    },
+    setupRandom: createSeededRandom('live-carry-delivery-setup'),
+    decisionRandom: createSeededRandom(decisionSeed),
+    effectRandom: createSeededRandom(effectSeed),
+    spawnRandom: createSeededRandom(spawnSeed),
+  });
+
+  const enemyNest = foodSystem.nests.find((nest) => nest.faction === 'enemy');
+  foodSystem.nestStoredById.set(enemyNest.id, stored);
+
+  const carryFood = foodSystem.items[0];
+  carryFood.delivered = false;
+  carryFood.carried = false;
+  carryFood.carriedBy = null;
+  carryFood.carriedByColonyId = null;
+  carryFood.claimedBy = null;
+  carryFood.claimedByColonyId = null;
+  carryFood.supportAntIds = [];
+  carryFood.regrowAt = null;
+  carryFood.weight = 2;
+  carryFood.requiredCarriers = 2;
+
+  const playerWorkers = antSystem.ants.filter((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.worker);
+  const carrier = playerWorkers[0];
+  const helper = playerWorkers[1];
+
+  carryFood.position.set(4.2, carrier.position.y, 0.25);
+
+  carrier.position.set(carryFood.position.x, carryFood.position.y, carryFood.position.z);
+  carrier.heading.set(-1, 0, 0);
+  carrier.target.set(carryFood.position.x, 0, carryFood.position.z);
+  carrier.velocity.setScalar(0);
+  carrier.desiredVelocity.setScalar(0);
+  carrier.action = 'seek-food';
+  carrier.targetFoodId = carryFood.id;
+  carrier.assistingFoodId = null;
+  carrier.carryingFoodId = null;
+  carrier.brainCooldown = 999;
+  carrier.logicCooldown = 0;
+
+  helper.position.set(carryFood.position.x + 0.45, carryFood.position.y, carryFood.position.z + 0.1);
+  helper.heading.set(-1, 0, 0);
+  helper.target.set(carryFood.position.x, 0, carryFood.position.z);
+  helper.velocity.setScalar(0);
+  helper.desiredVelocity.setScalar(0);
+  helper.action = 'assist-carry';
+  helper.targetFoodId = carryFood.id;
+  helper.assistingFoodId = carryFood.id;
+  helper.carryingFoodId = null;
+  helper.brainCooldown = 999;
+  helper.logicCooldown = 0;
+
+  return {
+    enemyNest,
+    carryFood,
+    carrier,
+    helper,
+    enemyProductionCooldowns: new Map(),
+    foodSystem,
+    antSystem,
+    levelDefinition: { scenarioRules },
+    economyRandom: createSeededRandom(economySeed),
+  };
+};
+
+const simulateLiveCarryDeliveryIntegration = ({
+  foodSeed,
+  economySeed,
+  spawnSeed,
+  decisionSeed,
+  effectSeed,
+  steps = 16,
+  dt = 1,
+  stored,
+  scenarioRules,
+} = {}) => {
+  const harness = createLiveCarryDeliveryHarness({
+    foodSeed,
+    economySeed,
+    spawnSeed,
+    decisionSeed,
+    effectSeed,
+    stored,
+    scenarioRules,
+  });
+  const timeline = [];
+  let previousAntCount = harness.antSystem.ants.length;
+  let deliveryStep = null;
+  let sawPickup = false;
+  let maxSupportCount = 0;
+
+  for (let step = 0; step < steps; step += 1) {
+    harness.foodSystem.update(dt);
+    runEnemyProductionStep({
+      dt,
+      foodSystem: harness.foodSystem,
+      antSystem: harness.antSystem,
+      enemyProductionCooldowns: harness.enemyProductionCooldowns,
+      levelDefinition: harness.levelDefinition,
+      random: harness.economyRandom,
+    });
+    harness.antSystem.update(dt);
+
+    if (harness.carryFood.carried) sawPickup = true;
+    maxSupportCount = Math.max(maxSupportCount, harness.carryFood.supportAntIds.length);
+    if (deliveryStep == null && harness.carryFood.delivered) deliveryStep = step;
+
+    if (harness.antSystem.ants.length > previousAntCount) {
+      const latestAnts = harness.antSystem.ants.slice(previousAntCount);
+      timeline.push({
+        step,
+        role: latestAnts[0]?.role ?? ANT_ROLE.worker,
+        count: latestAnts.length,
+        stored: round(harness.foodSystem.getNestStored(harness.enemyNest.id)),
+        nextCooldown: round(harness.enemyProductionCooldowns.get(harness.enemyNest.id) ?? 0),
+      });
+      previousAntCount = harness.antSystem.ants.length;
+    }
+  }
+
+  return {
+    timeline,
+    spawnedAnts: snapshotEnemySpawnedAnts(harness.antSystem, harness.enemyNest.id),
+    carrySummary: {
+      sawPickup,
+      maxSupportCount,
+      delivered: harness.carryFood.delivered,
+      deliveryStep,
+      carrierAction: harness.carrier.action,
+      helperAction: harness.helper.action,
+      storedFood: round(harness.foodSystem.getNestStored('player-1')),
+      regrowAt: round(harness.carryFood.regrowAt ?? 0),
+    },
+  };
+};
+
 describe('enemy economy seeded runtime paths', () => {
   test('replays enemy production timing from the same seeded enemy-economy stream', () => {
     const seed = deriveSeed('ant-battle-level-12', 'enemy-economy');
@@ -655,5 +822,88 @@ describe('enemy economy seeded runtime paths', () => {
     expect(baseline.timeline).toEqual(spawnVariant.timeline);
     expect(baseline.regrownFood).toEqual(spawnVariant.regrownFood);
     expect(baseline.spawnedAnts).not.toEqual(spawnVariant.spawnedAnts);
+  });
+
+  test('keeps live carry, assist-carry, and delivery interactions isolated from unrelated seeded runtime streams', () => {
+    const foodSeed = deriveSeed('ant-battle-level-12', 'food');
+    const economySeed = deriveSeed('ant-battle-level-12', 'enemy-economy');
+    const spawnSeed = deriveSeed('ant-battle-level-12', 'ants-spawn');
+    const decisionSeed = deriveSeed('ant-battle-level-12', 'ants-runtime');
+    const effectSeed = deriveSeed('ant-battle-level-12', 'ants-effects');
+
+    const baseline = simulateLiveCarryDeliveryIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const repeat = simulateLiveCarryDeliveryIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const foodVariant = simulateLiveCarryDeliveryIntegration({
+      foodSeed: deriveSeed('ant-battle-level-13', 'food'),
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const economyVariant = simulateLiveCarryDeliveryIntegration({
+      foodSeed,
+      economySeed: deriveSeed('ant-battle-level-13', 'enemy-economy'),
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const spawnVariant = simulateLiveCarryDeliveryIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed: deriveSeed('ant-battle-level-13', 'ants-spawn'),
+      decisionSeed,
+      effectSeed,
+    });
+    const runtimeVariant = simulateLiveCarryDeliveryIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed: deriveSeed('ant-battle-level-13', 'ants-runtime'),
+      effectSeed,
+    });
+    const effectsVariant = simulateLiveCarryDeliveryIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed: deriveSeed('ant-battle-level-13', 'ants-effects'),
+    });
+
+    expect(baseline).toEqual(repeat);
+    expect(baseline.carrySummary.sawPickup).toBe(true);
+    expect(baseline.carrySummary.maxSupportCount).toBeGreaterThanOrEqual(2);
+    expect(baseline.carrySummary.delivered).toBe(true);
+    expect(baseline.carrySummary.storedFood).toBeGreaterThanOrEqual(2);
+
+    expect(baseline.carrySummary.deliveryStep).toBe(foodVariant.carrySummary.deliveryStep);
+    expect(baseline.carrySummary.storedFood).toBe(foodVariant.carrySummary.storedFood);
+    expect(baseline.carrySummary.maxSupportCount).toBe(foodVariant.carrySummary.maxSupportCount);
+    expect(baseline.carrySummary.regrowAt).not.toBe(foodVariant.carrySummary.regrowAt);
+
+    expect(baseline.carrySummary).toEqual(economyVariant.carrySummary);
+    expect(baseline.timeline).not.toEqual(economyVariant.timeline);
+
+    expect(baseline.carrySummary).toEqual(spawnVariant.carrySummary);
+    expect(baseline.timeline).toEqual(spawnVariant.timeline);
+    expect(baseline.spawnedAnts).not.toEqual(spawnVariant.spawnedAnts);
+
+    expect(baseline.carrySummary).toEqual(runtimeVariant.carrySummary);
+    expect(baseline.timeline).toEqual(runtimeVariant.timeline);
+
+    expect(baseline.carrySummary).toEqual(effectsVariant.carrySummary);
+    expect(baseline.timeline).toEqual(effectsVariant.timeline);
+    expect(baseline.spawnedAnts).toEqual(effectsVariant.spawnedAnts);
   });
 });
