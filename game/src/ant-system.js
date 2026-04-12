@@ -868,6 +868,20 @@ export class AntSystem {
     return { nestId, total, workers, fighters };
   }
 
+  findAntHit(raycaster, { includePlayer = false } = {}) {
+    const hits = [];
+    for (let i = 0; i < this.ants.length; i += 1) {
+      const ant = this.ants[i];
+      const mesh = this.meshes[i];
+      if (!ant || ant.dead || !mesh?.visible) continue;
+      if (!includePlayer && ant.faction === ANT_FACTION.player) continue;
+      const intersections = raycaster.intersectObject(mesh, true);
+      if (intersections[0]) hits.push({ ant, distance: intersections[0].distance });
+    }
+    hits.sort((a, b) => a.distance - b.distance);
+    return hits[0]?.ant ?? null;
+  }
+
   spawnGroundSplat(position, colonyId, scale = 1) {
     const group = new THREE.Group();
     const splatCount = 2 + Math.floor(Math.random() * 3);

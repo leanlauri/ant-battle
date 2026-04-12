@@ -101,7 +101,7 @@ const renderUpgradeCards = (summary) => {
         <span>${option.label}</span>
         <span>${option.cost.toFixed(0)} food</span>
       </div>
-      <div class="upgradeCardCopy">${option.description}</div>
+      <div class="upgradeCardCopy">${option.description}${option.shortfall > 0 ? ` Need ${option.shortfall.toFixed(1)} more food.` : ''}</div>
     `;
     button.addEventListener('click', () => {
       gameplaySession.applyUpgrade(option.id);

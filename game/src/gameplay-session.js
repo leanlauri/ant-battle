@@ -5,7 +5,7 @@ import { AntSystem } from './ant-system.js';
 import { ENEMY_ECONOMY_CONFIG, FOOD_CONFIG, FoodSystem, UPGRADE_CONFIG } from './food-system.js';
 import { getLevelDefinition } from './level-definition.js';
 import { PheromoneSystem } from './pheromone-system.js';
-import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount, resetActiveTerrainProfile, setActiveTerrainProfile } from './terrain.js';
+import { TERRAIN_CONFIG, createTerrainMesh, createTerrainOverlay, getTriangleCount, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
 
 const BUILD_ID_FALLBACK = '9ae531b';
 const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : BUILD_ID_FALLBACK;
@@ -20,6 +20,7 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
   const remainingFood = antSystem.foods.filter((item) => !item.delivered).length;
   const heaviestFood = antSystem.foods.reduce((max, food) => Math.max(max, food.requiredCarriers), 1);
   const focusTarget = antSystem.foodSystem?.getFocusTarget?.();
+  const focusTargetMeta = antSystem.foodSystem?.getFocusTargetMeta?.();
   const selectedNestHealth = antSystem.foodSystem?.getSelectedNestHealth?.();
   const selectedNestLabel = antSystem.foodSystem?.getSelectedNestLabel?.() ?? 'Home Nest';
 
@@ -29,7 +30,7 @@ const formatHudSummary = ({ terrain, antSystem, buildInfo, levelDefinition }) =>
     antText: `Ants: ${antSummary.total} total, carrying ${antSummary.carrying}, classes W/F ${antSummary.workers}/${antSummary.fighters}, opening ${levelDefinition?.setup?.playerStartingCounts?.workers ?? 0}/${levelDefinition?.setup?.playerStartingCounts?.fighters ?? 0}, render ${antSummary.fullMesh}/${antSummary.impostor}.`,
     selectedNestText: `Selected nest: ${selectedNestLabel}${selectedNestHealth ? `, HP ${selectedNestHealth.hp}/${selectedNestHealth.maxHp}${selectedNestHealth.collapsed ? ' (collapsed)' : ''}` : ''}, stored ${(antSystem.foodSystem?.getSelectedNestStored?.() ?? 0).toFixed(1)}`,
     focusText: focusTarget
-      ? `Focus: x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
+      ? `Focus: ${focusTargetMeta?.label ?? 'terrain'} at x ${focusTarget.x.toFixed(1)}, z ${focusTarget.z.toFixed(1)}`
       : 'Focus: none',
     objectiveText: `Objective: ${levelDefinition?.objectiveText ?? 'Destroy hostile nests.'}`,
     battleText: `Battle: ${antSummary.enemyAntsDefeated} enemy down, ${antSummary.playerAntsLost} player lost, ${antSummary.enemyNestsDestroyed} enemy nests down, ${antSystem.foodSystem?.getActiveEnemyNestCount?.() ?? 0} enemy nests still active.`,
@@ -125,6 +126,15 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const publishHud = () => {
     if (!terrain || !antSystem) return;
     onHudUpdate?.(formatHudSummary({ terrain, antSystem, buildInfo, levelDefinition: currentLevelDefinition }));
+  };
+
+  const centerCameraOn = (position) => {
+    if (!camera || !controls || !position) return;
+    const nextTarget = new THREE.Vector3(position.x, position.y ?? sampleHeight(position.x, position.z), position.z);
+    const delta = nextTarget.clone().sub(controls.target);
+    controls.target.copy(nextTarget);
+    camera.position.add(delta);
+    controls.update();
   };
 
   const setDebugVisualsVisible = (visible) => {
@@ -308,7 +318,38 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const nestHit = foodSystem.findNestHit(raycaster);
         if (nestHit?.faction === 'player') {
           foodSystem.setSelectedNest(nestHit.id);
+          centerCameraOn(nestHit.position);
           onNestSelected?.(nestHit);
+          publishHud();
+          return;
+        }
+
+        const antHit = antSystem.findAntHit(raycaster);
+        if (antHit) {
+          const target = antHit.position.clone();
+          foodSystem.setFocusTarget(target, { type: 'enemy-ant', label: `${antHit.colonyId} ${antHit.role}` });
+          antSystem.setFocusTarget(target);
+          centerCameraOn(target);
+          onFocusAssigned?.(foodSystem.getFocusTarget());
+          publishHud();
+          return;
+        }
+
+        if (nestHit?.faction === 'enemy') {
+          foodSystem.setFocusTarget(nestHit.position, { type: 'enemy-nest', label: nestHit.label });
+          antSystem.setFocusTarget(nestHit.position);
+          centerCameraOn(nestHit.position);
+          onFocusAssigned?.(foodSystem.getFocusTarget());
+          publishHud();
+          return;
+        }
+
+        const foodHit = foodSystem.findFoodHit(raycaster);
+        if (foodHit) {
+          foodSystem.setFocusTarget(foodHit.position, { type: 'food', label: `food ${foodHit.id}` });
+          antSystem.setFocusTarget(foodHit.position);
+          centerCameraOn(foodHit.position);
+          onFocusAssigned?.(foodSystem.getFocusTarget());
           publishHud();
           return;
         }
@@ -316,8 +357,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const terrainHit = raycaster.intersectObject(terrain, true)[0];
         if (!terrainHit || !foodSystem.getSelectedNest()) return;
         const target = terrainHit.point;
-        foodSystem.setFocusTarget(target);
+        foodSystem.setFocusTarget(target, { type: 'terrain', label: 'terrain' });
         antSystem.setFocusTarget(target);
+        centerCameraOn(target);
         onFocusAssigned?.(foodSystem.getFocusTarget());
         publishHud();
       };

@@ -327,6 +327,7 @@ export class FoodSystem {
     this.nestMesh = this.playerNest.mesh;
     this.selectedNestId = this.playerNest.id;
     this.focusTarget = null;
+    this.focusTargetMeta = null;
     this.focusMarker = createFocusMarker();
     this.queueAssignments = new Map();
 
@@ -391,6 +392,10 @@ export class FoodSystem {
     const nest = this.getSelectedNest();
     if (!nest) return 0;
     return this.getNestStored(nest.id);
+  }
+
+  getUpgradeShortfall(nestId, cost) {
+    return Math.max(0, cost - this.getNestStored(nestId));
   }
 
   getNestUpgradeState(nestId) {
@@ -479,6 +484,7 @@ export class FoodSystem {
         cost: UPGRADE_CONFIG.repairNest.cost,
         affordable: needsRepair && stored >= UPGRADE_CONFIG.repairNest.cost,
         disabled: !needsRepair || stored < UPGRADE_CONFIG.repairNest.cost,
+        shortfall: needsRepair ? this.getUpgradeShortfall(nest.id, UPGRADE_CONFIG.repairNest.cost) : 0,
       },
       {
         id: UPGRADE_CONFIG.spawnWorkers.id,
@@ -487,6 +493,7 @@ export class FoodSystem {
         cost: workerBatch.cost,
         affordable: stored >= workerBatch.cost,
         disabled: stored < workerBatch.cost,
+        shortfall: this.getUpgradeShortfall(nest.id, workerBatch.cost),
       },
       {
         id: UPGRADE_CONFIG.spawnFighters.id,
@@ -495,6 +502,7 @@ export class FoodSystem {
         cost: fighterBatch.cost,
         affordable: stored >= fighterBatch.cost,
         disabled: stored < fighterBatch.cost,
+        shortfall: this.getUpgradeShortfall(nest.id, fighterBatch.cost),
       },
       {
         id: UPGRADE_CONFIG.broodChambers.id,
@@ -505,6 +513,7 @@ export class FoodSystem {
         cost: UPGRADE_CONFIG.broodChambers.cost,
         affordable: !nest.upgrades.broodChambers && stored >= UPGRADE_CONFIG.broodChambers.cost,
         disabled: nest.upgrades.broodChambers || stored < UPGRADE_CONFIG.broodChambers.cost,
+        shortfall: nest.upgrades.broodChambers ? 0 : this.getUpgradeShortfall(nest.id, UPGRADE_CONFIG.broodChambers.cost),
       },
       {
         id: UPGRADE_CONFIG.warNest.id,
@@ -515,6 +524,7 @@ export class FoodSystem {
         cost: UPGRADE_CONFIG.warNest.cost,
         affordable: !nest.upgrades.warNest && stored >= UPGRADE_CONFIG.warNest.cost,
         disabled: nest.upgrades.warNest || stored < UPGRADE_CONFIG.warNest.cost,
+        shortfall: nest.upgrades.warNest ? 0 : this.getUpgradeShortfall(nest.id, UPGRADE_CONFIG.warNest.cost),
       },
       {
         id: UPGRADE_CONFIG.fortifyNest.id,
@@ -525,6 +535,7 @@ export class FoodSystem {
         cost: UPGRADE_CONFIG.fortifyNest.cost,
         affordable: !nest.upgrades.fortifyNest && stored >= UPGRADE_CONFIG.fortifyNest.cost,
         disabled: nest.upgrades.fortifyNest || stored < UPGRADE_CONFIG.fortifyNest.cost,
+        shortfall: nest.upgrades.fortifyNest ? 0 : this.getUpgradeShortfall(nest.id, UPGRADE_CONFIG.fortifyNest.cost),
       },
     ];
   }
@@ -545,14 +556,19 @@ export class FoodSystem {
     }
   }
 
-  setFocusTarget(position) {
+  setFocusTarget(position, meta = null) {
     this.focusTarget = new THREE.Vector3(position.x, sampleHeight(position.x, position.z), position.z);
+    this.focusTargetMeta = meta ? { ...meta } : null;
     this.focusMarker.visible = true;
     this.focusMarker.position.set(this.focusTarget.x, this.focusTarget.y + 0.14, this.focusTarget.z);
   }
 
   getFocusTarget() {
     return this.focusTarget ? this.focusTarget.clone() : null;
+  }
+
+  getFocusTargetMeta() {
+    return this.focusTargetMeta ? { ...this.focusTargetMeta } : null;
   }
 
   findNestHit(raycaster) {
@@ -563,6 +579,18 @@ export class FoodSystem {
     }
     hits.sort((a, b) => a.distance - b.distance);
     return hits[0]?.nest ?? null;
+  }
+
+  findFoodHit(raycaster) {
+    const hits = [];
+    for (let i = 0; i < this.meshes.length; i += 1) {
+      const food = this.items[i];
+      if (!food || food.delivered) continue;
+      const intersections = raycaster.intersectObject(this.meshes[i], true);
+      if (intersections[0]) hits.push({ food, distance: intersections[0].distance });
+    }
+    hits.sort((a, b) => a.distance - b.distance);
+    return hits[0]?.food ?? null;
   }
 
   claimFood(foodId, antId, colonyId = null) {

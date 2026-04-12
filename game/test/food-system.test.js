@@ -138,8 +138,9 @@ describe('food system helpers', () => {
     expect(system.setSelectedNest('enemy-1')).toBe(false);
     expect(system.getSelectedNest()?.id).toBe('player-1');
 
-    system.setFocusTarget(new THREE.Vector3(12, 0, -8));
+    system.setFocusTarget(new THREE.Vector3(12, 0, -8), { type: 'terrain', label: 'terrain' });
     expect(system.getFocusTarget()?.x).toBeCloseTo(12);
+    expect(system.getFocusTargetMeta()?.label).toBe('terrain');
     expect(system.focusMarker.visible).toBe(true);
   });
 
@@ -169,5 +170,14 @@ describe('food system helpers', () => {
     expect(system.getSpawnBatchProfile('player-1', 'fighter').count).toBe(UPGRADE_CONFIG.spawnFighters.count + UPGRADE_CONFIG.warNest.extraFighters);
     expect(system.getNestById('player-1')?.maxHp).toBe(NEST_CONFIG.maxHp + UPGRADE_CONFIG.fortifyNest.extraMaxHp);
     expect(system.getUpgradeOptions('player-1').find((option) => option.id === UPGRADE_CONFIG.broodChambers.id)?.disabled).toBe(true);
+  });
+
+  test('reports food shortfall for unaffordable upgrades', () => {
+    const system = new FoodSystem({ scene: new Scene(), count: 0 });
+    system.nestStored = 5;
+
+    const workerCall = system.getUpgradeOptions('player-1').find((option) => option.id === UPGRADE_CONFIG.spawnWorkers.id);
+
+    expect(workerCall?.shortfall).toBe(UPGRADE_CONFIG.spawnWorkers.cost - 5);
   });
 });
