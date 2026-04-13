@@ -191,6 +191,11 @@ _None._
 
 ## Complete
 
+- [x] Add live-runtime deterministic coverage for target-arrival fallback reselection.
+  - Added a live-runtime harness that forces a player worker and fighter to complete their current movement targets during the normal gameplay update order, immediately exercising the logic-path `chooseNextAction` fallback that follows target arrival.
+  - Confirmed those arrival-driven reselections stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seeds change, while `ants-runtime` changes still diverge them as expected.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this target-arrival fallback coverage.
+
 - [x] Add live-runtime deterministic coverage for invalidated worker food-target and assist-carry fallback reselection.
   - Added a live-runtime harness that forces workers to lose a tracked food target and an assist-carry target during the normal gameplay update order, then snapshots their immediate seeded fallback choices.
   - Fixed both runtime fallback branches so they keep using the seeded `ants-runtime` stream instead of silently falling back to unseeded randomness.

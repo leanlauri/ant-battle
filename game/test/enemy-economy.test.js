@@ -756,6 +756,151 @@ const simulateLiveFallbackDecisionIntegration = ({
   };
 };
 
+const createLiveArrivalFallbackHarness = ({
+  foodSeed,
+  economySeed,
+  spawnSeed,
+  decisionSeed,
+  effectSeed,
+  stored = 80,
+  scenarioRules = { enemyProductionRateMultiplier: 1 },
+} = {}) => {
+  const scene = new THREE.Scene();
+  const foodSystem = new FoodSystem({ scene, count: 1, enemyNestCount: 1, random: createSeededRandom(foodSeed) });
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+  camera.position.set(0, 16, 18);
+  camera.lookAt(0, 0, 0);
+
+  const antSystem = new AntSystem({
+    scene,
+    camera,
+    foodSystem,
+    pheromoneSystem: {
+      update() {},
+      deposit() {},
+      sample() { return new THREE.Vector3(); },
+    },
+    foods: foodSystem.items,
+    nests: foodSystem.nests,
+    count: 12,
+    levelSetup: {
+      playerStartingCounts: { workers: 1, fighters: 1 },
+      enemyStartingPerNest: 0,
+      enemyWorkerRatio: 1,
+    },
+    setupRandom: createSeededRandom('live-arrival-fallback-setup'),
+    decisionRandom: createSeededRandom(decisionSeed),
+    effectRandom: createSeededRandom(effectSeed),
+    spawnRandom: createSeededRandom(spawnSeed),
+  });
+
+  const enemyNest = foodSystem.nests.find((nest) => nest.faction === 'enemy');
+  const playerNest = foodSystem.nests.find((nest) => nest.faction === 'player');
+  foodSystem.nestStoredById.set(enemyNest.id, stored);
+
+  const regrowthFood = foodSystem.items[0];
+  foodSystem.pickUpFood(regrowthFood.id, 611, COLONY.player);
+  foodSystem.dropFoodInNest(regrowthFood.id, 611, playerNest.id);
+
+  const playerWorker = antSystem.ants.find((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.worker);
+  const playerFighter = antSystem.ants.find((ant) => ant.faction === 'player' && ant.role === ANT_ROLE.fighter);
+
+  playerWorker.position.set(-11, playerWorker.position.y, -9);
+  playerWorker.heading.set(1, 0, 0);
+  playerWorker.target.set(playerWorker.position.x, 0, playerWorker.position.z);
+  playerWorker.velocity.setScalar(0);
+  playerWorker.desiredVelocity.setScalar(0);
+  playerWorker.action = 'wander';
+  playerWorker.brainCooldown = 999;
+  playerWorker.logicCooldown = 0;
+
+  playerFighter.position.set(7, playerFighter.position.y, 5);
+  playerFighter.heading.set(0, 0, 1);
+  playerFighter.target.set(playerFighter.position.x, 0, playerFighter.position.z);
+  playerFighter.velocity.setScalar(0);
+  playerFighter.desiredVelocity.setScalar(0);
+  playerFighter.action = 'patrol';
+  playerFighter.brainCooldown = 999;
+  playerFighter.logicCooldown = 0;
+
+  return {
+    enemyNest,
+    regrowthFood,
+    playerWorker,
+    playerFighter,
+    enemyProductionCooldowns: new Map(),
+    foodSystem,
+    antSystem,
+    levelDefinition: { scenarioRules },
+    economyRandom: createSeededRandom(economySeed),
+  };
+};
+
+const simulateLiveArrivalFallbackIntegration = ({
+  foodSeed,
+  economySeed,
+  spawnSeed,
+  decisionSeed,
+  effectSeed,
+  steps = 24,
+  dt = 1,
+  stored,
+  scenarioRules,
+} = {}) => {
+  const harness = createLiveArrivalFallbackHarness({
+    foodSeed,
+    economySeed,
+    spawnSeed,
+    decisionSeed,
+    effectSeed,
+    stored,
+    scenarioRules,
+  });
+  const timeline = [];
+  let previousAntCount = harness.antSystem.ants.length;
+  let arrivalSummary = null;
+
+  for (let step = 0; step < steps; step += 1) {
+    harness.foodSystem.update(dt);
+    runEnemyProductionStep({
+      dt,
+      foodSystem: harness.foodSystem,
+      antSystem: harness.antSystem,
+      enemyProductionCooldowns: harness.enemyProductionCooldowns,
+      levelDefinition: harness.levelDefinition,
+      random: harness.economyRandom,
+    });
+    harness.antSystem.update(dt);
+
+    if (arrivalSummary == null) {
+      arrivalSummary = {
+        playerWorker: snapshotDecisionAnt(harness.playerWorker),
+        playerFighter: snapshotDecisionAnt(harness.playerFighter),
+      };
+    }
+
+    if (harness.antSystem.ants.length > previousAntCount) {
+      const latestAnts = harness.antSystem.ants.slice(previousAntCount);
+      timeline.push({
+        step,
+        role: latestAnts[0]?.role ?? ANT_ROLE.worker,
+        count: latestAnts.length,
+        stored: round(harness.foodSystem.getNestStored(harness.enemyNest.id)),
+        nextCooldown: round(harness.enemyProductionCooldowns.get(harness.enemyNest.id) ?? 0),
+      });
+      previousAntCount = harness.antSystem.ants.length;
+    }
+  }
+
+  return {
+    arrivalSummary,
+    timeline,
+    spawnedAnts: snapshotEnemySpawnedAnts(harness.antSystem, harness.enemyNest.id),
+    regrownFood: simplifyFood(harness.regrowthFood),
+    effects: snapshotEffectState(harness.antSystem),
+  };
+};
+
 const createLiveInvalidatedWorkerFallbackHarness = ({
   foodSeed,
   economySeed,
@@ -1700,6 +1845,91 @@ describe('enemy economy seeded runtime paths', () => {
     expect(baseline.timeline).toEqual(effectsVariant.timeline);
     expect(baseline.spawnedAnts).toEqual(effectsVariant.spawnedAnts);
     expect(baseline.regrownFood).toEqual(effectsVariant.regrownFood);
+    expect(baseline.effects).toEqual(effectsVariant.effects);
+  });
+
+  test('keeps live target-arrival fallback reselection isolated from unrelated seeded runtime streams', () => {
+    const foodSeed = deriveSeed('ant-battle-level-12', 'food');
+    const economySeed = deriveSeed('ant-battle-level-12', 'enemy-economy');
+    const spawnSeed = deriveSeed('ant-battle-level-12', 'ants-spawn');
+    const decisionSeed = deriveSeed('ant-battle-level-12', 'ants-runtime');
+    const effectSeed = deriveSeed('ant-battle-level-12', 'ants-effects');
+
+    const baseline = simulateLiveArrivalFallbackIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const repeat = simulateLiveArrivalFallbackIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const runtimeVariant = simulateLiveArrivalFallbackIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed: deriveSeed('ant-battle-level-13', 'ants-runtime'),
+      effectSeed,
+    });
+    const foodVariant = simulateLiveArrivalFallbackIntegration({
+      foodSeed: deriveSeed('ant-battle-level-13', 'food'),
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const economyVariant = simulateLiveArrivalFallbackIntegration({
+      foodSeed,
+      economySeed: deriveSeed('ant-battle-level-13', 'enemy-economy'),
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const spawnVariant = simulateLiveArrivalFallbackIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed: deriveSeed('ant-battle-level-13', 'ants-spawn'),
+      decisionSeed,
+      effectSeed,
+    });
+    const effectsVariant = simulateLiveArrivalFallbackIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed: deriveSeed('ant-battle-level-13', 'ants-effects'),
+    });
+
+    expect(baseline).toEqual(repeat);
+
+    expect(baseline.arrivalSummary).not.toEqual(runtimeVariant.arrivalSummary);
+    expect(baseline.timeline).toEqual(runtimeVariant.timeline);
+    expect(baseline.regrownFood).toEqual(runtimeVariant.regrownFood);
+    expect(baseline.effects).toEqual(runtimeVariant.effects);
+
+    expect(baseline.arrivalSummary).toEqual(foodVariant.arrivalSummary);
+    expect(baseline.timeline).toEqual(foodVariant.timeline);
+    expect(baseline.spawnedAnts).toEqual(foodVariant.spawnedAnts);
+    expect(baseline.regrownFood).not.toEqual(foodVariant.regrownFood);
+
+    expect(baseline.arrivalSummary).toEqual(economyVariant.arrivalSummary);
+    expect(baseline.regrownFood).toEqual(economyVariant.regrownFood);
+    expect(baseline.timeline).not.toEqual(economyVariant.timeline);
+
+    expect(baseline.arrivalSummary).toEqual(spawnVariant.arrivalSummary);
+    expect(baseline.timeline).toEqual(spawnVariant.timeline);
+    expect(baseline.regrownFood).toEqual(spawnVariant.regrownFood);
+    expect(baseline.spawnedAnts).not.toEqual(spawnVariant.spawnedAnts);
+
+    expect(baseline.arrivalSummary).toEqual(effectsVariant.arrivalSummary);
+    expect(baseline.timeline).toEqual(effectsVariant.timeline);
+    expect(baseline.regrownFood).toEqual(effectsVariant.regrownFood);
+    expect(baseline.spawnedAnts).toEqual(effectsVariant.spawnedAnts);
     expect(baseline.effects).toEqual(effectsVariant.effects);
   });
 
