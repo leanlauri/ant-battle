@@ -1190,7 +1190,7 @@ export class AntSystem {
 
         if (ant.action === 'seek-food' && ant.targetFoodId != null) {
           const food = getFoodById(this.foods, ant.targetFoodId);
-          if (!food || food.delivered || food.carried) chooseNextAction(ant);
+          if (!food || food.delivered || food.carried) chooseNextAction(ant, ant.random ?? this.decisionRandom);
         }
 
         if (ant.action !== 'attack' && ant.action !== 'attack-nest') updateActionVelocity(ant, this.foodSystem, this.foods);
@@ -1213,7 +1213,7 @@ export class AntSystem {
         if (ant.action === 'assist-carry' && ant.assistingFoodId != null) {
           const food = getFoodById(this.foods, ant.assistingFoodId);
           if (!food || !food.carried || food.delivered) {
-            chooseNextAction(ant);
+            chooseNextAction(ant, ant.random ?? this.decisionRandom);
           } else if (ant.position.distanceTo(food.position) <= ANT_CONFIG.assistCarryDistance * 1.15) {
             this.foodSystem.joinCarry(food.id, ant.id, ant.colonyId);
           } else {

@@ -41,11 +41,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
   - Keep follow-up slices narrow and focused on one live simulation interaction at a time.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
-- [ ] Add live-runtime deterministic coverage for worker idle-versus-wander fallback and fighter patrol fallback decisions.
-  - Exercise the unfocused fallback brain paths under the normal gameplay update order.
-  - Confirm those fallback decisions stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seeds change, while `ants-runtime` changes still diverge them.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
   - Expand per-level generated fields beyond enemy nest count, budget, and atmosphere.
   - Add explicit map size tiers, terrain complexity ramps, and food distribution settings.
@@ -195,6 +190,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add live-runtime deterministic coverage for invalidated worker food-target and assist-carry fallback reselection.
+  - Added a live-runtime harness that forces workers to lose a tracked food target and an assist-carry target during the normal gameplay update order, then snapshots their immediate seeded fallback choices.
+  - Fixed both runtime fallback branches so they keep using the seeded `ants-runtime` stream instead of silently falling back to unseeded randomness.
+  - Confirmed those fallback outcomes stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seeds change, while `ants-runtime` changes still diverge them.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this invalidated-target worker coverage.
 
 - [x] Add live-runtime deterministic coverage for worker idle-versus-wander fallback and fighter patrol fallback decisions.
   - Added a live-runtime harness that runs the normal gameplay update order while an unfocused player worker resolves its idle-versus-wander fallback and an unfocused player fighter resolves its patrol fallback.
