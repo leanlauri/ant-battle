@@ -39,6 +39,7 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 - [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the currently covered live simulation interactions.
   - Keep follow-up slices narrow and focused on one live simulation interaction at a time.
+  - Remaining thin slices should target specific uncovered live decision branches, not broad audit-only passes.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
@@ -207,6 +208,10 @@ _None._
   - Confirmed those background brain-path outcomes stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seeds change, while `ants-runtime` changes still diverge them as expected.
   - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this fallback-decision coverage.
 
+- [x] Add live-runtime deterministic coverage for enemy fighter patrol fallback when no hostile nest remains.
+  - Added a live-runtime harness that collapses the only hostile nest before the normal gameplay update order runs, forcing an enemy fighter onto its no-target patrol fallback while food regrowth and enemy production still tick.
+  - Confirmed that fallback patrol outcome stays stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seeds change, while `ants-runtime` changes still diverge it as expected.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this enemy-fighter patrol-fallback coverage.
 
 - [x] Add live-runtime deterministic coverage for siege-driven nest collapse and migration aftermath.
   - Added a live-runtime harness that drives a real fighter siege into enemy nest collapse while food regrowth and enemy production still run in the normal gameplay update order.
