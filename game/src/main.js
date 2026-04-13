@@ -106,7 +106,7 @@ const app = {
   upgradeFeedback: null,
   debugVisualsEnabled: false,
   debugMenuVisible: false,
-  cameraMode: CAMERA_MODE.orbit,
+  cameraMode: CAMERA_MODE.battlefield,
 };
 
 const UPGRADE_ICON = {

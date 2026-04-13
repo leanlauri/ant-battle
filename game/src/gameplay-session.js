@@ -28,10 +28,12 @@ const BATTLEFIELD_NEAR_PLANE = 0.05;
 const BATTLEFIELD_FAR_PLANE = 320;
 const BATTLEFIELD_MIN_ZOOM = 0.85;
 const BATTLEFIELD_MAX_ZOOM = 5.2;
-const BATTLEFIELD_EDGE_PADDING = 4;
-const BATTLEFIELD_EDGE_PADDING_AT_MAX_ZOOM = 9;
-const PERSPECTIVE_FOG_NEAR = 39;
+const BATTLEFIELD_EDGE_PADDING = -60;
+const BATTLEFIELD_EDGE_PADDING_AT_MAX_ZOOM = -10;
+const PERSPECTIVE_FOG_NEAR = 50;
 const PERSPECTIVE_FOG_FAR = 104;
+const PERSPECTIVE_FOG_NEAR_ORTHO = 70;
+const PERSPECTIVE_FOG_FAR_ORTHO = 110;
 
 const updateOrthographicFrustum = (orthographicCamera) => {
   if (!orthographicCamera) return;
@@ -134,9 +136,8 @@ const syncSceneFog = (sceneRef, activeCamera) => {
   const fog = sceneRef?.fog;
   if (!fog || !activeCamera) return;
   if (activeCamera.isOrthographicCamera) {
-    const zoom = Math.max(0.001, activeCamera.zoom || 1);
-    fog.near = Math.max(6, PERSPECTIVE_FOG_NEAR / zoom);
-    fog.far = Math.max(fog.near + 12, PERSPECTIVE_FOG_FAR / zoom);
+    fog.near = PERSPECTIVE_FOG_NEAR_ORTHO;
+    fog.far = PERSPECTIVE_FOG_FAR_ORTHO;
     return;
   }
   fog.near = PERSPECTIVE_FOG_NEAR;
@@ -225,7 +226,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let clock = null;
   let debugVisualsVisible = false;
   let battleResolved = false;
-  let cameraMode = CAMERA_MODE.orbit;
+  let cameraMode = CAMERA_MODE.battlefield;
   let multiTouchGesture = false;
   const activePointerIds = new Set();
   const buildInfo = createBuildInfo();
@@ -534,8 +535,10 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       orbitCamera.lookAt(0, 0, 0);
 
       battlefieldCamera = new THREE.OrthographicCamera();
+      battlefieldCamera.position.copy(DEFAULT_CAMERA_POSITION);
       battlefieldCamera.up.set(0, 1, 0);
-      battlefieldCamera.zoom = 1.2;
+      battlefieldCamera.zoom = 1.8;
+
       updateOrthographicFrustum(battlefieldCamera);
       syncBattlefieldCameraToTarget(DEFAULT_CAMERA_TARGET);
 
