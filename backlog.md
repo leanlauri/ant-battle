@@ -193,6 +193,11 @@ _None._
 
 ## Complete
 
+- [x] Add live-runtime deterministic coverage for the enemy fighter pressure-roll fallback branch when a hostile nest still exists.
+  - Added a live-runtime harness that keeps a hostile player nest available while placing an enemy fighter inside pressure radius, then snapshots the first seeded patrol-versus-pressure decision during the normal gameplay update order.
+  - Confirmed that this near-hostile pressure fallback stays isolated from `food`, `enemy-economy`, `ants-spawn`, and `ants-effects`, while `ants-runtime` changes still flip the branch between patrol and direct pressure.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this near-hostile enemy-pressure fallback coverage.
+
 - [x] Add live-runtime deterministic coverage for target-arrival fallback reselection.
   - Added a live-runtime harness that forces a player worker and fighter to complete their current movement targets during the normal gameplay update order, immediately exercising the logic-path `chooseNextAction` fallback that follows target arrival.
   - Confirmed those arrival-driven reselections stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` seeds change, while `ants-runtime` changes still diverge them as expected.
