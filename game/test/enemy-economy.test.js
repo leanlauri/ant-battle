@@ -1455,6 +1455,162 @@ const simulateLiveSpawnedFallbackIntegration = ({
   };
 };
 
+const createLiveSpawnedFocusPressureHarness = ({
+  foodSeed,
+  economySeed,
+  spawnSeed,
+  decisionSeed,
+  effectSeed,
+  stored = 80,
+  scenarioRules = { enemyProductionRateMultiplier: 1 },
+} = {}) => {
+  const scene = new THREE.Scene();
+  const foodSystem = new FoodSystem({ scene, count: 1, enemyNestCount: 1, random: createSeededRandom(foodSeed) });
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+  camera.position.set(0, 16, 18);
+  camera.lookAt(0, 0, 0);
+
+  const antSystem = new AntSystem({
+    scene,
+    camera,
+    foodSystem,
+    pheromoneSystem: {
+      update() {},
+      deposit() {},
+      sample() { return new THREE.Vector3(); },
+    },
+    foods: foodSystem.items,
+    nests: foodSystem.nests,
+    count: 0,
+    levelSetup: {
+      playerStartingCounts: { workers: 0, fighters: 0 },
+      enemyStartingPerNest: 0,
+      enemyWorkerRatio: 1,
+    },
+    setupRandom: createSeededRandom('live-spawned-focus-pressure-setup'),
+    decisionSeed,
+    decisionRandom: createSeededRandom(decisionSeed),
+    effectRandom: createSeededRandom(effectSeed),
+    spawnRandom: createSeededRandom(spawnSeed),
+  });
+
+  const enemyNest = foodSystem.nests.find((nest) => nest.faction === 'enemy');
+  const playerNest = foodSystem.nests.find((nest) => nest.faction === 'player');
+  foodSystem.nestStoredById.set(enemyNest.id, stored);
+
+  const regrowthFood = foodSystem.items[0];
+  foodSystem.pickUpFood(regrowthFood.id, 711, COLONY.player);
+  foodSystem.dropFoodInNest(regrowthFood.id, 711, playerNest.id);
+
+  antSystem.spawnAntBatch({ nestId: playerNest.id, role: ANT_ROLE.worker, count: 1 });
+  antSystem.spawnAntBatch({ nestId: enemyNest.id, role: ANT_ROLE.fighter, count: 2 });
+
+  const spawnedPlayerWorker = antSystem.ants.find((ant) => ant.homeNestId === playerNest.id && ant.role === ANT_ROLE.worker);
+  const spawnedEnemyFighters = antSystem.ants.filter((ant) => ant.homeNestId === enemyNest.id && ant.role === ANT_ROLE.fighter);
+  const spawnedEnemyPressureFighter = spawnedEnemyFighters[0];
+
+  spawnedPlayerWorker.position.set(-22, spawnedPlayerWorker.position.y, -20);
+  spawnedPlayerWorker.heading.set(1, 0, 0);
+  spawnedPlayerWorker.target.set(spawnedPlayerWorker.position.x, 0, spawnedPlayerWorker.position.z);
+  spawnedPlayerWorker.velocity.setScalar(0);
+  spawnedPlayerWorker.desiredVelocity.setScalar(0);
+  spawnedPlayerWorker.brainCooldown = 0;
+  spawnedPlayerWorker.logicCooldown = 999;
+
+  spawnedEnemyPressureFighter.position.set(9.5, spawnedEnemyPressureFighter.position.y, 0.8);
+  spawnedEnemyPressureFighter.heading.set(-1, 0, 0);
+  spawnedEnemyPressureFighter.target.set(spawnedEnemyPressureFighter.position.x, 0, spawnedEnemyPressureFighter.position.z);
+  spawnedEnemyPressureFighter.velocity.setScalar(0);
+  spawnedEnemyPressureFighter.desiredVelocity.setScalar(0);
+  spawnedEnemyPressureFighter.brainCooldown = 0;
+  spawnedEnemyPressureFighter.logicCooldown = 999;
+
+  for (const fillerAnt of spawnedEnemyFighters.slice(1)) {
+    fillerAnt.brainCooldown = 999;
+    fillerAnt.logicCooldown = 999;
+    fillerAnt.velocity.setScalar(0);
+    fillerAnt.desiredVelocity.setScalar(0);
+    fillerAnt.target.set(fillerAnt.position.x, 0, fillerAnt.position.z);
+  }
+
+  antSystem.setFocusTarget(new THREE.Vector3(26, 0, 24));
+
+  return {
+    enemyNest,
+    regrowthFood,
+    spawnedPlayerWorker,
+    spawnedEnemyPressureFighter,
+    enemyProductionCooldowns: new Map(),
+    foodSystem,
+    antSystem,
+    levelDefinition: { scenarioRules },
+    economyRandom: createSeededRandom(economySeed),
+  };
+};
+
+const simulateLiveSpawnedFocusPressureIntegration = ({
+  foodSeed,
+  economySeed,
+  spawnSeed,
+  decisionSeed,
+  effectSeed,
+  steps = 24,
+  dt = 1,
+  stored,
+  scenarioRules,
+} = {}) => {
+  const harness = createLiveSpawnedFocusPressureHarness({
+    foodSeed,
+    economySeed,
+    spawnSeed,
+    decisionSeed,
+    effectSeed,
+    stored,
+    scenarioRules,
+  });
+  const timeline = [];
+  let previousAntCount = harness.antSystem.ants.length;
+  let spawnedFocusSummary = null;
+  let spawnedPressureSummary = null;
+
+  for (let step = 0; step < steps; step += 1) {
+    harness.foodSystem.update(dt);
+    runEnemyProductionStep({
+      dt,
+      foodSystem: harness.foodSystem,
+      antSystem: harness.antSystem,
+      enemyProductionCooldowns: harness.enemyProductionCooldowns,
+      levelDefinition: harness.levelDefinition,
+      random: harness.economyRandom,
+    });
+    harness.antSystem.update(dt);
+
+    spawnedFocusSummary ??= snapshotDecisionAnt(harness.spawnedPlayerWorker);
+    spawnedPressureSummary ??= snapshotDecisionAnt(harness.spawnedEnemyPressureFighter);
+
+    if (harness.antSystem.ants.length > previousAntCount) {
+      const latestAnts = harness.antSystem.ants.slice(previousAntCount);
+      timeline.push({
+        step,
+        role: latestAnts[0]?.role ?? ANT_ROLE.worker,
+        count: latestAnts.length,
+        stored: round(harness.foodSystem.getNestStored(harness.enemyNest.id)),
+        nextCooldown: round(harness.enemyProductionCooldowns.get(harness.enemyNest.id) ?? 0),
+      });
+      previousAntCount = harness.antSystem.ants.length;
+    }
+  }
+
+  return {
+    timeline,
+    spawnedAnts: snapshotEnemySpawnedAnts(harness.antSystem, harness.enemyNest.id),
+    regrownFood: simplifyFood(harness.regrowthFood),
+    spawnedFocusSummary,
+    spawnedPressureSummary,
+    effects: snapshotEffectState(harness.antSystem),
+  };
+};
+
 const createLiveCarryDeliveryHarness = ({
   foodSeed,
   economySeed,
@@ -2677,6 +2833,95 @@ describe('enemy economy seeded runtime paths', () => {
     expect(baseline.timeline).toEqual(effectsVariant.timeline);
     expect(baseline.regrownFood).toEqual(effectsVariant.regrownFood);
     expect(baseline.spawnedAnts).toEqual(effectsVariant.spawnedAnts);
+    expect(baseline.effects).toEqual(effectsVariant.effects);
+  });
+
+  test('keeps spawned worker focus-target routing and spawned enemy fighter pressure decisions isolated from unrelated seeded runtime streams', () => {
+    const foodSeed = deriveSeed('ant-battle-level-12', 'food');
+    const economySeed = deriveSeed('ant-battle-level-12', 'enemy-economy');
+    const spawnSeed = deriveSeed('ant-battle-level-12', 'ants-spawn');
+    const decisionSeed = deriveSeed('ant-battle-level-12', 'ants-runtime');
+    const effectSeed = deriveSeed('ant-battle-level-12', 'ants-effects');
+
+    const baseline = simulateLiveSpawnedFocusPressureIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const repeat = simulateLiveSpawnedFocusPressureIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const runtimeVariant = simulateLiveSpawnedFocusPressureIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed: deriveSeed('ant-battle-level-13', 'ants-runtime'),
+      effectSeed,
+    });
+    const foodVariant = simulateLiveSpawnedFocusPressureIntegration({
+      foodSeed: deriveSeed('ant-battle-level-13', 'food'),
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const economyVariant = simulateLiveSpawnedFocusPressureIntegration({
+      foodSeed,
+      economySeed: deriveSeed('ant-battle-level-13', 'enemy-economy'),
+      spawnSeed,
+      decisionSeed,
+      effectSeed,
+    });
+    const spawnVariant = simulateLiveSpawnedFocusPressureIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed: deriveSeed('ant-battle-level-13', 'ants-spawn'),
+      decisionSeed,
+      effectSeed,
+    });
+    const effectsVariant = simulateLiveSpawnedFocusPressureIntegration({
+      foodSeed,
+      economySeed,
+      spawnSeed,
+      decisionSeed,
+      effectSeed: deriveSeed('ant-battle-level-13', 'ants-effects'),
+    });
+
+    expect(baseline).toEqual(repeat);
+    expect(baseline.spawnedFocusSummary).not.toEqual(runtimeVariant.spawnedFocusSummary);
+    expect(baseline.spawnedPressureSummary).not.toEqual(runtimeVariant.spawnedPressureSummary);
+    expect(baseline.timeline).toEqual(runtimeVariant.timeline);
+    expect(baseline.regrownFood).toEqual(runtimeVariant.regrownFood);
+    expect(baseline.effects).toEqual(runtimeVariant.effects);
+
+    expect(baseline.spawnedFocusSummary).toEqual(foodVariant.spawnedFocusSummary);
+    expect(baseline.spawnedPressureSummary).toEqual(foodVariant.spawnedPressureSummary);
+    expect(baseline.timeline).toEqual(foodVariant.timeline);
+    expect(baseline.spawnedAnts).toEqual(foodVariant.spawnedAnts);
+    expect(baseline.regrownFood).not.toEqual(foodVariant.regrownFood);
+
+    expect(baseline.spawnedFocusSummary).toEqual(economyVariant.spawnedFocusSummary);
+    expect(baseline.spawnedPressureSummary).toEqual(economyVariant.spawnedPressureSummary);
+    expect(baseline.regrownFood).toEqual(economyVariant.regrownFood);
+    expect(baseline.timeline).not.toEqual(economyVariant.timeline);
+
+    expect(baseline.spawnedFocusSummary).toEqual(spawnVariant.spawnedFocusSummary);
+    expect(baseline.spawnedPressureSummary).toEqual(spawnVariant.spawnedPressureSummary);
+    expect(baseline.timeline).toEqual(spawnVariant.timeline);
+    expect(baseline.regrownFood).toEqual(spawnVariant.regrownFood);
+    expect(baseline.spawnedAnts).not.toEqual(spawnVariant.spawnedAnts);
+
+    expect(baseline.spawnedFocusSummary).toEqual(effectsVariant.spawnedFocusSummary);
+    expect(baseline.spawnedPressureSummary).toEqual(effectsVariant.spawnedPressureSummary);
+    expect(baseline.timeline).toEqual(effectsVariant.timeline);
+    expect(baseline.spawnedAnts).toEqual(effectsVariant.spawnedAnts);
+    expect(baseline.regrownFood).toEqual(effectsVariant.regrownFood);
     expect(baseline.effects).toEqual(effectsVariant.effects);
   });
 

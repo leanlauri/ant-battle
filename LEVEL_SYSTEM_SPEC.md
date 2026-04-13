@@ -88,6 +88,7 @@ Implementation note:
 - keep live-runtime coverage around invalidated worker food-target and assist-carry fallback reselection so workers that lose tracked food during the normal gameplay update order still consume only the `ants-runtime` stream when they pick a new idle-or-wander outcome
 - keep live-runtime coverage around siege-driven nest collapse, dead-ant fallout, and immediate colony reassignment so collapse aftermath stays structurally stable when unrelated `food`, `enemy-economy`, `ants-spawn`, or `ants-runtime` seeds change, while collapse-side presentation remains isolated on `ants-effects`
 - keep spawned reinforcement placement and spawn-time variation on `ants-spawn`, but derive each spawned ant's later fallback decisions from per-ant `ants-runtime` substreams so post-spawn live behavior does not drift when only spawn placement changes
+- keep live-runtime coverage around spawned worker focus-target routing and spawned enemy fighter near-hostile pressure decisions so post-spawn branch choices stay isolated on `ants-runtime` while reinforcement placement remains isolated on `ants-spawn`
 
 ---
 

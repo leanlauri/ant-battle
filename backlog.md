@@ -193,6 +193,13 @@ _None._
 
 ## Complete
 
+- [x] Add live-runtime deterministic coverage for spawned worker focus-target routing and spawned enemy fighter pressure decisions.
+  - Thin slice under the broader replay-sensitive runtime sweep.
+  - Added a live-runtime harness that manually spawns a player worker reinforcement and enemy fighter reinforcements, then snapshots their first post-spawn focus-target and near-hostile pressure decisions during the normal gameplay update order.
+  - Confirmed those spawned branch choices stay stable when only `food`, `enemy-economy`, `ants-spawn`, or `ants-effects` seeds change, while `ants-runtime` changes still diverge them.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this post-spawn focus/pressure coverage.
+
+
 - [x] Add live-runtime deterministic coverage for the enemy fighter pressure-roll fallback branch when a hostile nest still exists.
   - Added a live-runtime harness that keeps a hostile player nest available while placing an enemy fighter inside pressure radius, then snapshots the first seeded patrol-versus-pressure decision during the normal gameplay update order.
   - Confirmed that this near-hostile pressure fallback stays isolated from `food`, `enemy-economy`, `ants-spawn`, and `ants-effects`, while `ants-runtime` changes still flip the branch between patrol and direct pressure.
