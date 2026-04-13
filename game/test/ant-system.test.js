@@ -38,6 +38,7 @@ const createSeededAntSystem = ({
     },
     setupRandom: createSeededRandom(setupSeed),
     spawnRandom: createSeededRandom(spawnSeed),
+    decisionSeed,
     decisionRandom: createSeededRandom(decisionSeed),
     effectRandom: createSeededRandom(effectSeed),
   });

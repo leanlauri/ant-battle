@@ -595,6 +595,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         objective: currentLevelDefinition.objective,
         setupRandom: antSetupRandom,
         spawnRandom: antSpawnRandom,
+        decisionSeed: deriveSeed(currentLevelDefinition.seed, 'ants-runtime'),
         decisionRandom: antDecisionRandom,
         effectRandom: antEffectRandom,
       });

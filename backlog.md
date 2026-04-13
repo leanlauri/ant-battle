@@ -40,6 +40,7 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 - [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the currently covered live simulation interactions.
   - Keep follow-up slices narrow and focused on one live simulation interaction at a time.
   - Remaining thin slices should target specific uncovered live decision branches, not broad audit-only passes.
+  - Remaining gaps should prioritize post-spawn runtime behavior, so reinforcement placement stays on `ants-spawn` while later live decisions stay on `ants-runtime`.
   - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Replace coarse level bands with a richer deterministic level-definition model.
@@ -217,6 +218,12 @@ _None._
   - Added a live-runtime harness that drives a real fighter siege into enemy nest collapse while food regrowth and enemy production still run in the normal gameplay update order.
   - Confirmed the killed subset, fallback colony reassignment, and collapse outcome stats stay stable when unrelated `food`, `enemy-economy`, `ants-spawn`, and `ants-runtime` seeds change, while collapse-side presentation still diverges only on `ants-effects`.
   - Updated `LEVEL_SYSTEM_SPEC.md`, `COMBAT_AND_NEST_SPEC.md`, and `IMPLEMENTATION_ROADMAP.md` so the replay model now explicitly includes this collapse-and-migration coverage.
+
+- [x] Keep spawned reinforcement ants on `ants-runtime` for their first live fallback decisions.
+  - Thin slice under the broader replay-sensitive runtime sweep.
+  - Fixed spawned reinforcements so `ants-spawn` still owns placement and spawn-time variation, but later live fallback decisions come from per-ant `ants-runtime` substreams instead of continuing to consume spawn-placement randomness.
+  - Added deterministic live-runtime coverage that proves spawned-ant fallback decisions diverge with `ants-runtime` changes and stay stable when only `ants-spawn` changes.
+  - Updated `LEVEL_SYSTEM_SPEC.md` and `IMPLEMENTATION_ROADMAP.md` to document the post-spawn runtime split.
 
 - [x] Add live-runtime deterministic coverage for player focus-target routing and enemy fighter pressure decisions.
   - Added a live-runtime harness that exercises real player focus-target influence plus seeded enemy fighter pressure-versus-patrol choice under the normal gameplay update order while food regrowth and enemy production also run.

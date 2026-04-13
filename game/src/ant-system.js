@@ -3,7 +3,7 @@ import { COLONY, FOOD_CONFIG, NEST_CONFIG, findNearestCarryAssistFood, findNeare
 import { createEnemyRolePicker, normalizeLevelSetup } from './level-setup.js';
 import { PHEROMONE_CONFIG } from './pheromone-system.js';
 import { resolveObjectiveOutcome } from './objective-rules.js';
-import { createRandomRange, DEFAULT_RANDOM_SOURCE } from './seeded-random.js';
+import { createRandomRange, createSeededRandom, deriveSeed, DEFAULT_RANDOM_SOURCE } from './seeded-random.js';
 import { TERRAIN_CONFIG, sampleHeight } from './terrain.js';
 
 export const ANT_CONFIG = Object.freeze({
@@ -779,6 +779,7 @@ export class AntSystem {
     objective = null,
     random = DEFAULT_RANDOM_SOURCE,
     setupRandom = random,
+    decisionSeed = null,
     decisionRandom = random,
     effectRandom = random,
     spawnRandom = decisionRandom,
@@ -792,13 +793,17 @@ export class AntSystem {
     this.nestLookup = new Map(nests.map((nest) => [nest.id, nest]));
     this.random = random;
     this.setupRandom = setupRandom;
+    this.decisionSeed = decisionSeed;
     this.decisionRandom = decisionRandom;
     this.effectRandom = effectRandom;
     this.spawnRandom = spawnRandom;
     this.randomRange = randomRangeWith(this.decisionRandom);
     this.spawnRandomRange = randomRangeWith(this.spawnRandom);
+    this.createAntDecisionRandom = decisionSeed == null
+      ? () => this.decisionRandom
+      : (antId) => createSeededRandom(deriveSeed(decisionSeed, `ant-${antId}`));
     this.ants = createRandomAntStates(count, nests, levelSetup, this.setupRandom);
-    for (const ant of this.ants) ant.random = this.decisionRandom;
+    for (const ant of this.ants) ant.random = this.createAntDecisionRandom(ant.id);
     this.nextAntId = this.ants.reduce((max, ant) => Math.max(max, ant.id), -1) + 1;
     this.maxRenderAnts = Math.max(count, 320);
     this.meshes = [];
@@ -881,6 +886,7 @@ export class AntSystem {
         homeNestId: nest.id,
         role,
       }, this.spawnRandom);
+      ant.random = this.createAntDecisionRandom(ant.id);
       this.nextAntId += 1;
       this.ants.push(ant);
 
