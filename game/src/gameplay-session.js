@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { AntSystem } from './ant-system.js';
 import { FoodSystem, UPGRADE_CONFIG } from './food-system.js';
 import { runEnemyProductionStep } from './enemy-economy.js';
+import { EnvironmentalPropsSystem } from './environment-props.js';
 import { getLevelDefinition } from './level-definition.js';
 import { getObjectiveStatus } from './objective-rules.js';
 import { PheromoneSystem } from './pheromone-system.js';
@@ -216,6 +217,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let pheromoneSystem = null;
   let antSystem = null;
   let debugVisualsGroup = null;
+  let environmentProps = null;
   let resizeHandler = null;
   let pointerDown = null;
   let pointerDownHandler = null;
@@ -469,6 +471,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     foodSystem = null;
     pheromoneSystem = null;
     antSystem = null;
+    environmentProps?.dispose?.();
+    environmentProps = null;
     debugVisualsGroup = null;
     clock = null;
     battleResolved = false;
@@ -488,6 +492,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     accumulator += dt;
     controls.update();
     enforceBattlefieldCameraConstraints();
+    environmentProps?.update(camera, dt);
     syncSceneFog(scene, camera);
 
     let substeps = 0;
@@ -593,6 +598,12 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         nestOverrides: currentLevelDefinition.nestOverrides,
         random: foodRandom,
       });
+      environmentProps = new EnvironmentalPropsSystem({
+        scene,
+        seed: currentLevelDefinition.seed,
+        terrainProfile: getActiveTerrainProfile(),
+        nests: foodSystem.nests,
+      });
       pheromoneSystem = new PheromoneSystem();
       antSystem = new AntSystem({
         scene,
@@ -611,6 +622,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         effectRandom: antEffectRandom,
       });
       setDebugVisualsVisible(debugVisualsVisible);
+      environmentProps.update(camera, 0, true);
       publishHud();
 
       resizeHandler = () => {

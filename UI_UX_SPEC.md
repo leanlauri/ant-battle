@@ -281,6 +281,7 @@ If single-finger drag is added later, it must be carefully separated from tap ge
 - selected nest should use both color and shape/outline
 - completed/open/locked level states should differ by iconography and opacity, not just hue
 - terrain form should read clearly at gameplay zoom through lighting/shadow cues plus subtle slope/height shading, without overpowering target markers
+- decorative props (rocks/plants) should enrich atmosphere but stay out of nest-command and core combat readability zones
 
 ---
 

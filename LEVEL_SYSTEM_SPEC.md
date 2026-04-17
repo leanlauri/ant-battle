@@ -59,6 +59,7 @@ Each level should map to a deterministic seed.
 
 The seed controls at least:
 - terrain shape
+- environmental prop scatter (rocks/plants)
 - water placement
 - faction placement
 - food placement
@@ -89,6 +90,7 @@ Implementation note:
 - keep live-runtime coverage around siege-driven nest collapse, dead-ant fallout, and immediate colony reassignment so collapse aftermath stays structurally stable when unrelated `food`, `enemy-economy`, `ants-spawn`, or `ants-runtime` seeds change, while collapse-side presentation remains isolated on `ants-effects`
 - keep spawned reinforcement placement and spawn-time variation on `ants-spawn`, but derive each spawned ant's later fallback decisions from per-ant `ants-runtime` substreams so post-spawn live behavior does not drift when only spawn placement changes
 - keep live-runtime coverage around spawned worker focus-target routing and spawned enemy fighter near-hostile pressure decisions so post-spawn branch choices stay isolated on `ants-runtime` while reinforcement placement remains isolated on `ants-spawn`
+- keep deterministic placement for landscape props on a dedicated `terrain-props` stream so decorative changes stay replay-stable and isolated from simulation-critical streams
 
 ---
 
@@ -136,6 +138,7 @@ Focus:
 Level generation should scale these dimensions over progression:
 - map footprint
 - terrain relief complexity
+- environmental dressing density and feature variety
 - choke point frequency
 - water frequency
 - number of key resource regions

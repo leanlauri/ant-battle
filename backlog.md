@@ -35,14 +35,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Priority items
 
-- [ ] Deterministic environmental prop scatter v1 (rocks + low plants), gameplay-safe and performance-safe.
-  - Add seeded scatter generation for a small stylized set of rocks/tufts/shrubs so maps feel richer without clutter.
-  - Enforce placement masks (avoid nest rings, key interaction zones, and readability-critical combat space).
-  - Use instancing + distance culling/LOD-friendly limits to preserve mobile performance.
-  - Touchpoints: `game/src/terrain.js`, `game/src/gameplay-session.js` (scene wiring), optional new prop helper module under `game/src/`.
-  - Testing: deterministic seed coverage for prop placement; no-overlap safety checks for protected gameplay zones.
-  - Docs: `LEVEL_SYSTEM_SPEC.md`, `UI_UX_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
 - [ ] Atmosphere polish pass: fog/depth layering + palette balance with readability guardrails.
   - Add subtle distance fog/aerial perspective to improve depth separation on larger maps.
   - Extend time-of-day palette response so terrain/features stay readable while looking more alive.
@@ -198,6 +190,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Deterministic environmental prop scatter v1 (rocks + low plants), gameplay-safe and performance-safe.
+  - Added seeded environmental prop layout generation (rocks + low plants) so each level gets deterministic scenic variation.
+  - Enforced protected placement masks around nest zones and central gameplay space to preserve command/combat readability.
+  - Implemented instanced rendering plus camera-distance culling updates to keep the pass performance-friendly on mobile.
+  - Added deterministic and protected-zone safety tests for prop placement.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `UI_UX_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [x] Terrain readability pass: directional lighting, shadow tuning, and relief-aware terrain shading.
   - Tuned lighting to improve terrain legibility in gameplay: softer shadow filtering, stronger key light direction, balanced ambient/hemi fill, and a non-shadow fill light.
