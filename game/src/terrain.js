@@ -188,8 +188,8 @@ export const createTerrainGeometry = ({
   return geometry;
 };
 
-export const createTerrainMaterial = () => new THREE.MeshToonMaterial({
-  color: 0xffffff,
+export const createTerrainMaterial = ({ color = 0xffffff } = {}) => new THREE.MeshToonMaterial({
+  color,
   vertexColors: true,
   gradientMap: createToonGradient(),
 });
@@ -211,11 +211,12 @@ export const createTerrainUnderlay = ({
   width = activeTerrainProfile.width,
   depth = activeTerrainProfile.depth,
   maxHeight = activeTerrainProfile.maxHeight,
+  color = 0xdbe7f4,
 } = {}) => {
   const underlay = new THREE.Mesh(
     new THREE.PlaneGeometry(width * 3, depth * 3, 1, 1),
     new THREE.MeshToonMaterial({
-      color: 0xdbe7f4,
+      color,
       gradientMap: createToonGradient(),
     }),
   );
@@ -228,7 +229,7 @@ export const createTerrainUnderlay = ({
 
 export const createTerrainMesh = (options = {}) => {
   const geometry = createTerrainGeometry(options);
-  const material = createTerrainMaterial();
+  const material = createTerrainMaterial({ color: options.materialTint ?? 0xffffff });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.receiveShadow = true;
   mesh.castShadow = false;

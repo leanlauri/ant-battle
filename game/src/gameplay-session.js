@@ -31,10 +31,80 @@ const BATTLEFIELD_MIN_ZOOM = 0.85;
 const BATTLEFIELD_MAX_ZOOM = 5.2;
 const BATTLEFIELD_EDGE_PADDING = -60;
 const BATTLEFIELD_EDGE_PADDING_AT_MAX_ZOOM = -10;
-const PERSPECTIVE_FOG_NEAR = 50;
-const PERSPECTIVE_FOG_FAR = 104;
-const PERSPECTIVE_FOG_NEAR_ORTHO = 70;
-const PERSPECTIVE_FOG_FAR_ORTHO = 110;
+const ATMOSPHERE_DEFAULTS = Object.freeze({
+  background: 0xdbe7f4,
+  fog: 0xdbe7f4,
+  sun: 0xffffff,
+  hemiSky: 0xf2f7ff,
+  hemiGround: 0x7e93a8,
+  terrainTint: 0xffffff,
+  underlay: 0xdbe7f4,
+  fogOrbitNear: 52,
+  fogOrbitFar: 116,
+  fogBattleNear: 74,
+  fogBattleFar: 130,
+  ambientIntensity: 0.18,
+  hemiIntensity: 1.1,
+  sunIntensity: 2.0,
+  fillIntensity: 0.32,
+});
+
+const ATMOSPHERE_GUARDRAILS = Object.freeze({
+  fogNearMin: 28,
+  fogNearMax: 110,
+  fogFarMin: 84,
+  fogFarMax: 190,
+  minFogGap: 26,
+  ambientMin: 0.1,
+  ambientMax: 0.28,
+  hemiMin: 0.85,
+  hemiMax: 1.3,
+  sunMin: 1.35,
+  sunMax: 2.35,
+  fillMin: 0.18,
+  fillMax: 0.45,
+});
+
+const toColorHex = (value, fallback) => {
+  const color = new THREE.Color(value ?? fallback ?? 0xffffff);
+  return color.getHex();
+};
+
+const clampFogRange = (nearValue, farValue) => {
+  const near = THREE.MathUtils.clamp(nearValue, ATMOSPHERE_GUARDRAILS.fogNearMin, ATMOSPHERE_GUARDRAILS.fogNearMax);
+  const far = THREE.MathUtils.clamp(farValue, ATMOSPHERE_GUARDRAILS.fogFarMin, ATMOSPHERE_GUARDRAILS.fogFarMax);
+  if (far - near >= ATMOSPHERE_GUARDRAILS.minFogGap) return { near, far };
+  return {
+    near,
+    far: Math.min(ATMOSPHERE_GUARDRAILS.fogFarMax, near + ATMOSPHERE_GUARDRAILS.minFogGap),
+  };
+};
+
+const resolveAtmosphereProfile = (levelDefinition) => {
+  const source = {
+    ...ATMOSPHERE_DEFAULTS,
+    ...(levelDefinition?.atmosphere ?? {}),
+  };
+  const orbitFog = clampFogRange(source.fogOrbitNear, source.fogOrbitFar);
+  const battleFog = clampFogRange(source.fogBattleNear, source.fogBattleFar);
+  return {
+    background: toColorHex(source.background, ATMOSPHERE_DEFAULTS.background),
+    fog: toColorHex(source.fog, source.background),
+    sun: toColorHex(source.sun, ATMOSPHERE_DEFAULTS.sun),
+    hemiSky: toColorHex(source.hemiSky, ATMOSPHERE_DEFAULTS.hemiSky),
+    hemiGround: toColorHex(source.hemiGround, ATMOSPHERE_DEFAULTS.hemiGround),
+    terrainTint: toColorHex(source.terrainTint, ATMOSPHERE_DEFAULTS.terrainTint),
+    underlay: toColorHex(source.underlay, source.background),
+    fogOrbitNear: orbitFog.near,
+    fogOrbitFar: orbitFog.far,
+    fogBattleNear: battleFog.near,
+    fogBattleFar: battleFog.far,
+    ambientIntensity: THREE.MathUtils.clamp(source.ambientIntensity, ATMOSPHERE_GUARDRAILS.ambientMin, ATMOSPHERE_GUARDRAILS.ambientMax),
+    hemiIntensity: THREE.MathUtils.clamp(source.hemiIntensity, ATMOSPHERE_GUARDRAILS.hemiMin, ATMOSPHERE_GUARDRAILS.hemiMax),
+    sunIntensity: THREE.MathUtils.clamp(source.sunIntensity, ATMOSPHERE_GUARDRAILS.sunMin, ATMOSPHERE_GUARDRAILS.sunMax),
+    fillIntensity: THREE.MathUtils.clamp(source.fillIntensity, ATMOSPHERE_GUARDRAILS.fillMin, ATMOSPHERE_GUARDRAILS.fillMax),
+  };
+};
 
 const updateOrthographicFrustum = (orthographicCamera) => {
   if (!orthographicCamera) return;
@@ -133,16 +203,16 @@ const clampBattlefieldTargetToTerrain = (target, zoom = 1, cameraPosition = targ
   return target;
 };
 
-const syncSceneFog = (sceneRef, activeCamera) => {
+const syncSceneFog = (sceneRef, activeCamera, atmosphereProfile = ATMOSPHERE_DEFAULTS) => {
   const fog = sceneRef?.fog;
   if (!fog || !activeCamera) return;
   if (activeCamera.isOrthographicCamera) {
-    fog.near = PERSPECTIVE_FOG_NEAR_ORTHO;
-    fog.far = PERSPECTIVE_FOG_FAR_ORTHO;
+    fog.near = atmosphereProfile.fogBattleNear;
+    fog.far = atmosphereProfile.fogBattleFar;
     return;
   }
-  fog.near = PERSPECTIVE_FOG_NEAR;
-  fog.far = PERSPECTIVE_FOG_FAR;
+  fog.near = atmosphereProfile.fogOrbitNear;
+  fog.far = atmosphereProfile.fogOrbitFar;
 };
 
 const createBuildInfo = () => ({
@@ -236,6 +306,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const buildInfo = createBuildInfo();
   const enemyProductionCooldowns = new Map();
   let currentLevelDefinition = getLevelDefinition(1);
+  let currentAtmosphereProfile = resolveAtmosphereProfile(currentLevelDefinition);
   let foodRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'food'));
   let antSetupRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-setup'));
   let antSpawnRandom = createSeededRandom(deriveSeed(currentLevelDefinition.seed, 'ants-spawn'));
@@ -334,7 +405,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       camera.zoom = THREE.MathUtils.clamp(nextZoom, BATTLEFIELD_MIN_ZOOM, BATTLEFIELD_MAX_ZOOM);
       camera.updateProjectionMatrix();
       syncBattlefieldCameraToTarget(nextTarget);
-      syncSceneFog(scene, camera);
+      syncSceneFog(scene, camera, currentAtmosphereProfile);
       controls = createControls(camera);
       if (!controls) return;
       controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
@@ -355,7 +426,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       if (!camera) return;
       antSystem?.setCamera?.(camera);
       syncOrbitCameraToTarget(nextTarget);
-      syncSceneFog(scene, camera);
+      syncSceneFog(scene, camera, currentAtmosphereProfile);
       controls = createControls(camera);
       if (!controls) return;
       controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
@@ -393,7 +464,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       controls.minZoom = BATTLEFIELD_MIN_ZOOM;
       controls.maxZoom = BATTLEFIELD_MAX_ZOOM;
       enforceBattlefieldCameraConstraints();
-      syncSceneFog(scene, battlefieldCamera);
+      syncSceneFog(scene, battlefieldCamera, currentAtmosphereProfile);
     }
     return battlefieldCamera.zoom;
   };
@@ -500,7 +571,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     controls.update();
     enforceBattlefieldCameraConstraints();
     environmentProps?.update(camera, dt, false, controls?.target ?? null);
-    syncSceneFog(scene, camera);
+    syncSceneFog(scene, camera, currentAtmosphereProfile);
 
     let substeps = 0;
     while (!battleResolved && accumulator >= fixedStep && substeps < maxSubsteps) {
@@ -528,6 +599,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   const start = async (levelNumber = 1) => {
     stop();
     currentLevelDefinition = getLevelDefinition(levelNumber);
+    currentAtmosphereProfile = resolveAtmosphereProfile(currentLevelDefinition);
     setActiveTerrainProfile(currentLevelDefinition.terrain);
 
     try {
@@ -539,8 +611,12 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       mount.appendChild(renderer.domElement);
 
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(currentLevelDefinition.atmosphere?.background ?? 0xdbe7f4);
-      scene.fog = new THREE.Fog(currentLevelDefinition.atmosphere?.fog ?? 0xdbe7f4, PERSPECTIVE_FOG_NEAR, PERSPECTIVE_FOG_FAR);
+      scene.background = new THREE.Color(currentAtmosphereProfile.background);
+      scene.fog = new THREE.Fog(
+        currentAtmosphereProfile.fog,
+        currentAtmosphereProfile.fogOrbitNear,
+        currentAtmosphereProfile.fogOrbitFar,
+      );
 
       orbitCamera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 260);
       orbitCamera.position.copy(DEFAULT_CAMERA_POSITION);
@@ -558,13 +634,13 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       applyCameraMode();
 
       scene.add(new THREE.HemisphereLight(
-        currentLevelDefinition.atmosphere?.hemiSky ?? 0xf2f7ff,
-        currentLevelDefinition.atmosphere?.hemiGround ?? 0x7e93a8,
-        1.15,
+        currentAtmosphereProfile.hemiSky,
+        currentAtmosphereProfile.hemiGround,
+        currentAtmosphereProfile.hemiIntensity,
       ));
-      scene.add(new THREE.AmbientLight(0xffffff, 0.18));
+      scene.add(new THREE.AmbientLight(0xffffff, currentAtmosphereProfile.ambientIntensity));
 
-      const sun = new THREE.DirectionalLight(currentLevelDefinition.atmosphere?.sun ?? 0xffffff, 2.05);
+      const sun = new THREE.DirectionalLight(currentAtmosphereProfile.sun, currentAtmosphereProfile.sunIntensity);
       sun.position.set(28, 30, -16);
       sun.castShadow = true;
       sun.shadow.mapSize.set(2048, 2048);
@@ -580,7 +656,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       scene.add(sun.target);
       sun.target.position.set(0, 0, 0);
 
-      const fillLight = new THREE.DirectionalLight(currentLevelDefinition.atmosphere?.hemiSky ?? 0xdfeeff, 0.34);
+      const fillLight = new THREE.DirectionalLight(currentAtmosphereProfile.hemiSky, currentAtmosphereProfile.fillIntensity);
       fillLight.position.set(-22, 20, 26);
       fillLight.castShadow = false;
       scene.add(fillLight);
@@ -592,8 +668,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       debugVisualsGroup.add(grid);
       scene.add(debugVisualsGroup);
 
-      terrain = createTerrainMesh();
-      scene.add(createTerrainUnderlay());
+      terrain = createTerrainMesh({ materialTint: currentAtmosphereProfile.terrainTint });
+      scene.add(createTerrainUnderlay({ color: currentAtmosphereProfile.underlay }));
       scene.add(terrain);
       scene.add(createTerrainOverlay(terrain.geometry));
       resetLevelRandomStreams();

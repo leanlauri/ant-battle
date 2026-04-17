@@ -35,14 +35,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Priority items
 
-- [ ] Atmosphere polish pass: fog/depth layering + palette balance with readability guardrails.
-  - Add subtle distance fog/aerial perspective to improve depth separation on larger maps.
-  - Extend time-of-day palette response so terrain/features stay readable while looking more alive.
-  - Rebalance contrast/saturation against HUD/selection/focus markers so gameplay signals remain dominant.
-  - Touchpoints: `game/src/gameplay-session.js`, `game/src/terrain.js`, `game/src/level-definition.js`.
-  - Testing: smoke checks for camera mode stability + visibility of key gameplay markers under updated atmosphere.
-  - Docs: `UI_UX_SPEC.md`, `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
 ### Level generation and campaign progression
 
 - [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the currently covered live simulation interactions.
@@ -185,6 +177,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Atmosphere polish pass: fog/depth layering + palette balance with readability guardrails.
+  - Added per-level atmosphere guardrails for fog depth ranges and key light intensities so depth separation stays readable across camera modes.
+  - Extended time-of-day response with terrain/underlay tint controls and applied those at runtime for stronger but still readable palette variety.
+  - Rebalanced fog and lighting plumbing in gameplay session so tactical markers remain visually dominant while maps gain more aerial perspective.
+  - Testing: `npm run validate`, `npm run test:e2e`.
+  - Docs: `UI_UX_SPEC.md`, `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [x] Improve nest siege behavior readability and balanceability.
   - Updated siege target selection so fighters now favor weakened hostile nests when multiple nests are in range.

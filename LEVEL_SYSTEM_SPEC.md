@@ -40,6 +40,7 @@ Suggested fields:
 - seed
 - biome / palette profile
 - timeOfDay
+- atmosphere profile (fog depth ranges for orbit/battlefield cameras, terrain/underlay tint, light intensity envelopes)
 - mapSize tier
 - terrain complexity
 - water feature settings

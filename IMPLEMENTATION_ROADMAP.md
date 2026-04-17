@@ -78,6 +78,7 @@ Goals:
 - [x] Environmental dressing now includes deterministic seeded rock/low-plant scatter with protected gameplay-zone masks and instanced distance-culling updates, so terrain feels richer without sacrificing readability or mobile performance
 - [x] Combat targeting priorities were refined so fighters now prefer hostile fighters (especially those threatening nearby friendly worker/carry areas) before workers/carriers, while worker contest/raid behavior remains explicit and deterministic
 - [x] Nest siege targeting now prefers weakened hostile nests when multiple are in range, improving siege readability and reducing split-pressure indecision
+- [x] Atmosphere polish now applies guardrailed per-level fog depth ranges, time-of-day terrain/underlay tinting, and balanced light intensities so maps feel more alive while markers and tactical readability stay clear in both camera modes
 
 ### Next implementation slice
 1. Replace coarse level bands with a richer deterministic level-definition model.

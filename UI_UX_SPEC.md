@@ -138,6 +138,7 @@ Recommended format:
 - when player taps terrain after selecting nest, show a visible focus marker
 - marker should be readable on all terrain palettes
 - when the active focus target is an enemy nest, that nest should also get a clear world-space ring/outline so the attack target is unmistakable
+- atmosphere tuning (fog/palette/time-of-day) must preserve readability of focus, selection, and objective markers in both camera modes
 
 ### Combat hit feedback
 - when ants or nests take damage, show a red integer `-N` popup near the target
