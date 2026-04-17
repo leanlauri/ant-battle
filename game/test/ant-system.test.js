@@ -141,7 +141,7 @@ describe('ant system helpers', () => {
     expect(findCombatTarget(fighter, [fighter, enemyWorker, enemyFighter])?.role).toBe(ANT_ROLE.fighter);
   });
 
-  test('fighters prioritize hostile food carriers over other enemies', () => {
+  test('fighters prioritize hostile fighters over hostile carriers', () => {
     const fighter = createRandomAntStates(1)[0];
     fighter.role = ANT_ROLE.fighter;
     fighter.faction = 'player';
@@ -161,7 +161,35 @@ describe('ant system helpers', () => {
     enemyCarrier.carryingFoodId = 1;
     enemyCarrier.position.set(2.8, enemyCarrier.position.y, 0);
 
-    expect(findCombatTarget(fighter, [fighter, enemyFighter, enemyCarrier])?.id).toBe(enemyCarrier.id);
+    expect(findCombatTarget(fighter, [fighter, enemyFighter, enemyCarrier])?.id).toBe(enemyFighter.id);
+  });
+
+  test('fighters prioritize enemy fighters threatening nearby friendly workers', () => {
+    const fighter = createRandomAntStates(1)[0];
+    fighter.role = ANT_ROLE.fighter;
+    fighter.faction = 'player';
+    fighter.colonyId = COLONY.player;
+    fighter.position.set(0, fighter.position.y, 0);
+
+    const friendlyWorker = createRandomAntStates(1)[0];
+    friendlyWorker.role = ANT_ROLE.worker;
+    friendlyWorker.faction = 'player';
+    friendlyWorker.colonyId = COLONY.player;
+    friendlyWorker.position.set(6.4, friendlyWorker.position.y, 0);
+
+    const nearbyEnemyFighter = createRandomAntStates(1)[0];
+    nearbyEnemyFighter.role = ANT_ROLE.fighter;
+    nearbyEnemyFighter.faction = 'enemy';
+    nearbyEnemyFighter.colonyId = COLONY.enemyAlpha;
+    nearbyEnemyFighter.position.set(3.2, nearbyEnemyFighter.position.y, 0);
+
+    const threateningEnemyFighter = createRandomAntStates(1)[0];
+    threateningEnemyFighter.role = ANT_ROLE.fighter;
+    threateningEnemyFighter.faction = 'enemy';
+    threateningEnemyFighter.colonyId = COLONY.enemyAlpha;
+    threateningEnemyFighter.position.set(7.1, threateningEnemyFighter.position.y, 0);
+
+    expect(findCombatTarget(fighter, [fighter, friendlyWorker, nearbyEnemyFighter, threateningEnemyFighter])?.id).toBe(threateningEnemyFighter.id);
   });
 
   test('workers only target hostile fighters when defending', () => {

@@ -94,9 +94,9 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Combat, aftermath, and nest systems
 
-- [ ] Refine combat targeting priorities and siege behavior.
-  - Better reflect the intended fighter target ordering.
-  - Make nest sieges readable and balanceable.
+- [ ] Improve nest siege behavior readability and balanceability.
+  - Keep fighter-to-ant target ordering aligned with current combat priorities.
+  - Make nest sieges more readable and easier to tune.
   - Docs: `COMBAT_AND_NEST_SPEC.md`
 
 - [ ] Improve nest collapse presentation and migration feedback.
@@ -190,6 +190,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Refine combat targeting priorities.
+  - Fighters now prioritize hostile fighters over carriers/workers by default, matching the intended anti-threat ordering.
+  - Fighters further prioritize hostile fighters that are threatening the same local area as nearby friendly workers/carry groups.
+  - Workers retain defensive anti-fighter behavior while using explicit aggro-targeting for food contest and raid pressure flows.
+  - Added/updated combat-targeting tests and kept deterministic runtime coverage passing.
+  - Docs: `COMBAT_AND_NEST_SPEC.md`
 
 - [x] Deterministic environmental prop scatter v1 (rocks + low plants), gameplay-safe and performance-safe.
   - Added seeded environmental prop layout generation (rocks + low plants) so each level gets deterministic scenic variation.

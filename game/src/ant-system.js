@@ -45,6 +45,7 @@ export const ANT_CONFIG = Object.freeze({
   workerDefenseSenseDistance: 4.8,
   workerRaidSenseDistance: 6,
   workerFoodContestRadius: 2.8,
+  fighterThreatenedAreaRadius: 7.2,
   fighterAttackRange: 0.95,
   fighterAttackDamage: 14,
   fighterAttackCooldown: 0.72,
@@ -829,6 +830,20 @@ export const findCombatTarget = (ant, ants, maxDistance = ANT_CONFIG.fighterSens
   let bestTarget = null;
   let bestDistanceSq = senseDistance * senseDistance;
   let bestPriority = -1;
+
+  const isThreateningSameArea = (candidate) => {
+    if (ant.role !== ANT_ROLE.fighter || candidate.role !== ANT_ROLE.fighter) return false;
+    const threatenedRadiusSq = ANT_CONFIG.fighterThreatenedAreaRadius * ANT_CONFIG.fighterThreatenedAreaRadius;
+    for (const ally of ants) {
+      if (ally.dead || ally.colonyId !== ant.colonyId || ally.id === ant.id) continue;
+      const allyIsValuable = ally.role === ANT_ROLE.worker || ally.carryingFoodId != null || ally.assistingFoodId != null;
+      if (!allyIsValuable) continue;
+      const candidateToAllySq = candidate.position.distanceToSquared(ally.position);
+      if (candidateToAllySq <= threatenedRadiusSq) return true;
+    }
+    return false;
+  };
+
   for (const other of ants) {
     if (other === ant || other.dead || other.colonyId === ant.colonyId) continue;
     const distanceSq = ant.position.distanceToSquared(other.position);
@@ -841,7 +856,14 @@ export const findCombatTarget = (ant, ants, maxDistance = ANT_CONFIG.fighterSens
     }
     if (ant.role !== ANT_ROLE.worker && distanceSq > senseDistance * senseDistance) continue;
 
-    const priority = other.carryingFoodId != null ? 3 : other.role === ANT_ROLE.fighter ? 2 : 1;
+    let priority = other.carryingFoodId != null ? 3 : other.role === ANT_ROLE.fighter ? 2 : 1;
+    if (ant.role === ANT_ROLE.fighter) {
+      if (other.role === ANT_ROLE.fighter) {
+        priority = isThreateningSameArea(other) ? 4 : 3;
+      } else {
+        priority = 2;
+      }
+    }
     if (!bestTarget || priority > bestPriority || (priority === bestPriority && distanceSq < bestDistanceSq)) {
       bestTarget = other;
       bestDistanceSq = distanceSq;
