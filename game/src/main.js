@@ -48,9 +48,8 @@ const refs = {
   backToTitleButton: document.getElementById('backToTitleButton'),
   gameplayHud: document.getElementById('gameplayHud'),
   antCountValue: document.getElementById('antCountValue'),
-  selectedNestFoodValue: document.getElementById('selectedNestFoodValue'),
+  nestFoodOverlay: document.getElementById('nestFoodOverlay'),
   gameplayLevelLabel: document.getElementById('gameplayLevelLabel'),
-  statusCardLabel: document.getElementById('statusCardLabel'),
   hud: document.getElementById('hud'),
   hudHint: document.getElementById('hudHint'),
   selectedNestInfo: document.getElementById('selectedNestInfo'),
@@ -171,6 +170,24 @@ const getUpgradeSummaryText = (option) => {
 
 const getUpgradePurchaseText = (option) => `${getUpgradeSummaryText(option)} bought`;
 
+const renderNestFoodOverlay = (summary) => {
+  if (!refs.nestFoodOverlay) return;
+  refs.nestFoodOverlay.replaceChildren();
+  const overlays = summary?.nestFoodOverlays ?? [];
+  if (!overlays.length || app.screen !== APP_SCREEN.gameplay) return;
+
+  for (const overlay of overlays) {
+    const badge = document.createElement('div');
+    badge.className = 'nestFoodBadge';
+    badge.dataset.faction = overlay.faction;
+    badge.dataset.selected = String(!!overlay.selected);
+    badge.textContent = `${overlay.food.toFixed(0)}`;
+    badge.style.left = `${overlay.x}px`;
+    badge.style.top = `${overlay.y}px`;
+    refs.nestFoodOverlay.appendChild(badge);
+  }
+};
+
 const renderUpgradeCards = (summary) => {
   if (!refs.upgradeCards || !refs.nestUpgradePanel) return;
   refs.upgradeCards.replaceChildren();
@@ -259,14 +276,13 @@ const gameplaySession = createGameplaySession({
   },
   onHudUpdate: (summary) => {
     app.lastHudSummary = summary;
-    refs.antCountValue.textContent = summary ? String(summary.playerAntCount) : '0';
-    refs.statusCardLabel.textContent = summary?.isBossLevel ? 'Boss assault' : 'Player ants';
-    if (refs.selectedNestFoodValue) refs.selectedNestFoodValue.textContent = `Selected nest food ${(summary?.selectedNestStored ?? 0).toFixed(1)}`;
+    if (refs.antCountValue) refs.antCountValue.textContent = summary ? String(summary.playerAntCount) : '0';
     refs.selectedNestInfo.textContent = summary?.selectedNestText ?? 'Home Nest • Nest HP -- • Stored food --';
     refs.focusInfo.textContent = summary?.focusText ?? 'Focus: No rally point set';
     refs.objectiveInfo.textContent = summary?.objectiveText ?? 'Objective: --';
     refs.battleInfo.textContent = summary?.battleText ?? 'Battle: 0 enemies defeated, 0 ants lost, 0 enemy nests destroyed.';
     refs.foodInfo.textContent = summary?.foodText ?? 'Field food remaining: --';
+    renderNestFoodOverlay(summary);
     renderUpgradeCards(summary);
     refs.titleBuildBadge.textContent = summary?.buildText ?? 'Build: --';
     if (refs.hud && refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
@@ -332,9 +348,12 @@ const renderScreens = () => {
   document.body.dataset.screen = app.screen;
 
   const currentLevelDefinition = getCurrentLevelDefinition();
-  refs.gameplayLevelLabel.textContent = currentLevelDefinition.isBossLevel
-    ? currentLevelDefinition.boss?.shellLabel ?? `Boss Level ${app.currentLevel}`
-    : `Level ${app.currentLevel}`;
+  if (refs.gameplayLevelLabel) {
+    refs.gameplayLevelLabel.textContent = currentLevelDefinition.isBossLevel
+      ? currentLevelDefinition.boss?.shellLabel ?? `Boss Level ${app.currentLevel}`
+      : `Level ${app.currentLevel}`;
+  }
+  renderNestFoodOverlay(app.lastHudSummary);
   if (refs.hud && refs.hudHint) refs.hudHint.textContent = refs.hud.open ? 'tap to collapse' : 'tap to expand';
 
   if (app.screen === APP_SCREEN.levelSelect) renderLevelGrid();

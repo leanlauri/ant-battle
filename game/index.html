@@ -344,6 +344,52 @@
       text-align: right;
       min-width: 124px;
     }
+    .antCornerCount {
+      pointer-events: none;
+      border-radius: 14px;
+      background: rgba(246, 250, 255, 0.9);
+      border: 1px solid rgba(22, 49, 77, 0.12);
+      box-shadow: 0 10px 30px rgba(19, 49, 77, 0.12);
+      backdrop-filter: blur(8px);
+      padding: 10px 14px;
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      min-width: 56px;
+      text-align: center;
+    }
+    #nestFoodOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 8;
+      pointer-events: none;
+    }
+    .nestFoodBadge {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(22, 49, 77, 0.14);
+      background: rgba(246, 250, 255, 0.9);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      box-shadow: 0 8px 20px rgba(19, 49, 77, 0.12);
+      backdrop-filter: blur(6px);
+      white-space: nowrap;
+    }
+    .nestFoodBadge[data-faction="enemy"] {
+      color: #6d2643;
+      background: rgba(255, 244, 249, 0.92);
+      border-color: rgba(122, 65, 88, 0.24);
+    }
+    .nestFoodBadge[data-selected="true"] {
+      box-shadow: 0 10px 22px rgba(68, 180, 96, 0.2);
+      border-color: rgba(68, 180, 96, 0.44);
+    }
     .statusLabel {
       display: block;
       font-size: 11px;
@@ -719,15 +765,10 @@
       </details>
       <div class="topBarSide">
         <button id="cameraModeButton" type="button" class="topBarControl">Switch to battlefield camera</button>
-        <div class="statusCard">
-          <span id="statusCardLabel" class="statusLabel">Player ants</span>
-          <span id="antCountValue" class="statusValue">0</span>
-          <span id="selectedNestFoodValue" class="statusSubvalue">Selected nest food 0.0</span>
-          <span id="gameplayLevelLabel" class="statusSubvalue">Level 1</span>
-          <span id="cameraModeValue" class="statusSubvalue">Orbit camera</span>
-        </div>
+        <div id="antCountValue" class="antCornerCount">0</div>
       </div>
     </div>
+    <div id="nestFoodOverlay"></div>
     <div id="nestUpgradeOverlay">
       <div id="nestUpgradePanel" class="nestUpgradePanel" hidden>
         <div id="upgradeCards" class="upgradeCards"></div>

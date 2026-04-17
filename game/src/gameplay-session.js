@@ -31,6 +31,9 @@ const BATTLEFIELD_MIN_ZOOM = 0.85;
 const BATTLEFIELD_MAX_ZOOM = 5.2;
 const BATTLEFIELD_EDGE_PADDING = -60;
 const BATTLEFIELD_EDGE_PADDING_AT_MAX_ZOOM = -10;
+const BATTLEFIELD_GESTURE_ROTATE_SENSITIVITY = 0.42;
+const BATTLEFIELD_GESTURE_ROTATE_MIN_ARC_PX = 9;
+const BATTLEFIELD_GESTURE_ZOOM_MIN_DELTA_PX = 8;
 const ATMOSPHERE_DEFAULTS = Object.freeze({
   background: 0xdbe7f4,
   fog: 0xdbe7f4,
@@ -301,6 +304,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let battleResolved = false;
   let cameraMode = CAMERA_MODE.battlefield;
   let multiTouchGesture = false;
+  let multiTouchIntent = null;
+  let previousGestureControlState = null;
   const activePointerIds = new Set();
   const pointerPositions = new Map();
   const buildInfo = createBuildInfo();
@@ -344,12 +349,55 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     };
   };
 
+  const projectWorldToScreenLoose = (position) => {
+    if (!camera || !renderer || !position) return null;
+    const projected = position.clone().project(camera);
+    const width = renderer.domElement.clientWidth;
+    const height = renderer.domElement.clientHeight;
+    return {
+      x: THREE.MathUtils.clamp(((projected.x + 1) / 2) * width, 14, width - 14),
+      y: THREE.MathUtils.clamp(((-projected.y + 1) / 2) * height - 18, 26, height - 14),
+    };
+  };
+
   const publishHud = () => {
     if (!terrain || !antSystem) return;
     const summary = formatHudSummary({ terrain, antSystem, buildInfo, levelDefinition: currentLevelDefinition });
     const selectedNest = antSystem.foodSystem?.getSelectedNest?.();
     summary.upgradeAnchor = selectedNest ? projectWorldToScreen(selectedNest.position.clone().add(new THREE.Vector3(0, 4.2, 0))) : null;
+    summary.nestFoodOverlays = (foodSystem?.nests ?? []).map((nest) => {
+      const screen = projectWorldToScreenLoose(nest.position.clone().add(new THREE.Vector3(0, 5.8, 0)));
+      if (!screen) return null;
+      return {
+        id: nest.id,
+        faction: nest.faction,
+        selected: nest.id === selectedNest?.id,
+        food: foodSystem.getNestStored(nest.id),
+        x: screen.x,
+        y: screen.y,
+      };
+    }).filter(Boolean);
     onHudUpdate?.(summary);
+  };
+
+  const setRotateGestureControlLock = (locked) => {
+    if (!controls) return;
+    if (locked) {
+      if (!previousGestureControlState) {
+        previousGestureControlState = {
+          enableZoom: controls.enableZoom,
+          enablePan: controls.enablePan,
+        };
+      }
+      controls.enableZoom = false;
+      controls.enablePan = false;
+      return;
+    }
+    if (previousGestureControlState) {
+      controls.enableZoom = previousGestureControlState.enableZoom;
+      controls.enablePan = previousGestureControlState.enablePan;
+      previousGestureControlState = null;
+    }
   };
 
   const centerCameraOn = (position) => {
@@ -532,6 +580,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     pointerUpHandler = null;
     pointerDown = null;
     multiTouchGesture = false;
+    multiTouchIntent = null;
+    setRotateGestureControlLock(false);
     activePointerIds.clear();
     pointerPositions.clear();
     controls?.dispose();
@@ -728,6 +778,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
         if (activePointerIds.size > 1) {
           multiTouchGesture = true;
+          multiTouchIntent = null;
+          setRotateGestureControlLock(false);
           pointerDown = null;
           return;
         }
@@ -745,31 +797,47 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const currentPoints = ids.map((id) => pointerPositions.get(id)).filter(Boolean);
         if (previousPoints.length < 2 || currentPoints.length < 2) return;
 
-        const prevCentroid = previousPoints.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 });
-        prevCentroid.x /= previousPoints.length;
-        prevCentroid.y /= previousPoints.length;
-        const currCentroid = currentPoints.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 });
-        currCentroid.x /= currentPoints.length;
-        currCentroid.y /= currentPoints.length;
+        const [prevA, prevB] = previousPoints;
+        const [currA, currB] = currentPoints;
 
-        const rect = renderer?.domElement?.getBoundingClientRect?.();
-        const centerX = (rect?.left ?? 0) + (rect?.width ?? window.innerWidth) * 0.5;
-        const centerY = (rect?.top ?? 0) + (rect?.height ?? window.innerHeight) * 0.5;
-
-        const prevAngle = Math.atan2(prevCentroid.y - centerY, prevCentroid.x - centerX);
-        const currAngle = Math.atan2(currCentroid.y - centerY, currCentroid.x - centerX);
+        const prevAngle = Math.atan2(prevB.y - prevA.y, prevB.x - prevA.x);
+        const currAngle = Math.atan2(currB.y - currA.y, currB.x - currA.x);
         let deltaAngle = currAngle - prevAngle;
         while (deltaAngle > Math.PI) deltaAngle -= Math.PI * 2;
         while (deltaAngle < -Math.PI) deltaAngle += Math.PI * 2;
+        const deltaAngleAbs = Math.abs(deltaAngle);
 
-        const prevRadius = Math.hypot(prevCentroid.x - centerX, prevCentroid.y - centerY);
-        const currRadius = Math.hypot(currCentroid.x - centerX, currCentroid.y - centerY);
-        const radius = (prevRadius + currRadius) * 0.5;
-        if (radius < 8 || Math.abs(deltaAngle) < 0.0004) {
+        const prevDistance = Math.hypot(prevB.x - prevA.x, prevB.y - prevA.y);
+        const currDistance = Math.hypot(currB.x - currA.x, currB.y - currA.y);
+        const zoomDeltaAbs = Math.abs(currDistance - prevDistance);
+        const averageDistance = (prevDistance + currDistance) * 0.5;
+        const rotateArcPixels = deltaAngleAbs * averageDistance;
+
+        if (!multiTouchIntent) {
+          const zoomIntent = zoomDeltaAbs >= BATTLEFIELD_GESTURE_ZOOM_MIN_DELTA_PX
+            && zoomDeltaAbs > rotateArcPixels * 1.12;
+          const rotateIntent = rotateArcPixels >= BATTLEFIELD_GESTURE_ROTATE_MIN_ARC_PX
+            && rotateArcPixels > zoomDeltaAbs * 1.18;
+          if (zoomIntent) {
+            multiTouchIntent = 'zoom';
+            setRotateGestureControlLock(false);
+            return;
+          }
+          if (rotateIntent) {
+            multiTouchIntent = 'rotate';
+            setRotateGestureControlLock(true);
+          } else {
+            return;
+          }
+        }
+
+        if (multiTouchIntent !== 'rotate') return;
+
+        if (deltaAngleAbs < 0.0004) {
           return;
         }
 
-        const rotateDelta = deltaAngle * 1.15;
+        const rotateDelta = deltaAngle * BATTLEFIELD_GESTURE_ROTATE_SENSITIVITY;
         const offset = camera.position.clone().sub(controls.target);
         offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotateDelta);
         camera.position.copy(controls.target.clone().add(offset));
@@ -782,7 +850,11 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         activePointerIds.delete(event.pointerId);
         pointerPositions.delete(event.pointerId);
         if (multiTouchGesture) {
-          if (releasedFinalPointer) multiTouchGesture = false;
+          if (releasedFinalPointer) {
+            multiTouchGesture = false;
+            multiTouchIntent = null;
+            setRotateGestureControlLock(false);
+          }
           pointerDown = null;
           return;
         }

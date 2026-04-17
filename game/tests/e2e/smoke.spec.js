@@ -47,16 +47,14 @@ test('boots through title, level select, gameplay, and victory progression flow'
   test.skip(!webgl.available, 'Skipping WebGL-dependent test because this browser context cannot create a usable WebGL context.');
 
   await expect(page.locator('#gameplayHud')).toBeVisible();
-  await expect(page.locator('#gameplayLevelLabel')).toContainText('Level 1');
   await expect(page.locator('#antCountValue')).toHaveText('25');
-  await expect(page.locator('#selectedNestFoodValue')).toContainText('Selected nest food');
-  await expect(page.locator('#selectedNestFoodValue')).toContainText('0.0');
+  const nestFoodBadgeCount = await page.locator('#nestFoodOverlay .nestFoodBadge').count();
+  expect(nestFoodBadgeCount).toBeGreaterThanOrEqual(2);
   await expect(page.locator('#selectedNestInfo')).toContainText('Home Nest');
   await expect(page.locator('#selectedNestInfo')).toContainText('Stored food');
   await expect(page.locator('#battleInfo')).toContainText('Battle:');
   await expect(page.locator('#debugVisualsToggle')).toHaveCount(0);
   await expect(page.locator('#debugMenu')).toBeHidden();
-  await expect(page.locator('#cameraModeValue')).toHaveText('Battlefield camera');
   await expect(page.locator('#cameraModeButton')).toHaveText('Switch to orbit camera');
   await expect(page.locator('body canvas')).toBeVisible();
   await expect(page.locator('#fatalOverlay')).toBeHidden();
@@ -64,13 +62,11 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraProjectionType?.())).toBe('orthographic');
 
   await page.locator('#cameraModeButton').click();
-  await expect(page.locator('#cameraModeValue')).toHaveText('Orbit camera');
   await expect(page.locator('#cameraModeButton')).toHaveText('Switch to battlefield camera');
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraMode?.())).toBe('orbit');
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraProjectionType?.())).toBe('perspective');
 
   await page.locator('#cameraModeButton').click();
-  await expect(page.locator('#cameraModeValue')).toHaveText('Battlefield camera');
   await expect(page.locator('#cameraModeButton')).toHaveText('Switch to orbit camera');
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraMode?.())).toBe('battlefield');
   await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraProjectionType?.())).toBe('orthographic');
@@ -143,7 +139,7 @@ test('upgrade overlay shows clear shortfall and success feedback on a mobile-siz
   });
 
   await expect(page.locator('#nestUpgradePanel')).toBeVisible();
-  await expect(page.locator('#selectedNestFoodValue')).toContainText('5.0');
+  await expect(page.locator('#nestFoodOverlay .nestFoodBadge[data-selected="true"]')).toContainText('5');
   await page.evaluate(() => {
     window.__ANT_BATTLE_TEST_API__?.selectUpgrade?.('spawn-workers');
   });
@@ -159,7 +155,7 @@ test('upgrade overlay shows clear shortfall and success feedback on a mobile-siz
     window.__ANT_BATTLE_TEST_API__?.setNestStored?.('player-1', 20);
   });
 
-  await expect(page.locator('#selectedNestFoodValue')).toContainText('20.0');
+  await expect(page.locator('#nestFoodOverlay .nestFoodBadge[data-selected="true"]')).toContainText('20');
   await expect(page.locator('#upgradeDetailCopy')).toContainText('worker ants');
   await expect(page.locator('#upgradeConfirmButton')).toBeEnabled();
   await page.locator('#upgradeConfirmButton').click({ force: true });
