@@ -530,7 +530,8 @@ const getCarryApproachTarget = (ant, nestPosition) => {
   if (!ant.queuedNestSlot) return nestPosition;
   if (ant.nestApproachStage !== 'entrance') {
     const queueDistance = ant.position.distanceTo(ant.queuedNestSlot.queuePosition);
-    if (queueDistance <= 0.9) {
+    const nestDistance = ant.position.distanceTo(nestPosition);
+    if (queueDistance <= 0.9 || nestDistance <= NEST_CONFIG.queueRadius + 0.45) {
       ant.nestApproachStage = 'entrance';
     }
   }
@@ -1472,6 +1473,18 @@ export class AntSystem {
         }
 
         if (ant.action === 'carry-food' && ant.carryingFoodId != null) {
+          const carriedFood = getFoodById(this.foods, ant.carryingFoodId);
+          const carryStateInvalid = !carriedFood
+            || carriedFood.delivered
+            || !carriedFood.carried
+            || carriedFood.carriedBy !== ant.id;
+          if (carryStateInvalid) {
+            clearAntAssignments(ant, this.foodSystem, this.foods);
+            chooseNextAction(ant, ant.random ?? this.decisionRandom);
+            ant.logicCooldown = ant.logicInterval;
+            continue;
+          }
+
           const homeNestPosition = getHomeNestPosition(ant, this.nestLookup);
           ant.queuedNestSlot ??= this.foodSystem.reserveNestSlot(ant.id, ant.position, ant.homeNestId);
           const approachTarget = getCarryApproachTarget(ant, homeNestPosition);

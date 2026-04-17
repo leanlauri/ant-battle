@@ -451,4 +451,20 @@ describe('ant system helpers', () => {
     expect(snapshotEffectState(first)).toEqual(snapshotEffectState(second));
     expect(snapshotEffectState(first)).not.toEqual(snapshotEffectState(third));
   });
+
+  test('clears invalid carry state so workers do not get permanently stuck at nest delivery', () => {
+    const antSystem = createSeededAntSystem();
+    const ant = antSystem.ants[0];
+    ant.action = 'carry-food';
+    ant.carryingFoodId = 999_999;
+    ant.queuedNestSlot = antSystem.foodSystem.reserveNestSlot(ant.id, ant.position, ant.homeNestId);
+    ant.logicCooldown = 0;
+
+    antSystem.update(0.2);
+
+    expect(ant.carryingFoodId).toBeNull();
+    expect(ant.queuedNestSlot).toBeNull();
+    expect(antSystem.foodSystem.queueAssignments.has(ant.id)).toBe(false);
+    expect(ant.action).not.toBe('carry-food');
+  });
 });
