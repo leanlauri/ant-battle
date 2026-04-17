@@ -205,9 +205,18 @@ const DAMAGE_TEXT_CONFIG = Object.freeze({
   height: 128,
   scaleX: 1.45,
   scaleY: 0.72,
+  largeScaleX: 2.05,
+  largeScaleY: 1.02,
 });
 
-const createDamageTextSprite = (text) => {
+const createDamageTextSprite = (text, {
+  fillStyle = '#ff3f3f',
+  strokeStyle = 'rgba(64, 0, 0, 0.98)',
+  font = '700 72px Inter, Arial Black, sans-serif',
+  lineWidth = 12,
+  scaleX = DAMAGE_TEXT_CONFIG.scaleX,
+  scaleY = DAMAGE_TEXT_CONFIG.scaleY,
+} = {}) => {
   if (typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
   canvas.width = DAMAGE_TEXT_CONFIG.width;
@@ -218,10 +227,10 @@ const createDamageTextSprite = (text) => {
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  context.font = '700 72px Inter, Arial Black, sans-serif';
-  context.lineWidth = 12;
-  context.strokeStyle = 'rgba(64, 0, 0, 0.98)';
-  context.fillStyle = '#ff3f3f';
+  context.font = font;
+  context.lineWidth = lineWidth;
+  context.strokeStyle = strokeStyle;
+  context.fillStyle = fillStyle;
   context.strokeText(text, canvas.width / 2, canvas.height * 0.52);
   context.fillText(text, canvas.width / 2, canvas.height * 0.52);
 
@@ -236,7 +245,7 @@ const createDamageTextSprite = (text) => {
   material.userData.baseOpacity = 0.98;
 
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(DAMAGE_TEXT_CONFIG.scaleX, DAMAGE_TEXT_CONFIG.scaleY, 1);
+  sprite.scale.set(scaleX, scaleY, 1);
   sprite.renderOrder = 28;
   return sprite;
 };
@@ -1220,10 +1229,15 @@ export class AntSystem {
     this.spawnGroundSplat(position, colonyId, 0.7 * intensity);
   }
 
-  spawnDamageText(position, damageValue) {
+  spawnDamageText(position, damageValue, { large = false } = {}) {
     const roundedDamage = Math.max(0, Math.round(damageValue));
     if (roundedDamage <= 0) return;
-    const sprite = createDamageTextSprite(`-${roundedDamage}`);
+    const baseScaleX = large ? DAMAGE_TEXT_CONFIG.largeScaleX : DAMAGE_TEXT_CONFIG.scaleX;
+    const baseScaleY = large ? DAMAGE_TEXT_CONFIG.largeScaleY : DAMAGE_TEXT_CONFIG.scaleY;
+    const sprite = createDamageTextSprite(`-${roundedDamage}`, {
+      scaleX: baseScaleX,
+      scaleY: baseScaleY,
+    });
     if (!sprite) return;
 
     const random = this.effectRandom;
@@ -1239,6 +1253,39 @@ export class AntSystem {
       life: DAMAGE_TEXT_CONFIG.life,
       maxLife: DAMAGE_TEXT_CONFIG.life,
       velocity: new THREE.Vector3(Math.cos(driftAngle) * driftSpeed, riseSpeed, Math.sin(driftAngle) * driftSpeed),
+      baseScaleX,
+      baseScaleY,
+    });
+  }
+
+  spawnFoodGainText(position, foodValue) {
+    const roundedFood = Math.max(0, Math.round(foodValue));
+    if (roundedFood <= 0) return;
+    const baseScaleX = DAMAGE_TEXT_CONFIG.largeScaleX;
+    const baseScaleY = DAMAGE_TEXT_CONFIG.largeScaleY;
+    const sprite = createDamageTextSprite(`+${roundedFood}`, {
+      fillStyle: '#6eff75',
+      strokeStyle: 'rgba(8, 48, 12, 0.98)',
+      scaleX: baseScaleX,
+      scaleY: baseScaleY,
+    });
+    if (!sprite) return;
+
+    const random = this.effectRandom;
+    sprite.position.copy(position);
+    sprite.position.y += 0.48 + random() * 0.22;
+    this.damageTextGroup.add(sprite);
+
+    const driftAngle = random() * Math.PI * 2;
+    const driftSpeed = THREE.MathUtils.lerp(DAMAGE_TEXT_CONFIG.driftMin, DAMAGE_TEXT_CONFIG.driftMax, random());
+    const riseSpeed = THREE.MathUtils.lerp(DAMAGE_TEXT_CONFIG.riseMin, DAMAGE_TEXT_CONFIG.riseMax, random());
+    this.damageTexts.push({
+      sprite,
+      life: DAMAGE_TEXT_CONFIG.life,
+      maxLife: DAMAGE_TEXT_CONFIG.life,
+      velocity: new THREE.Vector3(Math.cos(driftAngle) * driftSpeed, riseSpeed, Math.sin(driftAngle) * driftSpeed),
+      baseScaleX,
+      baseScaleY,
     });
   }
 
@@ -1288,9 +1335,11 @@ export class AntSystem {
       textEffect.velocity.y = Math.max(0.2, textEffect.velocity.y - 1.5 * dt);
       textEffect.sprite.material.opacity = (textEffect.sprite.material.userData?.baseOpacity ?? 0.98) * lifeRatio;
       const scale = 1 + (1 - lifeRatio) * 0.2;
+      const baseScaleX = textEffect.baseScaleX ?? DAMAGE_TEXT_CONFIG.scaleX;
+      const baseScaleY = textEffect.baseScaleY ?? DAMAGE_TEXT_CONFIG.scaleY;
       textEffect.sprite.scale.set(
-        DAMAGE_TEXT_CONFIG.scaleX * scale,
-        DAMAGE_TEXT_CONFIG.scaleY * scale,
+        baseScaleX * scale,
+        baseScaleY * scale,
         1,
       );
 
@@ -1407,7 +1456,7 @@ export class AntSystem {
                     const damageResult = this.foodSystem.damageNest(siegeNest.id, ANT_CONFIG.fighterNestAttackDamage);
                     const impactPoint = getNestImpactPoint(ant, siegeNest);
                     this.spawnHitEffect(impactPoint, siegeNest.colonyId, 0.85);
-                    this.spawnDamageText(impactPoint, damageResult?.damageApplied ?? 0);
+                    this.spawnDamageText(impactPoint, damageResult?.damageApplied ?? 0, { large: true });
                     if (damageResult?.justCollapsed) {
                       if (siegeNest.faction === ANT_FACTION.enemy) this.stats.enemyNestsDestroyed += 1;
                       if (siegeNest.faction === ANT_FACTION.player) this.stats.playerNestsLost += 1;
@@ -1492,6 +1541,7 @@ export class AntSystem {
           if (ant.position.distanceTo(homeNestPosition) <= NEST_CONFIG.dropoffDistance) {
             const dropped = this.foodSystem.dropFoodInNest(ant.carryingFoodId, ant.id, ant.homeNestId);
             if (dropped) {
+              this.spawnFoodGainText(homeNestPosition, carriedFood.weight);
               ant.carryingFoodId = null;
               ant.targetFoodId = null;
               ant.queuedNestSlot = null;
