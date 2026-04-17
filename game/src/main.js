@@ -118,6 +118,15 @@ const UPGRADE_ICON = {
   'fortify-nest': '🏰',
 };
 
+const UPGRADE_TITLE = {
+  'repair-nest': 'Repair nest',
+  'spawn-workers': 'worker ants',
+  'spawn-fighters': 'warrior ants',
+  'brood-chambers': 'Brood chambers',
+  'war-nest': 'War nest',
+  'fortify-nest': 'Fortify nest',
+};
+
 const getCurrentLevelDefinition = () => getLevelDefinition(app.currentLevel);
 const shouldAutoStartDebugLevel = () => {
   const params = new URLSearchParams(window.location.search);
@@ -150,16 +159,14 @@ const closeUpgradePanel = () => {
   if (refs.upgradeFeedbackToast) refs.upgradeFeedbackToast.hidden = true;
 };
 
-const getUpgradeDisabledReason = (option) => {
-  if (!option?.disabled) return null;
-  if (option.shortfall > 0) return `Need ${option.shortfall.toFixed(1)} more food before this nest can afford ${option.label.toLowerCase()}.`;
-  if (option.id === 'repair-nest') return 'This nest is already at full health.';
-  return 'This upgrade is already active for this nest.';
-};
-
-const getUpgradeReadyText = (option) => {
-  if (!option || option.disabled) return null;
-  return `Ready. Spend ${option.cost.toFixed(0)} food to confirm ${option.label.toLowerCase()}.`;
+const getUpgradeSummaryText = (option) => {
+  if (!option) return '';
+  if (option.id === 'spawn-workers' || option.id === 'spawn-fighters') {
+    const countMatch = option.description.match(/Spawn\s+(\d+)/i);
+    const count = countMatch ? Number(countMatch[1]) : null;
+    if (count != null && Number.isFinite(count)) return `${count} ${UPGRADE_TITLE[option.id]}`;
+  }
+  return UPGRADE_TITLE[option.id] ?? option.label;
 };
 
 const getUpgradeSuccessText = (option) => {
@@ -199,6 +206,11 @@ const renderUpgradeCards = (summary) => {
   refs.nestUpgradePanel.style.left = `${clampedX}px`;
   refs.nestUpgradePanel.style.top = `${clampedY}px`;
 
+  const panelWidth = Math.min(300, Math.max(140, window.innerWidth - 24));
+  const buttonFootprint = 80;
+  const fitsSingleRow = options.length * buttonFootprint <= panelWidth;
+  refs.upgradeCards.dataset.wrap = fitsSingleRow ? 'false' : 'true';
+
   for (const option of options) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -227,16 +239,12 @@ const renderUpgradeCards = (summary) => {
   }
 
   refs.upgradeDetail.hidden = false;
-  refs.upgradeDetailCopy.textContent = selectedOption.description;
-  const disabledReason = getUpgradeDisabledReason(selectedOption);
-  const successFeedback = app.upgradeFeedback && app.upgradeFeedback.kind === 'success' ? app.upgradeFeedback : null;
-  const detailNote = successFeedback?.upgradeId === selectedOption.id
-    ? successFeedback.text
-    : (disabledReason ?? getUpgradeReadyText(selectedOption) ?? 'Unavailable');
-  refs.upgradeDetailCopy.textContent = `${selectedOption.description} ${detailNote}`.trim();
+  refs.upgradeDetailCopy.textContent = getUpgradeSummaryText(selectedOption);
   refs.upgradeConfirmButton.disabled = !!selectedOption.disabled;
-  refs.upgradeConfirmButton.textContent = `${UPGRADE_ICON[selectedOption.id] ?? '✔'}`;
-  refs.upgradeConfirmButton.title = disabledReason ?? '';
+  refs.upgradeConfirmButton.textContent = `${selectedOption.cost.toFixed(0)} 🍖`;
+  refs.upgradeConfirmButton.title = selectedOption.disabled
+    ? (selectedOption.shortfall > 0 ? `Need ${selectedOption.shortfall.toFixed(1)} more food` : 'Unavailable')
+    : '';
   refs.upgradeConfirmButton.onclick = () => {
     const applied = gameplaySession.applyUpgrade(selectedOption.id);
     if (applied) {

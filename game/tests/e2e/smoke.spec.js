@@ -147,7 +147,8 @@ test('upgrade overlay shows clear shortfall and success feedback on a mobile-siz
   await page.evaluate(() => {
     window.__ANT_BATTLE_TEST_API__?.selectUpgrade?.('spawn-workers');
   });
-  await expect(page.locator('#upgradeDetailCopy')).toContainText('Need 7.0 more food');
+  await expect(page.locator('#upgradeDetailCopy')).toContainText('worker ants');
+  await expect(page.locator('#upgradeConfirmButton')).toContainText('12');
   await expect(page.locator('#upgradeConfirmButton')).toBeDisabled();
 
   await page.evaluate(() => {
@@ -155,10 +156,10 @@ test('upgrade overlay shows clear shortfall and success feedback on a mobile-siz
   });
 
   await expect(page.locator('#selectedNestFoodValue')).toContainText('20.0');
-  await expect(page.locator('#upgradeDetailCopy')).toContainText('Ready. Spend 12 food');
+  await expect(page.locator('#upgradeDetailCopy')).toContainText('worker ants');
   await expect(page.locator('#upgradeConfirmButton')).toBeEnabled();
   await page.locator('#upgradeConfirmButton').click({ force: true });
-  await expect(page.locator('#upgradeDetailCopy')).toContainText('Worker reinforcements called up');
+  await expect(page.locator('#upgradeDetailCopy')).toContainText('worker ants');
 
   const panelBox = await page.locator('#nestUpgradePanel').boundingBox();
   expect(panelBox).not.toBeNull();
