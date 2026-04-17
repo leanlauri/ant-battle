@@ -82,6 +82,11 @@ Suggested default:
 
 This can be faction-biased later.
 
+Worker combat behavior (current baseline):
+- workers still defend against nearby hostile fighters
+- when contesting nearby free food, workers can pressure rival workers at that food
+- when no free food is nearby, workers can pressure nearby hostile carriers first, then other nearby hostile ants
+
 ---
 
 ## 5. Ant death handling

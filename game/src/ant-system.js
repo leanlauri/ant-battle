@@ -43,6 +43,8 @@ export const ANT_CONFIG = Object.freeze({
   legCarryMinRatio: 0.22,
   fighterSenseDistance: 12,
   workerDefenseSenseDistance: 4.8,
+  workerRaidSenseDistance: 6,
+  workerFoodContestRadius: 2.8,
   fighterAttackRange: 0.95,
   fighterAttackDamage: 14,
   fighterAttackCooldown: 0.72,
@@ -366,6 +368,7 @@ export const createAntState = (id, x, z, overrides = {}, random = DEFAULT_RANDOM
     maxHp,
     attackCooldownRemaining: 0,
     combatTargetId: null,
+    workerAggroTargetId: null,
     dead: false,
     deathVisualTime: 0,
     deathVisualDuration: ANT_CONFIG.deathVisualDuration,
@@ -530,13 +533,61 @@ const getCarryApproachTarget = (ant, nestPosition) => {
   return ant.queuedNestSlot.entrancePosition;
 };
 
-const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusTarget, nestLookup, random = DEFAULT_RANDOM_SOURCE) => {
+const findWorkerContestTarget = (ant, ants, foodTarget, maxDistance = ANT_CONFIG.workerRaidSenseDistance) => {
+  if (!foodTarget) return null;
+
+  let bestTarget = null;
+  let bestDistanceSq = maxDistance * maxDistance;
+  for (const other of ants) {
+    if (other === ant || other.dead || other.colonyId === ant.colonyId) continue;
+    if (other.role !== ANT_ROLE.worker) continue;
+    const distanceToFoodSq = other.position.distanceToSquared(foodTarget.position);
+    if (distanceToFoodSq > ANT_CONFIG.workerFoodContestRadius * ANT_CONFIG.workerFoodContestRadius) continue;
+
+    const distanceSq = ant.position.distanceToSquared(other.position);
+    if (distanceSq > maxDistance * maxDistance) continue;
+    if (!bestTarget || distanceSq < bestDistanceSq) {
+      bestTarget = other;
+      bestDistanceSq = distanceSq;
+    }
+  }
+
+  return bestTarget;
+};
+
+const findWorkerRaidTarget = (ant, ants, maxDistance = ANT_CONFIG.workerRaidSenseDistance) => {
+  let bestTarget = null;
+  let bestDistanceSq = maxDistance * maxDistance;
+  let bestPriority = -1;
+  for (const other of ants) {
+    if (other === ant || other.dead || other.colonyId === ant.colonyId) continue;
+    const distanceSq = ant.position.distanceToSquared(other.position);
+    if (distanceSq > maxDistance * maxDistance) continue;
+
+    const priority = other.carryingFoodId != null
+      ? 3
+      : other.role === ANT_ROLE.worker
+        ? 2
+        : 1;
+
+    if (!bestTarget || priority > bestPriority || (priority === bestPriority && distanceSq < bestDistanceSq)) {
+      bestTarget = other;
+      bestDistanceSq = distanceSq;
+      bestPriority = priority;
+    }
+  }
+
+  return bestTarget;
+};
+
+const updateBrain = (ant, distanceToCamera, foods, ants, pheromoneSystem, colonyFocusTarget, nestLookup, random = DEFAULT_RANDOM_SOURCE) => {
   ant.lodBand = getLodBandForDistance(distanceToCamera);
   ant.brainInterval = getBrainIntervalForDistance(distanceToCamera);
   ant.logicInterval = getLogicIntervalForDistance(distanceToCamera);
 
   const homeNestPosition = getHomeNestPosition(ant, nestLookup);
 
+  ant.workerAggroTargetId = null;
   if (ant.carryingFoodId != null) return;
 
   if (ant.role === ANT_ROLE.fighter) {
@@ -573,6 +624,14 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
   if (ant.targetFoodId != null) {
     const trackedFood = getFoodById(foods, ant.targetFoodId);
     if (trackedFood && !trackedFood.delivered && !trackedFood.carried) {
+      const contestTarget = ant.faction === ANT_FACTION.player
+        ? findWorkerContestTarget(ant, ants, trackedFood)
+        : null;
+      if (contestTarget) {
+        ant.workerAggroTargetId = contestTarget.id;
+        chooseFocusAction(ant, contestTarget.position, 1);
+        return;
+      }
       chooseFoodAction(ant, trackedFood);
       return;
     }
@@ -586,6 +645,14 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
 
   const sensedFood = findNearestFood(foods, ant.position, FOOD_CONFIG.senseDistance);
   if (sensedFood) {
+    const contestTarget = ant.faction === ANT_FACTION.player
+      ? findWorkerContestTarget(ant, ants, sensedFood)
+      : null;
+    if (contestTarget) {
+      ant.workerAggroTargetId = contestTarget.id;
+      chooseFocusAction(ant, contestTarget.position, 1);
+      return;
+    }
     chooseFoodAction(ant, sensedFood);
     return;
   }
@@ -596,6 +663,15 @@ const updateBrain = (ant, distanceToCamera, foods, pheromoneSystem, colonyFocusT
     const focusChance = 0.58;
     if (ant.faction === ANT_FACTION.player && focusDistance > focusRadius && random() < focusChance) {
       chooseFocusAction(ant, colonyFocusTarget);
+      return;
+    }
+  }
+
+  if (ant.faction === ANT_FACTION.player) {
+    const raidTarget = findWorkerRaidTarget(ant, ants);
+    if (raidTarget) {
+      ant.workerAggroTargetId = raidTarget.id;
+      chooseFocusAction(ant, raidTarget.position, 1);
       return;
     }
   }
@@ -755,9 +831,15 @@ export const findCombatTarget = (ant, ants, maxDistance = ANT_CONFIG.fighterSens
   let bestPriority = -1;
   for (const other of ants) {
     if (other === ant || other.dead || other.colonyId === ant.colonyId) continue;
-    if (ant.role === ANT_ROLE.worker && other.role !== ANT_ROLE.fighter) continue;
     const distanceSq = ant.position.distanceToSquared(other.position);
-    if (distanceSq > senseDistance * senseDistance) continue;
+    if (ant.role === ANT_ROLE.worker) {
+      const isWorkerDefenseTarget = other.role === ANT_ROLE.fighter && distanceSq <= ANT_CONFIG.workerDefenseSenseDistance * ANT_CONFIG.workerDefenseSenseDistance;
+      const isAggroTarget = ant.workerAggroTargetId != null
+        && other.id === ant.workerAggroTargetId
+        && distanceSq <= ANT_CONFIG.workerRaidSenseDistance * ANT_CONFIG.workerRaidSenseDistance;
+      if (!isWorkerDefenseTarget && !isAggroTarget) continue;
+    }
+    if (ant.role !== ANT_ROLE.worker && distanceSq > senseDistance * senseDistance) continue;
 
     const priority = other.carryingFoodId != null ? 3 : other.role === ANT_ROLE.fighter ? 2 : 1;
     if (!bestTarget || priority > bestPriority || (priority === bestPriority && distanceSq < bestDistanceSq)) {
@@ -790,6 +872,7 @@ const clearAntAssignments = (ant, foodSystem, foods) => {
   ant.assistingFoodId = null;
   ant.queuedNestSlot = null;
   ant.combatTargetId = null;
+  ant.workerAggroTargetId = null;
 };
 
 export const resolveNestCollapse = (collapsedNest, ants, nests) => {
@@ -1242,7 +1325,7 @@ export class AntSystem {
 
       ant.brainCooldown -= dt;
       if (ant.brainCooldown <= 0) {
-        updateBrain(ant, distanceToCamera, this.foods, this.pheromoneSystem, this.focusTarget, this.nestLookup, ant.random ?? this.decisionRandom);
+        updateBrain(ant, distanceToCamera, this.foods, this.ants, this.pheromoneSystem, this.focusTarget, this.nestLookup, ant.random ?? this.decisionRandom);
         ant.brainCooldown = ant.brainInterval;
       }
 
