@@ -221,6 +221,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let resizeHandler = null;
   let pointerDown = null;
   let pointerDownHandler = null;
+  let pointerMoveHandler = null;
   let pointerUpHandler = null;
   let animationFrameId = 0;
   let running = false;
@@ -231,6 +232,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let cameraMode = CAMERA_MODE.battlefield;
   let multiTouchGesture = false;
   const activePointerIds = new Set();
+  const pointerPositions = new Map();
   const buildInfo = createBuildInfo();
   const enemyProductionCooldowns = new Map();
   let currentLevelDefinition = getLevelDefinition(1);
@@ -341,7 +343,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       controls.touches.ONE = THREE.TOUCH.PAN;
       controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
       controls.enableRotate = true;
-      controls.rotateSpeed = -0.9;
+      controls.rotateSpeed = 0.9;
       controls.screenSpacePanning = true;
       controls.minPolarAngle = BATTLEFIELD_FIXED_POLAR_ANGLE;
       controls.maxPolarAngle = BATTLEFIELD_FIXED_POLAR_ANGLE;
@@ -449,15 +451,18 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       resizeHandler = null;
     }
     if (pointerDownHandler && renderer?.domElement) renderer.domElement.removeEventListener('pointerdown', pointerDownHandler);
+    if (pointerMoveHandler && renderer?.domElement) renderer.domElement.removeEventListener('pointermove', pointerMoveHandler);
     if (pointerUpHandler && renderer?.domElement) {
       renderer.domElement.removeEventListener('pointerup', pointerUpHandler);
       renderer.domElement.removeEventListener('pointercancel', pointerUpHandler);
     }
     pointerDownHandler = null;
+    pointerMoveHandler = null;
     pointerUpHandler = null;
     pointerDown = null;
     multiTouchGesture = false;
     activePointerIds.clear();
+    pointerPositions.clear();
     controls?.dispose();
     renderer?.dispose();
     if (typeof renderer?.forceContextLoss === 'function') renderer.forceContextLoss();
@@ -644,6 +649,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       const pointer = new THREE.Vector2();
       pointerDownHandler = (event) => {
         activePointerIds.add(event.pointerId);
+        pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
         if (activePointerIds.size > 1) {
           multiTouchGesture = true;
           pointerDown = null;
@@ -651,12 +657,33 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         }
         pointerDown = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
       };
+      pointerMoveHandler = (event) => {
+        if (!activePointerIds.has(event.pointerId)) return;
+        pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (cameraMode !== CAMERA_MODE.battlefield || !controls) return;
+        if (activePointerIds.size < 2) return;
+
+        const pointers = [...activePointerIds]
+          .map((id) => pointerPositions.get(id))
+          .filter(Boolean);
+        if (pointers.length < 2) return;
+
+        const centroidY = pointers.reduce((sum, point) => sum + point.y, 0) / pointers.length;
+        const height = Math.max(1, renderer?.domElement?.clientHeight ?? window.innerHeight);
+        const yNorm = THREE.MathUtils.clamp((centroidY / height) * 2 - 1, -1, 1);
+        const signedSpeed = THREE.MathUtils.clamp(-0.9 * yNorm, -0.9, 0.9);
+        controls.rotateSpeed = Math.abs(signedSpeed) < 0.16
+          ? (yNorm >= 0 ? -0.16 : 0.16)
+          : signedSpeed;
+      };
       pointerUpHandler = (event) => {
         const releasedFinalPointer = activePointerIds.size <= 1;
         activePointerIds.delete(event.pointerId);
+        pointerPositions.delete(event.pointerId);
         if (multiTouchGesture) {
           if (releasedFinalPointer) multiTouchGesture = false;
           pointerDown = null;
+          if (cameraMode === CAMERA_MODE.battlefield && controls) controls.rotateSpeed = 0.9;
           return;
         }
         if (!pointerDown || pointerDown.pointerId !== event.pointerId || !camera || !terrain || !foodSystem || !antSystem) return;
@@ -718,6 +745,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         publishHud();
       };
       renderer.domElement.addEventListener('pointerdown', pointerDownHandler);
+      renderer.domElement.addEventListener('pointermove', pointerMoveHandler);
       renderer.domElement.addEventListener('pointerup', pointerUpHandler);
       renderer.domElement.addEventListener('pointercancel', pointerUpHandler);
 
