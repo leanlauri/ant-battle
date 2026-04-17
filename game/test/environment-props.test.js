@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { createEnvironmentalPropLayout, ENVIRONMENT_PROP_CONFIG } from '../src/environment-props.js';
+import * as THREE from 'three';
+import { createEnvironmentalPropLayout, ENVIRONMENT_PROP_CONFIG, EnvironmentalPropsSystem } from '../src/environment-props.js';
 
 const summarize = (layout) => layout.slice(0, 24).map((entry) => ({
   type: entry.type,
@@ -50,5 +51,30 @@ describe('environment prop scatter', () => {
         expect(nestDistance).toBeGreaterThan(ENVIRONMENT_PROP_CONFIG.protectedNestRadius - 0.15);
       }
     }
+  });
+
+  test('keeps orthographic props visible while zoomed in by culling around camera target', () => {
+    const scene = new THREE.Scene();
+    const system = new EnvironmentalPropsSystem({
+      scene,
+      seed: 'zoom-visibility',
+      terrainProfile: { width: 100, depth: 100, maxHeight: 4.2, noiseScale: 0.05, octaves: 4 },
+      nests: [
+        { position: { x: 0, z: 0 }, collapsed: false },
+        { position: { x: -26, z: -18 }, collapsed: false },
+      ],
+    });
+
+    const camera = new THREE.OrthographicCamera(-20, 20, 20, -20, 0.1, 200);
+    camera.position.set(40, 42, 40);
+    camera.zoom = 5.2;
+    camera.updateProjectionMatrix();
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld();
+
+    system.update(camera, 1, true, new THREE.Vector3(0, 0, 0));
+    expect(system.rockMesh.count + system.plantMesh.count).toBeGreaterThan(0);
+
+    system.dispose();
   });
 });

@@ -233,17 +233,19 @@ export class EnvironmentalPropsSystem {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }
 
-  update(camera, dt = 0, force = false) {
+  update(camera, dt = 0, force = false, focusTarget = null) {
     this.elapsed += dt;
     if (!force && this.elapsed < ENVIRONMENT_PROP_CONFIG.updateInterval) return;
     this.elapsed = 0;
 
     const visibleDistance = this.getVisibleDistance(camera);
     const maxDistanceSq = visibleDistance * visibleDistance;
-    const cameraPosition = camera?.position ?? null;
+    const cullAnchor = camera?.isOrthographicCamera && focusTarget
+      ? focusTarget
+      : (camera?.position ?? null);
 
-    this.applyEntries(this.rockEntries, this.rockMesh, new THREE.Color(0x8e9cb2), cameraPosition, maxDistanceSq);
-    this.applyEntries(this.plantEntries, this.plantMesh, new THREE.Color(0x607f58), cameraPosition, maxDistanceSq);
+    this.applyEntries(this.rockEntries, this.rockMesh, new THREE.Color(0x8e9cb2), cullAnchor, maxDistanceSq);
+    this.applyEntries(this.plantEntries, this.plantMesh, new THREE.Color(0x607f58), cullAnchor, maxDistanceSq);
   }
 
   dispose() {

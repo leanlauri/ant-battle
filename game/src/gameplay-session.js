@@ -492,7 +492,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     accumulator += dt;
     controls.update();
     enforceBattlefieldCameraConstraints();
-    environmentProps?.update(camera, dt);
+    environmentProps?.update(camera, dt, false, controls?.target ?? null);
     syncSceneFog(scene, camera);
 
     let substeps = 0;
@@ -622,7 +622,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         effectRandom: antEffectRandom,
       });
       setDebugVisualsVisible(debugVisualsVisible);
-      environmentProps.update(camera, 0, true);
+      environmentProps.update(camera, 0, true, controls?.target ?? null);
       publishHud();
 
       resizeHandler = () => {
