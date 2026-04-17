@@ -187,6 +187,52 @@ const getAntPalette = (role, faction) => {
 
 const getBloodColor = (colonyId) => ANT_COLONY_PALETTES[colonyId]?.blood ?? ANT_COLONY_PALETTES[COLONY.player].blood;
 
+const DAMAGE_TEXT_CONFIG = Object.freeze({
+  life: 0.72,
+  riseMin: 0.95,
+  riseMax: 1.45,
+  driftMin: 0.08,
+  driftMax: 0.26,
+  width: 256,
+  height: 128,
+  scaleX: 1.45,
+  scaleY: 0.72,
+});
+
+const createDamageTextSprite = (text) => {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = DAMAGE_TEXT_CONFIG.width;
+  canvas.height = DAMAGE_TEXT_CONFIG.height;
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.font = '700 72px Inter, Arial Black, sans-serif';
+  context.lineWidth = 12;
+  context.strokeStyle = 'rgba(64, 0, 0, 0.98)';
+  context.fillStyle = '#ff3f3f';
+  context.strokeText(text, canvas.width / 2, canvas.height * 0.52);
+  context.fillText(text, canvas.width / 2, canvas.height * 0.52);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+  });
+  material.userData.baseOpacity = 0.98;
+
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(DAMAGE_TEXT_CONFIG.scaleX, DAMAGE_TEXT_CONFIG.scaleY, 1);
+  sprite.renderOrder = 28;
+  return sprite;
+};
+
 const getHomeNestPosition = (ant, nestLookup) => nestLookup.get(ant.homeNestId)?.position ?? NEST_CONFIG.position;
 
 const findNearestFriendlyActiveNest = (ant, nests, excludeNestId = null) => {
@@ -824,6 +870,8 @@ export class AntSystem {
     this.focusTarget = null;
     this.hitEffects = [];
     this.hitEffectGroup = new THREE.Group();
+    this.damageTexts = [];
+    this.damageTextGroup = new THREE.Group();
     this.groundSplats = [];
     this.groundSplatGroup = new THREE.Group();
     this.corpseRemains = [];
@@ -838,6 +886,7 @@ export class AntSystem {
     };
     this.outcome = null;
     this.scene.add(this.hitEffectGroup);
+    this.scene.add(this.damageTextGroup);
     this.scene.add(this.groundSplatGroup);
     this.scene.add(this.corpseGroup);
 
@@ -1015,6 +1064,28 @@ export class AntSystem {
     this.spawnGroundSplat(position, colonyId, 0.7 * intensity);
   }
 
+  spawnDamageText(position, damageValue) {
+    const roundedDamage = Math.max(0, Math.round(damageValue));
+    if (roundedDamage <= 0) return;
+    const sprite = createDamageTextSprite(`-${roundedDamage}`);
+    if (!sprite) return;
+
+    const random = this.effectRandom;
+    sprite.position.copy(position);
+    sprite.position.y += 0.42 + random() * 0.2;
+    this.damageTextGroup.add(sprite);
+
+    const driftAngle = random() * Math.PI * 2;
+    const driftSpeed = THREE.MathUtils.lerp(DAMAGE_TEXT_CONFIG.driftMin, DAMAGE_TEXT_CONFIG.driftMax, random());
+    const riseSpeed = THREE.MathUtils.lerp(DAMAGE_TEXT_CONFIG.riseMin, DAMAGE_TEXT_CONFIG.riseMax, random());
+    this.damageTexts.push({
+      sprite,
+      life: DAMAGE_TEXT_CONFIG.life,
+      maxLife: DAMAGE_TEXT_CONFIG.life,
+      velocity: new THREE.Vector3(Math.cos(driftAngle) * driftSpeed, riseSpeed, Math.sin(driftAngle) * driftSpeed),
+    });
+  }
+
   updateEffects(dt) {
     this.hitEffects = this.hitEffects.filter((effect) => {
       effect.life -= dt;
@@ -1049,6 +1120,26 @@ export class AntSystem {
           child.geometry?.dispose?.();
         }
       });
+      return false;
+    });
+
+    this.damageTexts = this.damageTexts.filter((textEffect) => {
+      textEffect.life -= dt;
+      const lifeRatio = Math.max(0, textEffect.life / textEffect.maxLife);
+      textEffect.sprite.position.addScaledVector(textEffect.velocity, dt);
+      textEffect.velocity.y = Math.max(0.2, textEffect.velocity.y - 1.5 * dt);
+      textEffect.sprite.material.opacity = (textEffect.sprite.material.userData?.baseOpacity ?? 0.98) * lifeRatio;
+      const scale = 1 + (1 - lifeRatio) * 0.2;
+      textEffect.sprite.scale.set(
+        DAMAGE_TEXT_CONFIG.scaleX * scale,
+        DAMAGE_TEXT_CONFIG.scaleY * scale,
+        1,
+      );
+
+      if (textEffect.life > 0) return true;
+      this.damageTextGroup.remove(textEffect.sprite);
+      textEffect.sprite.material.map?.dispose?.();
+      textEffect.sprite.material.dispose?.();
       return false;
     });
 
@@ -1122,9 +1213,12 @@ export class AntSystem {
               ant.attackVisualTime = attackCooldown * 0.65;
               if (ant.attackCooldownRemaining <= 0) {
                 ant.attackCooldownRemaining = attackCooldown;
-                target.hp -= attackDamage;
+                const previousHp = target.hp;
+                target.hp = Math.max(0, target.hp - attackDamage);
+                const damageApplied = Math.max(0, previousHp - target.hp);
                 target.hitFlashTime = 0.2;
                 this.spawnHitEffect(target.position, target.colonyId, target.hp <= 0 ? 1.4 : 1);
+                this.spawnDamageText(target.position, damageApplied);
                 if (target.hp <= 0 && !target.dead) {
                   target.dead = true;
                   clearAntAssignments(target, this.foodSystem, this.foods);
@@ -1156,7 +1250,9 @@ export class AntSystem {
                   if (ant.attackCooldownRemaining <= 0) {
                     ant.attackCooldownRemaining = ANT_CONFIG.fighterAttackCooldown;
                     const damageResult = this.foodSystem.damageNest(siegeNest.id, ANT_CONFIG.fighterNestAttackDamage);
-                    this.spawnHitEffect(getNestImpactPoint(ant, siegeNest), siegeNest.colonyId, 0.85);
+                    const impactPoint = getNestImpactPoint(ant, siegeNest);
+                    this.spawnHitEffect(impactPoint, siegeNest.colonyId, 0.85);
+                    this.spawnDamageText(impactPoint, damageResult?.damageApplied ?? 0);
                     if (damageResult?.justCollapsed) {
                       if (siegeNest.faction === ANT_FACTION.enemy) this.stats.enemyNestsDestroyed += 1;
                       if (siegeNest.faction === ANT_FACTION.player) this.stats.playerNestsLost += 1;

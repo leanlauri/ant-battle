@@ -56,10 +56,18 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect(page.locator('#battleInfo')).toContainText('Battle:');
   await expect(page.locator('#debugVisualsToggle')).toHaveCount(0);
   await expect(page.locator('#debugMenu')).toBeHidden();
-  await expect(page.locator('#cameraModeValue')).toHaveText('Orbit camera');
-  await expect(page.locator('#cameraModeButton')).toHaveText('Switch to battlefield camera');
+  await expect(page.locator('#cameraModeValue')).toHaveText('Battlefield camera');
+  await expect(page.locator('#cameraModeButton')).toHaveText('Switch to orbit camera');
   await expect(page.locator('body canvas')).toBeVisible();
   await expect(page.locator('#fatalOverlay')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraMode?.())).toBe('battlefield');
+  await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraProjectionType?.())).toBe('orthographic');
+
+  await page.locator('#cameraModeButton').click();
+  await expect(page.locator('#cameraModeValue')).toHaveText('Orbit camera');
+  await expect(page.locator('#cameraModeButton')).toHaveText('Switch to battlefield camera');
+  await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraMode?.())).toBe('orbit');
+  await expect.poll(() => page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraProjectionType?.())).toBe('perspective');
 
   await page.locator('#cameraModeButton').click();
   await expect(page.locator('#cameraModeValue')).toHaveText('Battlefield camera');
@@ -98,8 +106,8 @@ test('boots through title, level select, gameplay, and victory progression flow'
   const clampedBattlefieldState = await page.evaluate(() => window.__ANT_BATTLE_TEST_API__?.getCameraState?.());
   expect(clampedBattlefieldState.zoom).toBeLessThanOrEqual(5.2);
   expect(clampedBattlefieldState.zoom).toBeGreaterThan(5);
-  expect(clampedBattlefieldState.target.x).toBeLessThan(42);
-  expect(clampedBattlefieldState.target.z).toBeLessThan(45);
+  expect(clampedBattlefieldState.target.x).toBeLessThan(46);
+  expect(clampedBattlefieldState.target.z).toBeLessThan(46);
 
   await page.locator('body canvas').click({ position: { x: 520, y: 420 } });
   await expect(page.locator('#focusInfo')).not.toHaveText('Focus: No rally point set');

@@ -33,7 +33,13 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ## Todo
 
-### Immediate UI fixes
+### Priority items
+
+- [ ] Add visible death/aftermath presentation for ant combat.
+  - Add lightweight death breakup or fall animation.
+  - Stamp corpse/blood aftermath into a persistent battlefield overlay instead of leaving live meshes.
+  - Docs: `COMBAT_AND_NEST_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
 
 ### Level generation and campaign progression
 
@@ -86,11 +92,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Combat, aftermath, and nest systems
 
-- [ ] Add visible death/aftermath presentation for ant combat.
-  - Add lightweight death breakup or fall animation.
-  - Stamp corpse/blood aftermath into a persistent battlefield overlay instead of leaving live meshes.
-  - Docs: `COMBAT_AND_NEST_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
 - [ ] Refine combat targeting priorities and siege behavior.
   - Better reflect the intended fighter target ordering.
   - Make nest sieges readable and balanceable.
@@ -106,11 +107,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
   - Docs: `COMBAT_AND_NEST_SPEC.md`
 
 ### Colony expansion and unit roster
-
-- [ ] Reintroduce scouts only if they earn a real gameplay role.
-  - If restored, give them meaningful exploration pressure and readable differentiation.
-  - If not, update specs/docs to reflect the permanent roster.
-  - Docs: `FACTION_AND_UNIT_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [ ] Add queen unlocks and queen creation upgrade.
   - Define unlock conditions and upgrade presentation.
@@ -192,6 +188,11 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] When ants or nests take damage, show number of hit points lost (integers only) as red "-N" text floating up and disappearing from the target
+  - Added world-space floating damage numbers so ant and nest hits now show clear red integer `-N` feedback at impact.
+  - Routed nest damage reporting to include the applied HP loss and reused it for nest-hit popup text while preserving existing hit sparks/splats.
+  - Added fade-and-rise lifecycle updates plus cleanup for damage text sprites.
 
 - [x] Add live-runtime deterministic coverage for spawned worker focus-target routing and spawned enemy fighter pressure decisions.
   - Thin slice under the broader replay-sensitive runtime sweep.

@@ -718,13 +718,16 @@ export class FoodSystem {
     const nest = this.getNestById(nestId);
     if (!nest || nest.collapsed) return null;
     const wasCollapsed = nest.collapsed;
+    const previousHp = nest.hp;
     nest.hp = Math.max(0, nest.hp - Math.max(0, damage));
+    const damageApplied = Math.max(0, previousHp - nest.hp);
     if (nest.hp <= 0) nest.collapsed = true;
     this.updateNestVisual();
     return {
       nestId: nest.id,
       hp: nest.hp,
       maxHp: nest.maxHp,
+      damageApplied,
       collapsed: nest.collapsed,
       justCollapsed: nest.collapsed && !wasCollapsed,
     };

@@ -72,6 +72,7 @@ Goals:
 - [x] Battlefield camera controls now keep a true 45 degree orthographic tactical tilt, allow target-stable rotation around the current focus, and zoom in closer for near-ant inspection without breaking tap targeting
 - [x] Battlefield camera foreground clipping was reduced by biasing the orthographic frustum slightly toward the lower screen edge and widening the near/far safety range, so close tactical zoom keeps the lower battlefield visible
 - [x] Battlefield foreground occlusion was reduced further by softening terrain relief near the outer rim and tightening battlefield edge clamping at close zoom, so raised horizon geometry no longer crowds the lower tactical view
+- [x] Combat readability now includes floating red integer damage popups (`-N`) for both ant hits and nest siege hits, with brief rise/fade presentation tied to impact points
 
 ### Next implementation slice
 1. Replace coarse level bands with a richer deterministic level-definition model.

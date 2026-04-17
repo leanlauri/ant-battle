@@ -72,6 +72,7 @@ Recommended base model:
 - attack cooldown per fighter
 - fixed or lightly varied damage per hit
 - nearest valid target priority
+- when ants or nests take damage, show a red integer `-N` popup that floats upward briefly from the impact point
 
 ## Fighter targeting priority
 Suggested default:

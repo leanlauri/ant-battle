@@ -139,6 +139,10 @@ Recommended format:
 - marker should be readable on all terrain palettes
 - when the active focus target is an enemy nest, that nest should also get a clear world-space ring/outline so the attack target is unmistakable
 
+### Combat hit feedback
+- when ants or nests take damage, show a red integer `-N` popup near the target
+- popup text should float up and fade quickly to keep combat readable without clutter
+
 ## Optional later HUD additions
 - pause/menu button
 - enemy ant defeated count
