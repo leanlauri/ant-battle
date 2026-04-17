@@ -659,22 +659,31 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       };
       pointerMoveHandler = (event) => {
         if (!activePointerIds.has(event.pointerId)) return;
+        const previous = pointerPositions.get(event.pointerId) ?? { x: event.clientX, y: event.clientY };
         pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
         if (cameraMode !== CAMERA_MODE.battlefield || !controls) return;
         if (activePointerIds.size < 2) return;
-
-        const pointers = [...activePointerIds]
-          .map((id) => pointerPositions.get(id))
-          .filter(Boolean);
-        if (pointers.length < 2) return;
-
-        const centroidY = pointers.reduce((sum, point) => sum + point.y, 0) / pointers.length;
         const height = Math.max(1, renderer?.domElement?.clientHeight ?? window.innerHeight);
-        const yNorm = THREE.MathUtils.clamp((centroidY / height) * 2 - 1, -1, 1);
-        const signedSpeed = THREE.MathUtils.clamp(-0.9 * yNorm, -0.9, 0.9);
-        controls.rotateSpeed = Math.abs(signedSpeed) < 0.16
-          ? (yNorm >= 0 ? -0.16 : 0.16)
-          : signedSpeed;
+        const width = Math.max(1, renderer?.domElement?.clientWidth ?? window.innerWidth);
+        const centerX = width * 0.5;
+        const centerY = height * 0.5;
+
+        const dx = event.clientX - previous.x;
+        const dy = event.clientY - previous.y;
+        const rx = previous.x - centerX;
+        const ry = previous.y - centerY;
+        const radius = Math.hypot(rx, ry);
+        const winding = (rx * dy) - (ry * dx);
+        const tangentialPixels = Math.abs(winding) / Math.max(1, radius);
+
+        if (radius < 6 || tangentialPixels < 0.01) {
+          controls.rotateSpeed = 0;
+          return;
+        }
+
+        const strength = THREE.MathUtils.clamp(tangentialPixels / 16, 0, 1);
+        const signedSpeed = -Math.sign(winding) * THREE.MathUtils.lerp(0.12, 0.95, strength);
+        controls.rotateSpeed = signedSpeed;
       };
       pointerUpHandler = (event) => {
         const releasedFinalPointer = activePointerIds.size <= 1;
