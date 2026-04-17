@@ -110,12 +110,12 @@ const app = {
 };
 
 const UPGRADE_ICON = {
-  'repair-nest': 'fix',
-  'spawn-workers': 'wrk',
-  'spawn-fighters': 'fgt',
-  'brood-chambers': 'brood',
-  'war-nest': 'war',
-  'fortify-nest': 'hp',
+  'repair-nest': '🩹',
+  'spawn-workers': '🐜',
+  'spawn-fighters': '⚔️',
+  'brood-chambers': '🥚',
+  'war-nest': '🛡️',
+  'fortify-nest': '🏰',
 };
 
 const getCurrentLevelDefinition = () => getLevelDefinition(app.currentLevel);
@@ -194,8 +194,6 @@ const renderUpgradeCards = (summary) => {
   }
 
   refs.nestUpgradePanel.hidden = false;
-  refs.nestUpgradeTitle.textContent = `${summary.selectedNestLabel ?? 'Nest'} upgrades`;
-  if (refs.nestUpgradeFoodInfo) refs.nestUpgradeFoodInfo.textContent = `Stored food: ${(summary?.selectedNestStored ?? 0).toFixed(1)}`;
   const clampedX = Math.min(window.innerWidth - 12, Math.max(12, anchor.x));
   const clampedY = Math.min(window.innerHeight - 12, Math.max(72, anchor.y));
   refs.nestUpgradePanel.style.left = `${clampedX}px`;
@@ -212,8 +210,7 @@ const renderUpgradeCards = (summary) => {
     button.setAttribute('aria-label', `${option.label}, ${option.cost.toFixed(0)} food${option.shortfall > 0 ? `, needs ${option.shortfall.toFixed(1)} more food` : ''}`);
     button.innerHTML = `
       <span class="upgradeChipIcon">${UPGRADE_ICON[option.id] ?? 'up'}</span>
-      <span>${option.cost.toFixed(0)}</span>
-      <span class="upgradeChipCost">food</span>
+      <span class="upgradeChipCost">${option.cost.toFixed(0)}</span>
     `;
     button.addEventListener('click', () => {
       app.selectedUpgradeId = option.id;
@@ -225,28 +222,20 @@ const renderUpgradeCards = (summary) => {
   const selectedOption = options.find((option) => option.id === app.selectedUpgradeId) ?? null;
   if (!selectedOption || !refs.upgradeDetail) {
     refs.upgradeDetail.hidden = true;
-    if (refs.upgradeFeedbackToast) refs.upgradeFeedbackToast.hidden = !app.upgradeFeedback?.text;
+    if (refs.upgradeFeedbackToast) refs.upgradeFeedbackToast.hidden = true;
     return;
   }
 
   refs.upgradeDetail.hidden = false;
-  refs.upgradeDetailLabel.textContent = selectedOption.label;
-  refs.upgradeDetailCost.textContent = `${selectedOption.cost.toFixed(0)} food`;
   refs.upgradeDetailCopy.textContent = selectedOption.description;
   const disabledReason = getUpgradeDisabledReason(selectedOption);
   const successFeedback = app.upgradeFeedback && app.upgradeFeedback.kind === 'success' ? app.upgradeFeedback : null;
-  if (refs.upgradeDetailStatus) {
-    refs.upgradeDetailStatus.dataset.kind = successFeedback?.upgradeId === selectedOption.id
-      ? 'success'
-      : (disabledReason ? 'warning' : 'ready');
-    refs.upgradeDetailStatus.textContent = successFeedback?.upgradeId === selectedOption.id
-      ? successFeedback.text
-      : (disabledReason ?? getUpgradeReadyText(selectedOption) ?? 'Unavailable');
-  }
+  const detailNote = successFeedback?.upgradeId === selectedOption.id
+    ? successFeedback.text
+    : (disabledReason ?? getUpgradeReadyText(selectedOption) ?? 'Unavailable');
+  refs.upgradeDetailCopy.textContent = `${selectedOption.description} ${detailNote}`.trim();
   refs.upgradeConfirmButton.disabled = !!selectedOption.disabled;
-  refs.upgradeConfirmButton.textContent = selectedOption.disabled
-    ? (selectedOption.shortfall > 0 ? `Need ${selectedOption.shortfall.toFixed(1)} more food` : 'Already active')
-    : 'Confirm';
+  refs.upgradeConfirmButton.textContent = `${UPGRADE_ICON[selectedOption.id] ?? '✔'}`;
   refs.upgradeConfirmButton.title = disabledReason ?? '';
   refs.upgradeConfirmButton.onclick = () => {
     const applied = gameplaySession.applyUpgrade(selectedOption.id);
@@ -262,9 +251,7 @@ const renderUpgradeCards = (summary) => {
   };
 
   if (refs.upgradeFeedbackToast) {
-    const toast = app.upgradeFeedback;
-    refs.upgradeFeedbackToast.hidden = !toast?.text;
-    refs.upgradeFeedbackToast.textContent = toast?.text ?? '';
+    refs.upgradeFeedbackToast.hidden = true;
   }
 };
 

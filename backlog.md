@@ -178,6 +178,13 @@ _None._
 
 ## Complete
 
+- [x] Compact nest-upgrade UI pass for mobile clarity.
+  - Reworked the upgrade shell into a compact horizontal row of rectangular icon+cost buttons (no title/header copy in the default state).
+  - Tapping a button now opens a minimal detail block with only description/status text and an icon-first rectangular confirm button.
+  - Removed extra persistent upgrade panel text so the interaction stays focused and low-footprint near the nest anchor.
+  - Testing: `npm run validate`, `npm run test:e2e`.
+  - Docs: `UI_UX_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
 - [x] Add deterministic runtime coverage for invalid carry-food recovery fallback.
   - Added a live integration slice that forces a worker into invalid carry state (`carry-food` with stale carried-food reference) and confirms it clears assignments/reselects behavior safely.
   - Verified this recovery branch remains isolated on `ants-runtime` while `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` streams stay non-interfering.

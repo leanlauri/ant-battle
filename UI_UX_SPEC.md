@@ -172,12 +172,11 @@ Recommended format:
 - show at most 3 upgrade choices at once
 - cards/icons must be large enough for thumbs
 - cards appear only when selected nest qualifies
+- default state should be compact: horizontal row of rectangular icon+cost buttons with no title/header copy
 
 ## Required card content
 - icon
-- short title
-- one-line benefit summary
-- cost or threshold cue
+- cost cue
 
 ## Examples
 - `+20 Workers`
@@ -190,13 +189,11 @@ Recommended format:
 - near the top of the screen
 - not covering the selected nest itself if possible
 - should not obscure top-right ant count
-- the upgrade panel should also show the selected nest's currently stored food so card affordability is obvious before opening detail text
+- keep panel footprint minimal in default state; defer descriptive text until an option is tapped
 
 ## Behavior
-- tapping card applies upgrade immediately
-- card disappears if no longer affordable/available
-- use short confirmation feedback, visual pulse or pop
-- when a card is selected, the compact detail overlay should explain whether it is ready, short on food, or already active
+- tapping a card opens minimal detail text and a rectangular icon-first confirm button
+- selected option detail should explain whether it is ready, short on food, or already active
 - unavailable states should say exactly what is missing rather than only disabling the confirm button
 
 ---
