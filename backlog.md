@@ -94,11 +94,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Combat, aftermath, and nest systems
 
-- [ ] Improve nest siege behavior readability and balanceability.
-  - Keep fighter-to-ant target ordering aligned with current combat priorities.
-  - Make nest sieges more readable and easier to tune.
-  - Docs: `COMBAT_AND_NEST_SPEC.md`
-
 - [ ] Improve nest collapse presentation and migration feedback.
   - Make collapse events feel visible and consequential.
   - Consider selection handoff, migration cues, and dropped/lost food behavior.
@@ -190,6 +185,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Improve nest siege behavior readability and balanceability.
+  - Updated siege target selection so fighters now favor weakened hostile nests when multiple nests are in range.
+  - This improves finishing pressure/readability by reducing split siege focus across equally valid nests.
+  - Added test coverage for weakened-nest siege preference while keeping full validate + e2e green.
+  - Docs: `COMBAT_AND_NEST_SPEC.md`
 
 - [x] Refine combat targeting priorities.
   - Fighters now prioritize hostile fighters over carriers/workers by default, matching the intended anti-threat ordering.

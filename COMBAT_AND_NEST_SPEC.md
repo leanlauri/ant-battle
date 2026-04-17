@@ -126,6 +126,7 @@ Each nest has:
 Recommended:
 - continuous attack cycle by nearby enemy fighters
 - per-fighter attack cadence
+- when multiple hostile nests are in reach, fighters should prefer weakened nests to improve siege readability and finishing pressure
 - total siege damage scales with number of attackers but should remain balanceable
 
 ---

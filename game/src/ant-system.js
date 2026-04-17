@@ -163,13 +163,17 @@ export const findSiegeTargetNest = (ant, nests, maxDistance = ANT_CONFIG.fighter
   if (ant.dead || ant.role !== ANT_ROLE.fighter) return null;
 
   let bestNest = null;
-  let bestDistanceSq = maxDistance * maxDistance;
+  let bestScore = Number.POSITIVE_INFINITY;
   for (const nest of nests) {
     if (nest.colonyId === ant.colonyId || nest.collapsed) continue;
     const distanceSq = ant.position.distanceToSquared(nest.position);
-    if (distanceSq <= bestDistanceSq) {
+    if (distanceSq > maxDistance * maxDistance) continue;
+    const distanceRatio = THREE.MathUtils.clamp(Math.sqrt(distanceSq) / Math.max(0.001, maxDistance), 0, 1);
+    const hpRatio = nest.maxHp > 0 ? THREE.MathUtils.clamp(nest.hp / nest.maxHp, 0, 1) : 1;
+    const score = hpRatio * 0.86 + distanceRatio * 0.14;
+    if (!bestNest || score < bestScore) {
       bestNest = nest;
-      bestDistanceSq = distanceSq;
+      bestScore = score;
     }
   }
   return bestNest;

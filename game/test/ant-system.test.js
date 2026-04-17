@@ -264,6 +264,21 @@ describe('ant system helpers', () => {
     expect(findSiegeTargetNest(fighter, nests)?.id).toBe('enemy-1');
   });
 
+  test('fighters prefer weakened hostile nests when choosing siege targets', () => {
+    const fighter = createRandomAntStates(1)[0];
+    fighter.role = ANT_ROLE.fighter;
+    fighter.faction = 'player';
+    fighter.colonyId = COLONY.player;
+    fighter.position.set(0, fighter.position.y, 0);
+
+    const nests = [
+      { id: 'enemy-1', faction: 'enemy', colonyId: COLONY.enemyAlpha, position: new THREE.Vector3(4.4, 0, 0), collapsed: false, hp: 260, maxHp: 260 },
+      { id: 'enemy-2', faction: 'enemy', colonyId: COLONY.enemyBeta, position: new THREE.Vector3(6.2, 0, 0), collapsed: false, hp: 92, maxHp: 260 },
+    ];
+
+    expect(findSiegeTargetNest(fighter, nests)?.id).toBe('enemy-2');
+  });
+
   test('nest collapse kills part of the colony and reassigns survivors when possible', () => {
     const ants = createRandomAntStates(3);
     ants[0].homeNestId = 'enemy-1';
