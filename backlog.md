@@ -178,6 +178,11 @@ _None._
 
 ## Complete
 
+- [x] Add deterministic runtime coverage for invalid carry-food recovery fallback.
+  - Added a live integration slice that forces a worker into invalid carry state (`carry-food` with stale carried-food reference) and confirms it clears assignments/reselects behavior safely.
+  - Verified this recovery branch remains isolated on `ants-runtime` while `food`, `enemy-economy`, `ants-spawn`, and `ants-effects` streams stay non-interfering.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
 - [x] Atmosphere polish pass: fog/depth layering + palette balance with readability guardrails.
   - Added per-level atmosphere guardrails for fog depth ranges and key light intensities so depth separation stays readable across camera modes.
   - Extended time-of-day response with terrain/underlay tint controls and applied those at runtime for stronger but still readable palette variety.
