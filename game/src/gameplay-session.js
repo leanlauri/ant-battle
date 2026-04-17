@@ -341,7 +341,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
       controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
       controls.touches.ONE = THREE.TOUCH.PAN;
-      controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
+      controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
       controls.enableRotate = true;
       controls.rotateSpeed = 0.9;
       controls.screenSpacePanning = true;
@@ -659,31 +659,47 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       };
       pointerMoveHandler = (event) => {
         if (!activePointerIds.has(event.pointerId)) return;
-        const previous = pointerPositions.get(event.pointerId) ?? { x: event.clientX, y: event.clientY };
+        const previousPositions = new Map(pointerPositions);
         pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
         if (cameraMode !== CAMERA_MODE.battlefield || !controls) return;
         if (activePointerIds.size < 2) return;
-        const height = Math.max(1, renderer?.domElement?.clientHeight ?? window.innerHeight);
-        const width = Math.max(1, renderer?.domElement?.clientWidth ?? window.innerWidth);
-        const centerX = width * 0.5;
-        const centerY = height * 0.5;
 
-        const dx = event.clientX - previous.x;
-        const dy = event.clientY - previous.y;
-        const rx = previous.x - centerX;
-        const ry = previous.y - centerY;
-        const radius = Math.hypot(rx, ry);
-        const winding = (rx * dy) - (ry * dx);
-        const tangentialPixels = Math.abs(winding) / Math.max(1, radius);
+        const ids = [...activePointerIds];
+        const previousPoints = ids.map((id) => previousPositions.get(id)).filter(Boolean);
+        const currentPoints = ids.map((id) => pointerPositions.get(id)).filter(Boolean);
+        if (previousPoints.length < 2 || currentPoints.length < 2) return;
 
-        if (radius < 6 || tangentialPixels < 0.01) {
-          controls.rotateSpeed = 0;
+        const prevCentroid = previousPoints.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 });
+        prevCentroid.x /= previousPoints.length;
+        prevCentroid.y /= previousPoints.length;
+        const currCentroid = currentPoints.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 });
+        currCentroid.x /= currentPoints.length;
+        currCentroid.y /= currentPoints.length;
+
+        const rect = renderer?.domElement?.getBoundingClientRect?.();
+        const centerX = (rect?.left ?? 0) + (rect?.width ?? window.innerWidth) * 0.5;
+        const centerY = (rect?.top ?? 0) + (rect?.height ?? window.innerHeight) * 0.5;
+
+        const prevAngle = Math.atan2(prevCentroid.y - centerY, prevCentroid.x - centerX);
+        const currAngle = Math.atan2(currCentroid.y - centerY, currCentroid.x - centerX);
+        let deltaAngle = currAngle - prevAngle;
+        while (deltaAngle > Math.PI) deltaAngle -= Math.PI * 2;
+        while (deltaAngle < -Math.PI) deltaAngle += Math.PI * 2;
+
+        const prevRadius = Math.hypot(prevCentroid.x - centerX, prevCentroid.y - centerY);
+        const currRadius = Math.hypot(currCentroid.x - centerX, currCentroid.y - centerY);
+        const radius = (prevRadius + currRadius) * 0.5;
+        if (radius < 8 || Math.abs(deltaAngle) < 0.0004) {
           return;
         }
 
-        const strength = THREE.MathUtils.clamp(tangentialPixels / 16, 0, 1);
-        const signedSpeed = -Math.sign(winding) * THREE.MathUtils.lerp(0.12, 0.95, strength);
-        controls.rotateSpeed = signedSpeed;
+        const rotateDelta = deltaAngle * 1.15;
+        const offset = camera.position.clone().sub(controls.target);
+        offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotateDelta);
+        camera.position.copy(controls.target.clone().add(offset));
+        camera.lookAt(controls.target);
+        camera.updateMatrixWorld();
+        controls.update();
       };
       pointerUpHandler = (event) => {
         const releasedFinalPointer = activePointerIds.size <= 1;
@@ -692,7 +708,6 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         if (multiTouchGesture) {
           if (releasedFinalPointer) multiTouchGesture = false;
           pointerDown = null;
-          if (cameraMode === CAMERA_MODE.battlefield && controls) controls.rotateSpeed = 0.9;
           return;
         }
         if (!pointerDown || pointerDown.pointerId !== event.pointerId || !camera || !terrain || !foodSystem || !antSystem) return;

@@ -119,6 +119,10 @@ const UPGRADE_ICON = {
 };
 
 const getCurrentLevelDefinition = () => getLevelDefinition(app.currentLevel);
+const shouldAutoStartDebugLevel = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('debug') === '1';
+};
 
 const renderDebugMenu = () => {
   if (refs.cameraModeValue) refs.cameraModeValue.textContent = app.cameraMode === CAMERA_MODE.battlefield ? 'Battlefield camera' : 'Orbit camera';
@@ -555,3 +559,7 @@ window.__ANT_BATTLE_DEV_API__ = {
 refs.titleBuildBadge.textContent = `Build: ${BUILD_ID}`;
 renderDebugMenu();
 renderScreens();
+
+if (shouldAutoStartDebugLevel()) {
+  launchLevel(1);
+}
