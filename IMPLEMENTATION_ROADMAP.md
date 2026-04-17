@@ -74,6 +74,7 @@ Goals:
 - [x] Battlefield foreground occlusion was reduced further by softening terrain relief near the outer rim and tightening battlefield edge clamping at close zoom, so raised horizon geometry no longer crowds the lower tactical view
 - [x] Combat readability now includes floating red integer damage popups (`-N`) for both ant hits and nest siege hits, with brief rise/fade presentation tied to impact points
 - [x] Combat deaths now use a short fall animation before removing the live ant mesh, and corpse/blood aftermath is stamped into the battlefield overlay instead of lingering as elevated corpse meshes
+- [x] Terrain readability improved with stronger directional lighting, tuned shadow settings, and height/slope-aware terrain color modulation so battlefield relief is clearer at tactical zoom
 
 ### Next implementation slice
 1. Replace coarse level bands with a richer deterministic level-definition model.

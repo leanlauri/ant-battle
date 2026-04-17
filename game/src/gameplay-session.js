@@ -523,6 +523,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       mount.appendChild(renderer.domElement);
 
       scene = new THREE.Scene();
@@ -547,23 +548,30 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       scene.add(new THREE.HemisphereLight(
         currentLevelDefinition.atmosphere?.hemiSky ?? 0xf2f7ff,
         currentLevelDefinition.atmosphere?.hemiGround ?? 0x7e93a8,
-        1.4,
+        1.15,
       ));
-      const sun = new THREE.DirectionalLight(currentLevelDefinition.atmosphere?.sun ?? 0xffffff, 1.8);
-      sun.position.set(12, 20, 10);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.18));
+
+      const sun = new THREE.DirectionalLight(currentLevelDefinition.atmosphere?.sun ?? 0xffffff, 2.05);
+      sun.position.set(28, 30, -16);
       sun.castShadow = true;
       sun.shadow.mapSize.set(2048, 2048);
-      sun.shadow.camera.left = -60;
-      sun.shadow.camera.right = 60;
-      sun.shadow.camera.top = 60;
-      sun.shadow.camera.bottom = -60;
-      sun.shadow.camera.near = 1;
-      sun.shadow.camera.far = 90;
-      sun.shadow.bias = -0.0004;
-      sun.shadow.normalBias = 0.02;
+      sun.shadow.camera.left = -74;
+      sun.shadow.camera.right = 74;
+      sun.shadow.camera.top = 64;
+      sun.shadow.camera.bottom = -64;
+      sun.shadow.camera.near = 0.5;
+      sun.shadow.camera.far = 120;
+      sun.shadow.bias = -0.00016;
+      sun.shadow.normalBias = 0.015;
       scene.add(sun);
       scene.add(sun.target);
       sun.target.position.set(0, 0, 0);
+
+      const fillLight = new THREE.DirectionalLight(currentLevelDefinition.atmosphere?.hemiSky ?? 0xdfeeff, 0.34);
+      fillLight.position.set(-22, 20, 26);
+      fillLight.castShadow = false;
+      scene.add(fillLight);
 
       debugVisualsGroup = new THREE.Group();
       debugVisualsGroup.add(new THREE.AxesHelper(12));

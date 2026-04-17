@@ -226,6 +226,7 @@ Night rule:
 - never fully dark
 - maintain gameplay readability
 - nests may radiate light for clarity and mood
+- directional key light and shadowing should still preserve terrain relief readability in tactical camera, with subtle slope/height tint support when needed
 
 ---
 

@@ -12,6 +12,17 @@ export const TERRAIN_CONFIG = Object.freeze({
   edgeHeightScale: 0.22,
 });
 
+const TERRAIN_COLOR_CONFIG = Object.freeze({
+  low: new THREE.Color(0x7ea7c2),
+  high: new THREE.Color(0xdaf0fb),
+  slope: new THREE.Color(0x5f7f9b),
+  contourAmplitude: 0.035,
+  contourFrequency: 2.35,
+  slopeInfluence: 0.46,
+  ridgeInfluence: 0.14,
+  valleyDarken: 0.1,
+});
+
 let activeTerrainProfile = { ...TERRAIN_CONFIG };
 
 export const setActiveTerrainProfile = (profile = {}) => {
@@ -145,12 +156,41 @@ export const createTerrainGeometry = ({
   position.needsUpdate = true;
   geometry.computeVertexNormals();
   geometry.computeBoundingBox();
+  const minHeight = geometry.boundingBox?.min?.y ?? -maxHeight;
+  const maxHeightRange = geometry.boundingBox?.max?.y ?? maxHeight;
+  const heightSpan = Math.max(0.0001, maxHeightRange - minHeight);
+  const normal = geometry.getAttribute('normal');
+  const colors = new Float32Array(position.count * 3);
+  const baseColor = new THREE.Color();
+
+  for (let i = 0; i < position.count; i += 1) {
+    const y = position.getY(i);
+    const heightRatio = THREE.MathUtils.clamp((y - minHeight) / heightSpan, 0, 1);
+    const slope = 1 - Math.abs(normal.getY(i));
+    const slopeRatio = THREE.MathUtils.clamp((slope - 0.02) / 0.7, 0, 1);
+    const ridge = THREE.MathUtils.smoothstep(heightRatio, 0.65, 1);
+    const valley = 1 - THREE.MathUtils.smoothstep(heightRatio, 0.14, 0.42);
+    const contour = 1 + Math.sin((y - minHeight) * TERRAIN_COLOR_CONFIG.contourFrequency) * TERRAIN_COLOR_CONFIG.contourAmplitude;
+
+    baseColor.copy(TERRAIN_COLOR_CONFIG.low).lerp(TERRAIN_COLOR_CONFIG.high, heightRatio);
+    baseColor.lerp(
+      TERRAIN_COLOR_CONFIG.slope,
+      slopeRatio * TERRAIN_COLOR_CONFIG.slopeInfluence + ridge * TERRAIN_COLOR_CONFIG.ridgeInfluence,
+    );
+    baseColor.multiplyScalar((1 - valley * TERRAIN_COLOR_CONFIG.valleyDarken) * contour);
+    colors[i * 3] = baseColor.r;
+    colors[i * 3 + 1] = baseColor.g;
+    colors[i * 3 + 2] = baseColor.b;
+  }
+
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.computeBoundingSphere();
   return geometry;
 };
 
 export const createTerrainMaterial = () => new THREE.MeshToonMaterial({
-  color: 0xa7d0e8,
+  color: 0xffffff,
+  vertexColors: true,
   gradientMap: createToonGradient(),
 });
 

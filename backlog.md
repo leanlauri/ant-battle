@@ -35,6 +35,22 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Priority items
 
+- [ ] Deterministic environmental prop scatter v1 (rocks + low plants), gameplay-safe and performance-safe.
+  - Add seeded scatter generation for a small stylized set of rocks/tufts/shrubs so maps feel richer without clutter.
+  - Enforce placement masks (avoid nest rings, key interaction zones, and readability-critical combat space).
+  - Use instancing + distance culling/LOD-friendly limits to preserve mobile performance.
+  - Touchpoints: `game/src/terrain.js`, `game/src/gameplay-session.js` (scene wiring), optional new prop helper module under `game/src/`.
+  - Testing: deterministic seed coverage for prop placement; no-overlap safety checks for protected gameplay zones.
+  - Docs: `LEVEL_SYSTEM_SPEC.md`, `UI_UX_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
+- [ ] Atmosphere polish pass: fog/depth layering + palette balance with readability guardrails.
+  - Add subtle distance fog/aerial perspective to improve depth separation on larger maps.
+  - Extend time-of-day palette response so terrain/features stay readable while looking more alive.
+  - Rebalance contrast/saturation against HUD/selection/focus markers so gameplay signals remain dominant.
+  - Touchpoints: `game/src/gameplay-session.js`, `game/src/terrain.js`, `game/src/level-definition.js`.
+  - Testing: smoke checks for camera mode stability + visibility of key gameplay markers under updated atmosphere.
+  - Docs: `UI_UX_SPEC.md`, `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
+
 ### Level generation and campaign progression
 
 - [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the currently covered live simulation interactions.
@@ -182,6 +198,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Terrain readability pass: directional lighting, shadow tuning, and relief-aware terrain shading.
+  - Tuned lighting to improve terrain legibility in gameplay: softer shadow filtering, stronger key light direction, balanced ambient/hemi fill, and a non-shadow fill light.
+  - Reworked terrain shading to bake height/slope-aware vertex colors with subtle contour emphasis so ridges/valleys are easier to read at tactical zoom.
+  - Added terrain test coverage for vertex-color readability baking while keeping existing build, unit, and e2e passes green.
+  - Docs: `UI_UX_SPEC.md`, `LEVEL_SYSTEM_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [x] Add visible death/aftermath presentation for ant combat.
   - Added a lightweight death fall presentation for ants: fatal hits now briefly animate the dying ant mesh before it is removed from live rendering.

@@ -280,6 +280,7 @@ If single-finger drag is added later, it must be carefully separated from tap ge
 - color should not be sole indicator of state
 - selected nest should use both color and shape/outline
 - completed/open/locked level states should differ by iconography and opacity, not just hue
+- terrain form should read clearly at gameplay zoom through lighting/shadow cues plus subtle slope/height shading, without overpowering target markers
 
 ---
 

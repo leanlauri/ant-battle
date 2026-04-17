@@ -42,9 +42,32 @@ describe('terrain bootstrap helpers', () => {
     const material = createTerrainMaterial();
 
     expect(material.type).toBe('MeshToonMaterial');
+    expect(material.vertexColors).toBe(true);
     expect(material.gradientMap).toBeTruthy();
     expect(material.gradientMap.magFilter).toBe(THREE.NearestFilter);
     expect(material.gradientMap.minFilter).toBe(THREE.NearestFilter);
+  });
+
+  test('bakes terrain vertex colors so elevation and slope are more readable', () => {
+    const geometry = createTerrainGeometry();
+    const color = geometry.getAttribute('color');
+
+    expect(color).toBeTruthy();
+    expect(color.itemSize).toBe(3);
+    expect(color.count).toBe(geometry.attributes.position.count);
+
+    const swatchA = [color.getX(0), color.getY(0), color.getZ(0)];
+    let foundVariation = false;
+    for (let i = 1; i < Math.min(240, color.count); i += 1) {
+      const diff = Math.abs(color.getX(i) - swatchA[0])
+        + Math.abs(color.getY(i) - swatchA[1])
+        + Math.abs(color.getZ(i) - swatchA[2]);
+      if (diff > 0.02) {
+        foundVariation = true;
+        break;
+      }
+    }
+    expect(foundVariation).toBe(true);
   });
 
   test('adds a lightweight wireframe overlay to clarify terrain shape', () => {
