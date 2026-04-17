@@ -889,7 +889,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       publishHud();
       return getCameraState();
     },
-    applyUpgrade: (upgradeId) => {
+    applyUpgrade: (upgradeId, { purchaseText = null } = {}) => {
       if (!foodSystem || !antSystem) return false;
       const nest = foodSystem.getSelectedNest();
       if (!nest || nest.faction !== 'player' || nest.collapsed) return false;
@@ -917,7 +917,10 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         applied = foodSystem.unlockNestUpgrade(nest.id, upgradeId);
       }
 
-      if (applied) publishHud();
+      if (applied) {
+        antSystem.spawnPurchaseText?.(nest.position, purchaseText ?? 'Bought');
+        publishHud();
+      }
       return applied;
     },
     setSelectedNest: (nestId) => {

@@ -1289,6 +1289,39 @@ export class AntSystem {
     });
   }
 
+  spawnPurchaseText(position, label) {
+    if (!label || typeof label !== 'string') return;
+    const baseScaleX = DAMAGE_TEXT_CONFIG.largeScaleX * 1.2;
+    const baseScaleY = DAMAGE_TEXT_CONFIG.largeScaleY * 1.2;
+    const sprite = createDamageTextSprite(label, {
+      fillStyle: '#f8f3a4',
+      strokeStyle: 'rgba(72, 58, 8, 0.98)',
+      font: '700 66px Inter, Arial Black, sans-serif',
+      lineWidth: 10,
+      scaleX: baseScaleX,
+      scaleY: baseScaleY,
+    });
+    if (!sprite) return;
+
+    const random = this.effectRandom;
+    sprite.position.copy(position);
+    sprite.position.y += 1.1 + random() * 0.2;
+    this.damageTextGroup.add(sprite);
+
+    const driftAngle = random() * Math.PI * 2;
+    const driftSpeed = THREE.MathUtils.lerp(DAMAGE_TEXT_CONFIG.driftMin * 0.6, DAMAGE_TEXT_CONFIG.driftMax * 0.85, random());
+    const riseSpeed = THREE.MathUtils.lerp(DAMAGE_TEXT_CONFIG.riseMin * 1.05, DAMAGE_TEXT_CONFIG.riseMax * 1.2, random());
+    const life = DAMAGE_TEXT_CONFIG.life * 1.35;
+    this.damageTexts.push({
+      sprite,
+      life,
+      maxLife: life,
+      velocity: new THREE.Vector3(Math.cos(driftAngle) * driftSpeed, riseSpeed, Math.sin(driftAngle) * driftSpeed),
+      baseScaleX,
+      baseScaleY,
+    });
+  }
+
   updateEffects(dt) {
     this.hitEffects = this.hitEffects.filter((effect) => {
       effect.life -= dt;

@@ -150,6 +150,10 @@ test('upgrade overlay shows clear shortfall and success feedback on a mobile-siz
   await expect(page.locator('#upgradeDetailCopy')).toContainText('worker ants');
   await expect(page.locator('#upgradeConfirmButton')).toContainText('12');
   await expect(page.locator('#upgradeConfirmButton')).toBeDisabled();
+  const panelBox = await page.locator('#nestUpgradePanel').boundingBox();
+  expect(panelBox).not.toBeNull();
+  expect(panelBox.x).toBeGreaterThanOrEqual(0);
+  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(390);
 
   await page.evaluate(() => {
     window.__ANT_BATTLE_TEST_API__?.setNestStored?.('player-1', 20);
@@ -159,10 +163,5 @@ test('upgrade overlay shows clear shortfall and success feedback on a mobile-siz
   await expect(page.locator('#upgradeDetailCopy')).toContainText('worker ants');
   await expect(page.locator('#upgradeConfirmButton')).toBeEnabled();
   await page.locator('#upgradeConfirmButton').click({ force: true });
-  await expect(page.locator('#upgradeDetailCopy')).toContainText('worker ants');
-
-  const panelBox = await page.locator('#nestUpgradePanel').boundingBox();
-  expect(panelBox).not.toBeNull();
-  expect(panelBox.x).toBeGreaterThanOrEqual(0);
-  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(390);
+  await expect(page.locator('#nestUpgradePanel')).toBeHidden();
 });

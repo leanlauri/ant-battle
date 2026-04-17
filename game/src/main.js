@@ -169,24 +169,7 @@ const getUpgradeSummaryText = (option) => {
   return UPGRADE_TITLE[option.id] ?? option.label;
 };
 
-const getUpgradeSuccessText = (option) => {
-  if (!option) return 'Upgrade confirmed.';
-  if (option.id === 'repair-nest') return 'Nest repaired.';
-  if (option.id === 'spawn-workers') return 'Worker reinforcements called up.';
-  if (option.id === 'spawn-fighters') return 'Fighter reinforcements called up.';
-  return `${option.label} is now active.`;
-};
-
-const setUpgradeFeedback = (feedback) => {
-  app.upgradeFeedback = feedback;
-  if (!feedback?.expiresAt) return;
-  window.setTimeout(() => {
-    if (app.upgradeFeedback?.expiresAt === feedback.expiresAt) {
-      app.upgradeFeedback = null;
-      renderUpgradeCards(app.lastHudSummary);
-    }
-  }, Math.max(0, feedback.expiresAt - Date.now()));
-};
+const getUpgradePurchaseText = (option) => `${getUpgradeSummaryText(option)} bought`;
 
 const renderUpgradeCards = (summary) => {
   if (!refs.upgradeCards || !refs.nestUpgradePanel) return;
@@ -215,7 +198,7 @@ const renderUpgradeCards = (summary) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'upgradeChip';
-    button.disabled = false;
+    button.disabled = !!option.disabled;
     button.dataset.upgradeId = option.id;
     button.dataset.active = app.selectedUpgradeId === option.id ? 'true' : 'false';
     button.dataset.affordable = option.disabled ? 'false' : 'true';
@@ -246,15 +229,11 @@ const renderUpgradeCards = (summary) => {
     ? (selectedOption.shortfall > 0 ? `Need ${selectedOption.shortfall.toFixed(1)} more food` : 'Unavailable')
     : '';
   refs.upgradeConfirmButton.onclick = () => {
-    const applied = gameplaySession.applyUpgrade(selectedOption.id);
+    const applied = gameplaySession.applyUpgrade(selectedOption.id, {
+      purchaseText: getUpgradePurchaseText(selectedOption),
+    });
     if (applied) {
-      setUpgradeFeedback({
-        kind: 'success',
-        text: getUpgradeSuccessText(selectedOption),
-        upgradeId: selectedOption.id,
-        expiresAt: Date.now() + 2200,
-      });
-      app.selectedUpgradeId = selectedOption.id;
+      closeUpgradePanel();
     }
   };
 
