@@ -58,6 +58,9 @@ export const ANT_CONFIG = Object.freeze({
   workerHp: 28,
   fighterHp: 46,
   deathVisualDuration: 0.32,
+  pheromoneTrailMinInterval: 0.34,
+  pheromoneTrailMaxInterval: 0.92,
+  pheromoneTrailSpeedSqThreshold: 0.18,
 });
 
 export const ANT_LOD = Object.freeze({ near: 'near', mid: 'mid', far: 'far' });
@@ -392,6 +395,7 @@ export const createAntState = (id, x, z, overrides = {}, random = DEFAULT_RANDOM
     deathStampScale: 1,
     visible: true,
     lodBand: ANT_LOD.near,
+    pheromoneTrailCooldown: 0.24 + ((id % 7) / 7) * 0.42,
     random,
     ...overrides,
   };
@@ -1185,6 +1189,40 @@ export class AntSystem {
     this.corpseRemains.push(corpseRecord);
   }
 
+  spawnPheromoneFootprint(ant, pheromoneType) {
+    if (!ant || ant.dead) return;
+    const color = pheromoneType === 'food' ? 0x8edb72 : 0x84b9ff;
+    const baseOpacity = pheromoneType === 'food' ? 0.14 : 0.1;
+    const forward = new THREE.Vector3(ant.heading.x, 0, ant.heading.z);
+    if (forward.lengthSq() < 0.0001) forward.set(1, 0, 0);
+    forward.normalize();
+    const side = new THREE.Vector3(-forward.z, 0, forward.x);
+    const strideSign = Math.sin((ant.gaitPhase ?? 0) + ant.id * 0.41) >= 0 ? 1 : -1;
+    const strideOffset = 0.045 * strideSign;
+
+    const group = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: baseOpacity,
+      depthWrite: false,
+    });
+    material.userData.baseOpacity = baseOpacity;
+
+    for (const sideSign of [-1, 1]) {
+      const mark = new THREE.Mesh(new THREE.CircleGeometry(0.055, 10), material);
+      mark.rotation.x = -Math.PI / 2;
+      mark.scale.set(1.18, 0.66, 1);
+      mark.position.copy(side).multiplyScalar(sideSign * 0.075).addScaledVector(forward, strideOffset);
+      group.add(mark);
+    }
+
+    group.position.set(ant.position.x, sampleHeight(ant.position.x, ant.position.z) + 0.022, ant.position.z);
+    group.rotation.y = Math.atan2(forward.x, forward.z);
+    this.groundSplatGroup.add(group);
+    this.groundSplats.push({ mesh: group, life: 7.5, maxLife: 7.5, type: 'pheromone-trail' });
+  }
+
   markAntDead(ant, { stampScale = 1 } = {}) {
     if (!ant || ant.dead) return false;
     ant.dead = true;
@@ -1614,8 +1652,24 @@ export class AntSystem {
         ant.heading.lerp(this.tmpVec, ant.lodBand === ANT_LOD.far ? 0.12 : 0.22).normalize();
       }
 
-      if (ant.carryingFoodId != null) this.pheromoneSystem.deposit('food', ant.position, PHEROMONE_CONFIG.depositFood * dt * 6);
-      else if (ant.role === ANT_ROLE.worker) this.pheromoneSystem.deposit('home', ant.position, PHEROMONE_CONFIG.depositHome * dt * 4);
+      const pheromoneType = ant.carryingFoodId != null
+        ? 'food'
+        : (ant.role === ANT_ROLE.worker ? 'home' : null);
+      if (pheromoneType === 'food') this.pheromoneSystem.deposit('food', ant.position, PHEROMONE_CONFIG.depositFood * dt * 6);
+      else if (pheromoneType === 'home') this.pheromoneSystem.deposit('home', ant.position, PHEROMONE_CONFIG.depositHome * dt * 4);
+
+      if (pheromoneType && ant.velocity.lengthSq() >= ANT_CONFIG.pheromoneTrailSpeedSqThreshold) {
+        ant.pheromoneTrailCooldown = Math.max(0, (ant.pheromoneTrailCooldown ?? 0) - dt);
+        if (ant.pheromoneTrailCooldown <= 0) {
+          this.spawnPheromoneFootprint(ant, pheromoneType);
+          const cadence = Math.abs(Math.sin((ant.gaitPhase ?? 0) + ant.id * 0.23));
+          ant.pheromoneTrailCooldown = THREE.MathUtils.lerp(
+            ANT_CONFIG.pheromoneTrailMinInterval,
+            ANT_CONFIG.pheromoneTrailMaxInterval,
+            cadence,
+          );
+        }
+      }
 
       ant.gaitPhase += dt * (2.5 + ant.velocity.length() * 1.8);
       const bobY = Math.sin(ant.gaitPhase) * 0.04;

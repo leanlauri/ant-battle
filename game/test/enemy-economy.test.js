@@ -161,7 +161,9 @@ const snapshotDecisionAnt = (ant) => ({
 });
 
 const snapshotEffectState = (antSystem) => ({
-  groundSplats: antSystem.groundSplats.map((splat) => ({
+  groundSplats: antSystem.groundSplats
+    .filter((splat) => splat.type !== 'pheromone-trail')
+    .map((splat) => ({
     rotationY: round(splat.mesh.rotation.y),
     pieces: splat.mesh.children.map((child) => ({
       x: round(child.position.x),
