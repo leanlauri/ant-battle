@@ -35,12 +35,6 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 
 ### Priority items
 
-- [ ] Add visible death/aftermath presentation for ant combat.
-  - Add lightweight death breakup or fall animation.
-  - Stamp corpse/blood aftermath into a persistent battlefield overlay instead of leaving live meshes.
-  - Docs: `COMBAT_AND_NEST_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
-
-
 ### Level generation and campaign progression
 
 - [ ] Continue sweeping any remaining replay-sensitive runtime paths beyond the currently covered live simulation interactions.
@@ -188,6 +182,12 @@ Use this as the canonical queue for autonomous work. The top item in **Todo** is
 _None._
 
 ## Complete
+
+- [x] Add visible death/aftermath presentation for ant combat.
+  - Added a lightweight death fall presentation for ants: fatal hits now briefly animate the dying ant mesh before it is removed from live rendering.
+  - Reworked corpse aftermath from lingering 3D corpse chunks to flattened battlefield-overlay stamps (corpse tint plus blood) that persist and fade cleanly.
+  - Kept deterministic coverage stable while preserving combat/collapse stats and runtime flow.
+  - Docs: `COMBAT_AND_NEST_SPEC.md`, `IMPLEMENTATION_ROADMAP.md`
 
 - [x] When ants or nests take damage, show number of hit points lost (integers only) as red "-N" text floating up and disappearing from the target
   - Added world-space floating damage numbers so ant and nest hits now show clear red integer `-N` feedback at impact.

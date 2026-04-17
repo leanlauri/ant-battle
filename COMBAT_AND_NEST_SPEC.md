@@ -93,6 +93,9 @@ When an ant reaches 0 HP:
 4. stamp corpse/blood aftermath into battlefield overlay system
 5. remove live mesh once death presentation completes
 
+Current implementation note:
+- fatal ant hits now trigger a short fall animation on the live ant mesh, then stamp flattened corpse/blood marks into the battlefield overlay and hide the live mesh
+
 ## Stats impact
 Deaths should contribute to:
 - enemy ants defeated count

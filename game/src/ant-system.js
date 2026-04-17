@@ -54,6 +54,7 @@ export const ANT_CONFIG = Object.freeze({
   enemyNestSiegeStoredThreshold: 14,
   workerHp: 28,
   fighterHp: 46,
+  deathVisualDuration: 0.32,
 });
 
 export const ANT_LOD = Object.freeze({ near: 'near', mid: 'mid', far: 'far' });
@@ -366,6 +367,12 @@ export const createAntState = (id, x, z, overrides = {}, random = DEFAULT_RANDOM
     attackCooldownRemaining: 0,
     combatTargetId: null,
     dead: false,
+    deathVisualTime: 0,
+    deathVisualDuration: ANT_CONFIG.deathVisualDuration,
+    deathTiltDirection: 1,
+    deathSpin: 0,
+    deathStampPlaced: false,
+    deathStampScale: 1,
     visible: true,
     lodBand: ANT_LOD.near,
     random,
@@ -875,7 +882,6 @@ export class AntSystem {
     this.groundSplats = [];
     this.groundSplatGroup = new THREE.Group();
     this.corpseRemains = [];
-    this.corpseGroup = new THREE.Group();
     this.objective = objective;
     this.stats = {
       enemyAntsDefeated: 0,
@@ -888,7 +894,6 @@ export class AntSystem {
     this.scene.add(this.hitEffectGroup);
     this.scene.add(this.damageTextGroup);
     this.scene.add(this.groundSplatGroup);
-    this.scene.add(this.corpseGroup);
 
     const rearGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorRearRadius, 8, 6);
     const frontGeometry = new THREE.SphereGeometry(ANT_CONFIG.impostorFrontRadius, 8, 6);
@@ -1008,33 +1013,74 @@ export class AntSystem {
     this.groundSplats.push({ mesh: group, life: 18, maxLife: 18 });
   }
 
-  spawnCorpseRemains(position, colonyId, role = ANT_ROLE.worker) {
+  spawnCorpseRemains(position, colonyId, role = ANT_ROLE.worker, scale = 1) {
     const random = this.effectRandom;
     const palette = getAntPalette(role, colonyId);
     const group = new THREE.Group();
-    const bodyMaterial = new THREE.MeshToonMaterial({ color: palette.body });
-    const accentMaterial = new THREE.MeshToonMaterial({ color: palette.accent });
+    const baseScale = Math.max(0.8, scale);
+    const bodyMaterial = new THREE.MeshBasicMaterial({
+      color: palette.body,
+      transparent: true,
+      opacity: 0.52,
+      depthWrite: false,
+    });
+    bodyMaterial.userData.baseOpacity = bodyMaterial.opacity;
+    const accentMaterial = new THREE.MeshBasicMaterial({
+      color: palette.accent,
+      transparent: true,
+      opacity: 0.42,
+      depthWrite: false,
+    });
+    accentMaterial.userData.baseOpacity = accentMaterial.opacity;
+    const bloodMaterial = new THREE.MeshBasicMaterial({
+      color: getBloodColor(colonyId),
+      transparent: true,
+      opacity: 0.24,
+      depthWrite: false,
+    });
+    bloodMaterial.userData.baseOpacity = bloodMaterial.opacity;
 
-    const abdomen = new THREE.Mesh(new THREE.SphereGeometry(role === ANT_ROLE.fighter ? 0.16 : 0.13, 8, 6), bodyMaterial);
-    abdomen.scale.set(1.15, 0.55, 0.9);
-    abdomen.position.set(-0.08, 0.04, 0);
+    const abdomen = new THREE.Mesh(new THREE.CircleGeometry((role === ANT_ROLE.fighter ? 0.2 : 0.16) * baseScale, 12), bodyMaterial);
+    abdomen.rotation.x = -Math.PI / 2;
+    abdomen.position.set(-0.08 * baseScale, 0.002, 0);
+    abdomen.scale.set(1.2, 0.78, 1);
     group.add(abdomen);
 
-    const thorax = new THREE.Mesh(new THREE.SphereGeometry(role === ANT_ROLE.fighter ? 0.13 : 0.11, 8, 6), accentMaterial);
-    thorax.scale.set(1, 0.45, 0.85);
-    thorax.position.set(0.09, 0.03, 0.03);
+    const thorax = new THREE.Mesh(new THREE.CircleGeometry((role === ANT_ROLE.fighter ? 0.15 : 0.13) * baseScale, 12), accentMaterial);
+    thorax.rotation.x = -Math.PI / 2;
+    thorax.position.set(0.08 * baseScale, 0.004, 0.02 * baseScale);
+    thorax.scale.set(0.95, 0.72, 1);
     group.add(thorax);
 
-    group.rotation.set(0, random() * Math.PI * 2, (random() - 0.5) * 0.7);
-    group.position.set(position.x, sampleHeight(position.x, position.z) + 0.02, position.z);
-    group.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = false;
-        child.receiveShadow = true;
-      }
-    });
-    this.corpseGroup.add(group);
-    this.corpseRemains.push({ mesh: group, life: 22, maxLife: 22 });
+    const blood = new THREE.Mesh(new THREE.CircleGeometry(0.21 * baseScale + random() * 0.08, 12), bloodMaterial);
+    blood.rotation.x = -Math.PI / 2;
+    blood.position.set((random() - 0.5) * 0.08, 0, (random() - 0.5) * 0.08);
+    blood.scale.set(1.4 + random() * 0.45, 0.82 + random() * 0.2, 1);
+    group.add(blood);
+
+    group.rotation.y = random() * Math.PI * 2;
+    group.position.set(position.x, sampleHeight(position.x, position.z) + 0.028, position.z);
+    this.groundSplatGroup.add(group);
+    const corpseRecord = { mesh: group, life: 26, maxLife: 26, type: 'corpse' };
+    this.groundSplats.push(corpseRecord);
+    this.corpseRemains.push(corpseRecord);
+  }
+
+  markAntDead(ant, { stampScale = 1 } = {}) {
+    if (!ant || ant.dead) return false;
+    ant.dead = true;
+    clearAntAssignments(ant, this.foodSystem, this.foods);
+    ant.velocity.setScalar(0);
+    ant.desiredVelocity.setScalar(0);
+    ant.action = 'dead';
+    ant.deathVisualDuration = ANT_CONFIG.deathVisualDuration;
+    ant.deathVisualTime = ANT_CONFIG.deathVisualDuration;
+    ant.deathTiltDirection = this.effectRandom() < 0.5 ? -1 : 1;
+    ant.deathSpin = (this.effectRandom() - 0.5) * 2.8;
+    ant.deathStampPlaced = false;
+    ant.deathStampScale = stampScale;
+    this.spawnGroundSplat(ant.position, ant.colonyId, stampScale);
+    return true;
   }
 
   spawnHitEffect(position, colonyId, intensity = 1) {
@@ -1123,6 +1169,8 @@ export class AntSystem {
       return false;
     });
 
+    this.corpseRemains = this.corpseRemains.filter((corpse) => corpse.life > 0);
+
     this.damageTexts = this.damageTexts.filter((textEffect) => {
       textEffect.life -= dt;
       const lifeRatio = Math.max(0, textEffect.life / textEffect.maxLife);
@@ -1143,25 +1191,6 @@ export class AntSystem {
       return false;
     });
 
-    this.corpseRemains = this.corpseRemains.filter((corpse) => {
-      corpse.life -= dt;
-      const lifeRatio = Math.max(0, corpse.life / corpse.maxLife);
-      corpse.mesh.traverse((child) => {
-        if (child.isMesh && child.material) {
-          child.material.transparent = true;
-          child.material.opacity = Math.min(1, lifeRatio + 0.1);
-        }
-      });
-      if (corpse.life > 0) return true;
-      this.corpseGroup.remove(corpse.mesh);
-      corpse.mesh.traverse((child) => {
-        if (child.isMesh) {
-          child.material?.dispose?.();
-          child.geometry?.dispose?.();
-        }
-      });
-      return false;
-    });
   }
 
   update(dt) {
@@ -1178,8 +1207,30 @@ export class AntSystem {
       const mesh = this.meshes[i];
 
       if (ant.dead) {
-        mesh.visible = false;
-        ant.visible = false;
+        if ((ant.deathVisualTime ?? 0) > 0) {
+          ant.deathVisualTime = Math.max(0, ant.deathVisualTime - dt);
+          const duration = Math.max(0.0001, ant.deathVisualDuration ?? ANT_CONFIG.deathVisualDuration);
+          const ratio = 1 - (ant.deathVisualTime / duration);
+          mesh.visible = true;
+          ant.visible = true;
+          mesh.position.copy(ant.position);
+          mesh.position.y += ANT_CONFIG.renderOffsetY - ratio * 0.06;
+          mesh.rotation.x = (ant.deathTiltDirection ?? 1) * THREE.MathUtils.lerp(0.1, 1.42, ratio);
+          mesh.rotation.y = Math.atan2(ant.heading.x, ant.heading.z) + (ant.deathSpin ?? 0) * ratio;
+          mesh.rotation.z = (ant.deathTiltDirection ?? 1) * ratio * 0.24;
+          mesh.scale.setScalar(1 - ratio * 0.16);
+          if (ant.deathVisualTime <= 0 && !ant.deathStampPlaced) {
+            this.spawnCorpseRemains(ant.position, ant.colonyId, ant.role, ant.deathStampScale ?? 1);
+            ant.deathStampPlaced = true;
+          }
+        } else {
+          if (!ant.deathStampPlaced) {
+            this.spawnCorpseRemains(ant.position, ant.colonyId, ant.role, ant.deathStampScale ?? 1);
+            ant.deathStampPlaced = true;
+          }
+          mesh.visible = false;
+          ant.visible = false;
+        }
         continue;
       }
 
@@ -1220,13 +1271,7 @@ export class AntSystem {
                 this.spawnHitEffect(target.position, target.colonyId, target.hp <= 0 ? 1.4 : 1);
                 this.spawnDamageText(target.position, damageApplied);
                 if (target.hp <= 0 && !target.dead) {
-                  target.dead = true;
-                  clearAntAssignments(target, this.foodSystem, this.foods);
-                  target.velocity.setScalar(0);
-                  target.desiredVelocity.setScalar(0);
-                  target.action = 'dead';
-                  this.spawnGroundSplat(target.position, target.colonyId, 1.6);
-                  this.spawnCorpseRemains(target.position, target.colonyId, target.role);
+                  this.markAntDead(target, { stampScale: 1.6 });
                   if (target.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
                   if (target.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
                 }
@@ -1261,13 +1306,7 @@ export class AntSystem {
                       for (const collapsedAnt of this.ants) {
                         if (!killedAntIds.has(collapsedAnt.id)) continue;
                         if (!collapsedAnt.dead) {
-                          clearAntAssignments(collapsedAnt, this.foodSystem, this.foods);
-                          collapsedAnt.dead = true;
-                          collapsedAnt.velocity.setScalar(0);
-                          collapsedAnt.desiredVelocity.setScalar(0);
-                          collapsedAnt.action = 'dead';
-                          this.spawnGroundSplat(collapsedAnt.position, collapsedAnt.colonyId, 1.8);
-                          this.spawnCorpseRemains(collapsedAnt.position, collapsedAnt.colonyId, collapsedAnt.role);
+                          this.markAntDead(collapsedAnt, { stampScale: 1.8 });
                           if (collapsedAnt.faction === ANT_FACTION.enemy) this.stats.enemyAntsDefeated += 1;
                           if (collapsedAnt.faction === ANT_FACTION.player) this.stats.playerAntsLost += 1;
                         }
