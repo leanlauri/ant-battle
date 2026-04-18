@@ -804,6 +804,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         enemyNestCount: currentLevelDefinition.enemyNestCount,
         nestOverrides: currentLevelDefinition.nestOverrides,
         random: foodRandom,
+        randomizeNestPlacements: true,
+        nestPlacementRandom: Math.random,
       });
       environmentProps = new EnvironmentalPropsSystem({
         scene,

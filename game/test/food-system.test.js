@@ -116,6 +116,30 @@ describe('food system helpers', () => {
     expect(nests.some((nest) => nest.id === 'enemy-2')).toBe(false);
   });
 
+  test('can randomize nest positions while keeping edge and spacing constraints', () => {
+    const random = createSeededRandom(deriveSeed('nest-layout-test', 'v1'));
+    const nests = createNestDefinitions({ enemyNestCount: 2, randomizePositions: true, random });
+    const minX = -TERRAIN_CONFIG.width / 2 + NEST_CONFIG.edgePadding;
+    const maxX = TERRAIN_CONFIG.width / 2 - NEST_CONFIG.edgePadding;
+    const minZ = -TERRAIN_CONFIG.depth / 2 + NEST_CONFIG.edgePadding;
+    const maxZ = TERRAIN_CONFIG.depth / 2 - NEST_CONFIG.edgePadding;
+
+    expect(nests).toHaveLength(3);
+    for (const nest of nests) {
+      expect(nest.position.x).toBeGreaterThanOrEqual(minX);
+      expect(nest.position.x).toBeLessThanOrEqual(maxX);
+      expect(nest.position.z).toBeGreaterThanOrEqual(minZ);
+      expect(nest.position.z).toBeLessThanOrEqual(maxZ);
+    }
+
+    for (let i = 0; i < nests.length; i += 1) {
+      for (let j = i + 1; j < nests.length; j += 1) {
+        const distance = nests[i].position.distanceTo(nests[j].position);
+        expect(distance).toBeGreaterThanOrEqual(NEST_CONFIG.minNestDistance);
+      }
+    }
+  });
+
   test('supports per-level nest presentation and hp overrides', () => {
     const nests = createNestDefinitions({
       enemyNestCount: 2,

@@ -22,6 +22,9 @@ export const NEST_CONFIG = Object.freeze({
   queueSlots: 6,
   maxHp: 260,
   position: new THREE.Vector3(0, 0, 0),
+  edgePadding: 12,
+  minNestDistance: 26,
+  maxPlacementAttempts: 600,
 });
 
 export const UPGRADE_CONFIG = Object.freeze({
@@ -127,7 +130,12 @@ const createNestDefinition = ({ id, x, z, faction, colonyId = faction, label, ma
   return { id, faction, colonyId, label, position, maxHp, hp: maxHp, collapsed: false };
 };
 
-export const createNestDefinitions = ({ enemyNestCount = 2, nestOverrides = {} } = {}) => {
+export const createNestDefinitions = ({
+  enemyNestCount = 2,
+  nestOverrides = {},
+  randomizePositions = false,
+  random = Math.random,
+} = {}) => {
   const withOverride = (base) => {
     const override = nestOverrides?.[base.id] ?? {};
     const hpMultiplier = Math.max(0.25, override.maxHpMultiplier ?? 1);
@@ -138,10 +146,57 @@ export const createNestDefinitions = ({ enemyNestCount = 2, nestOverrides = {} }
     });
   };
 
+  const randomRange = randomRangeWith(random);
+  const minX = -TERRAIN_CONFIG.width / 2 + NEST_CONFIG.edgePadding;
+  const maxX = TERRAIN_CONFIG.width / 2 - NEST_CONFIG.edgePadding;
+  const minZ = -TERRAIN_CONFIG.depth / 2 + NEST_CONFIG.edgePadding;
+  const maxZ = TERRAIN_CONFIG.depth / 2 - NEST_CONFIG.edgePadding;
+  const minDistanceSq = NEST_CONFIG.minNestDistance * NEST_CONFIG.minNestDistance;
+  const canPlace = (x, z, points) => points.every((point) => {
+    const dx = point.x - x;
+    const dz = point.z - z;
+    return (dx * dx + dz * dz) >= minDistanceSq;
+  });
+
+  const basePositions = randomizePositions
+    ? (() => {
+      const points = [];
+      const totalNests = 1 + THREE.MathUtils.clamp(enemyNestCount, 0, 2);
+
+      for (let i = 0; i < totalNests; i += 1) {
+        let placed = false;
+        for (let attempt = 0; attempt < NEST_CONFIG.maxPlacementAttempts; attempt += 1) {
+          const x = randomRange(minX, maxX);
+          const z = randomRange(minZ, maxZ);
+          if (!canPlace(x, z, points)) continue;
+          points.push({ x, z });
+          placed = true;
+          break;
+        }
+        if (!placed) {
+          points.push({
+            x: THREE.MathUtils.clamp(i % 2 === 0 ? -26 : 28, minX, maxX),
+            z: THREE.MathUtils.clamp(i % 2 === 0 ? -18 : 22, minZ, maxZ),
+          });
+        }
+      }
+
+      return {
+        player: points[0] ?? { x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z },
+        enemy1: points[1] ?? { x: -26, z: -18 },
+        enemy2: points[2] ?? { x: 28, z: 22 },
+      };
+    })()
+    : {
+      player: { x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z },
+      enemy1: { x: -26, z: -18 },
+      enemy2: { x: 28, z: 22 },
+    };
+
   const allNests = [
-    withOverride({ id: 'player-1', x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z, faction: FACTION.player, colonyId: COLONY.player, label: 'Home Nest', maxHp: NEST_CONFIG.maxHp }),
-    withOverride({ id: 'enemy-1', x: -26, z: -18, faction: FACTION.enemy, colonyId: COLONY.enemyAlpha, label: 'Enemy Nest Alpha', maxHp: NEST_CONFIG.maxHp }),
-    withOverride({ id: 'enemy-2', x: 28, z: 22, faction: FACTION.enemy, colonyId: COLONY.enemyBeta, label: 'Enemy Nest Beta', maxHp: NEST_CONFIG.maxHp }),
+    withOverride({ id: 'player-1', x: basePositions.player.x, z: basePositions.player.z, faction: FACTION.player, colonyId: COLONY.player, label: 'Home Nest', maxHp: NEST_CONFIG.maxHp }),
+    withOverride({ id: 'enemy-1', x: basePositions.enemy1.x, z: basePositions.enemy1.z, faction: FACTION.enemy, colonyId: COLONY.enemyAlpha, label: 'Enemy Nest Alpha', maxHp: NEST_CONFIG.maxHp }),
+    withOverride({ id: 'enemy-2', x: basePositions.enemy2.x, z: basePositions.enemy2.z, faction: FACTION.enemy, colonyId: COLONY.enemyBeta, label: 'Enemy Nest Beta', maxHp: NEST_CONFIG.maxHp }),
   ];
   const clampedEnemyNestCount = THREE.MathUtils.clamp(enemyNestCount, 0, allNests.length - 1);
   return [allNests[0], ...allNests.slice(1, 1 + clampedEnemyNestCount)];
@@ -332,14 +387,27 @@ const computeNestScale = (nestStored, hpRatio = 1) => {
 };
 
 export class FoodSystem {
-  constructor({ scene, count = FOOD_CONFIG.count, enemyNestCount = 2, nestOverrides = null, random = Math.random } = {}) {
+  constructor({
+    scene,
+    count = FOOD_CONFIG.count,
+    enemyNestCount = 2,
+    nestOverrides = null,
+    random = Math.random,
+    randomizeNestPlacements = false,
+    nestPlacementRandom = random,
+  } = {}) {
     this.scene = scene;
     this.random = random;
     this.randomRange = randomRangeWith(this.random);
     this.items = createFoodItems(count, { random: this.random });
     this.meshes = [];
     this.nestStoredById = new Map();
-    this.nests = createNestDefinitions({ enemyNestCount, nestOverrides }).map((nest) => ({
+    this.nests = createNestDefinitions({
+      enemyNestCount,
+      nestOverrides,
+      randomizePositions: randomizeNestPlacements,
+      random: nestPlacementRandom,
+    }).map((nest) => ({
       ...nest,
       mesh: createNestVisual(nest),
     }));
