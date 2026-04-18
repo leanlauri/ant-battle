@@ -48,6 +48,7 @@ const refs = {
   backToTitleButton: document.getElementById('backToTitleButton'),
   gameplayHud: document.getElementById('gameplayHud'),
   antCountValue: document.getElementById('antCountValue'),
+  selectedAntBreakdown: document.getElementById('selectedAntBreakdown'),
   nestFoodOverlay: document.getElementById('nestFoodOverlay'),
   gameplayLevelLabel: document.getElementById('gameplayLevelLabel'),
   hud: document.getElementById('hud'),
@@ -277,6 +278,11 @@ const gameplaySession = createGameplaySession({
   onHudUpdate: (summary) => {
     app.lastHudSummary = summary;
     if (refs.antCountValue) refs.antCountValue.textContent = summary ? String(summary.playerAntCount) : '0';
+    if (refs.selectedAntBreakdown) {
+      const workers = summary?.selectedWorkers ?? 0;
+      const fighters = summary?.selectedFighters ?? 0;
+      refs.selectedAntBreakdown.textContent = `Sel W ${workers} • F ${fighters}`;
+    }
     refs.selectedNestInfo.textContent = summary?.selectedNestText ?? 'Home Nest • Nest HP -- • Stored food --';
     refs.focusInfo.textContent = summary?.focusText ?? 'Focus: No rally point set';
     refs.objectiveInfo.textContent = summary?.objectiveText ?? 'Objective: --';

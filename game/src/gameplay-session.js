@@ -34,6 +34,10 @@ const BATTLEFIELD_EDGE_PADDING_AT_MAX_ZOOM = -10;
 const BATTLEFIELD_GESTURE_ROTATE_SENSITIVITY = 0.95;
 const BATTLEFIELD_GESTURE_MIN_ROTATE_RAD = 0.0015;
 const BATTLEFIELD_GESTURE_MIN_PINCH_PX = 0.35;
+const ANT_SELECTION_RADIUS_BASE_PX = 36;
+const ANT_SELECTION_RADIUS_MAX_PX = 180;
+const ANT_SELECTION_HOLD_DELAY_MS = 170;
+const ANT_SELECTION_GROW_PX_PER_SEC = 130;
 const ATMOSPHERE_DEFAULTS = Object.freeze({
   background: 0xdbe7f4,
   fog: 0xdbe7f4,
@@ -226,6 +230,7 @@ const createBuildInfo = () => ({
 const formatHudSummary = ({ antSystem, buildInfo, levelDefinition }) => {
   const objectiveStatus = getObjectiveStatus({ objective: levelDefinition?.objective, foodSystem: antSystem.foodSystem });
   const antSummary = antSystem.getSummary();
+  const selectionSummary = antSummary.selected ?? { total: 0, workers: 0, fighters: 0 };
   const remainingFood = antSystem.foods.filter((item) => !item.delivered).length;
   const heaviestFood = antSystem.foods.reduce((max, food) => Math.max(max, food.requiredCarriers), 1);
   const focusTarget = antSystem.foodSystem?.getFocusTarget?.();
@@ -256,6 +261,9 @@ const formatHudSummary = ({ antSystem, buildInfo, levelDefinition }) => {
     upgradeOptions: antSystem.foodSystem?.getUpgradeOptions?.() ?? [],
     buildText: `Build: ${buildInfo.value}`,
     playerAntCount: antSummary.playerTotal,
+    selectedAntCount: selectionSummary.total,
+    selectedWorkers: selectionSummary.workers,
+    selectedFighters: selectionSummary.fighters,
     maxPlayerAntCount: antSummary.maxPlayerAnts,
     enemyAntsDefeated: antSummary.enemyAntsDefeated,
     enemyNestsDestroyed: antSummary.enemyNestsDestroyed,
@@ -293,6 +301,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let environmentProps = null;
   let resizeHandler = null;
   let pointerDown = null;
+  let pointerHoldSelection = null;
+  let selectionIndicator = null;
   let pointerDownHandler = null;
   let pointerMoveHandler = null;
   let pointerUpHandler = null;
@@ -377,6 +387,27 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       };
     }).filter(Boolean);
     onHudUpdate?.(summary);
+  };
+
+  const getHoldSelectionRadius = (holdState, nowMs = performance.now()) => {
+    if (!holdState) return ANT_SELECTION_RADIUS_BASE_PX;
+    const heldMs = Math.max(0, nowMs - holdState.startedAtMs - ANT_SELECTION_HOLD_DELAY_MS);
+    const grownRadius = ANT_SELECTION_RADIUS_BASE_PX + (heldMs / 1000) * ANT_SELECTION_GROW_PX_PER_SEC;
+    return THREE.MathUtils.clamp(grownRadius, ANT_SELECTION_RADIUS_BASE_PX, ANT_SELECTION_RADIUS_MAX_PX);
+  };
+
+  const renderSelectionIndicator = () => {
+    if (!selectionIndicator) return;
+    if (!pointerHoldSelection || !pointerHoldSelection.active || !running) {
+      selectionIndicator.hidden = true;
+      return;
+    }
+    const radius = getHoldSelectionRadius(pointerHoldSelection);
+    selectionIndicator.hidden = false;
+    selectionIndicator.style.left = `${pointerHoldSelection.x}px`;
+    selectionIndicator.style.top = `${pointerHoldSelection.y}px`;
+    selectionIndicator.style.width = `${radius * 2}px`;
+    selectionIndicator.style.height = `${radius * 2}px`;
   };
 
   const setMultiTouchControlLock = (locked) => {
@@ -581,6 +612,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     pointerMoveHandler = null;
     pointerUpHandler = null;
     pointerDown = null;
+    pointerHoldSelection = null;
+    if (selectionIndicator) selectionIndicator.hidden = true;
     multiTouchGesture = false;
     setMultiTouchControlLock(false);
     activePointerIds.clear();
@@ -623,6 +656,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     enforceBattlefieldCameraConstraints();
     environmentProps?.update(camera, dt, false, controls?.target ?? null);
     syncSceneFog(scene, camera, currentAtmosphereProfile);
+    renderSelectionIndicator();
 
     let substeps = 0;
     while (!battleResolved && accumulator >= fixedStep && substeps < maxSubsteps) {
@@ -774,6 +808,18 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
+      selectionIndicator = document.getElementById('selectionRadiusIndicator');
+      if (selectionIndicator) selectionIndicator.hidden = true;
+      const issueSelectedCommand = (target, meta) => {
+        if (!target || !foodSystem || !antSystem) return false;
+        const commanded = antSystem.issueMoveCommandToSelected(target);
+        foodSystem.setFocusTarget(target, meta);
+        antSystem.setFocusTarget(null);
+        if (commanded > 0) centerCameraOn(target);
+        onFocusAssigned?.(foodSystem.getFocusTarget());
+        publishHud();
+        return true;
+      };
       pointerDownHandler = (event) => {
         activePointerIds.add(event.pointerId);
         pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -781,14 +827,37 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
           multiTouchGesture = true;
           setMultiTouchControlLock(true);
           pointerDown = null;
+          pointerHoldSelection = null;
+          if (selectionIndicator) selectionIndicator.hidden = true;
           return;
         }
         pointerDown = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+        pointerHoldSelection = {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          startedAtMs: performance.now(),
+          active: true,
+        };
+        renderSelectionIndicator();
       };
       pointerMoveHandler = (event) => {
         if (!activePointerIds.has(event.pointerId)) return;
         const previousPositions = new Map(pointerPositions);
         pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+        if (pointerHoldSelection?.active && pointerHoldSelection.pointerId === event.pointerId && activePointerIds.size === 1) {
+          const dragDistance = Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y);
+          if (dragDistance > 20) {
+            pointerHoldSelection.active = false;
+            if (selectionIndicator) selectionIndicator.hidden = true;
+          } else {
+            pointerHoldSelection.x = event.clientX;
+            pointerHoldSelection.y = event.clientY;
+            renderSelectionIndicator();
+          }
+        }
+
         if (cameraMode !== CAMERA_MODE.battlefield || !controls) return;
         if (activePointerIds.size < 2) return;
 
@@ -837,14 +906,37 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
             setMultiTouchControlLock(false);
           }
           pointerDown = null;
+          pointerHoldSelection = null;
+          if (selectionIndicator) selectionIndicator.hidden = true;
           return;
         }
         if (!pointerDown || pointerDown.pointerId !== event.pointerId || !camera || !terrain || !foodSystem || !antSystem) return;
         const travel = Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y);
+        const holdDurationMs = Math.max(0, performance.now() - (pointerHoldSelection?.startedAtMs ?? performance.now()));
+        const holdRadiusPx = getHoldSelectionRadius(pointerHoldSelection, performance.now());
+        const usedHoldSelection = !!pointerHoldSelection?.active && holdDurationMs >= ANT_SELECTION_HOLD_DELAY_MS;
         pointerDown = null;
+        pointerHoldSelection = null;
+        if (selectionIndicator) selectionIndicator.hidden = true;
         if (travel > 8) return;
 
         const rect = renderer.domElement.getBoundingClientRect();
+        const screenX = event.clientX - rect.left;
+        const screenY = event.clientY - rect.top;
+        const selectionRadius = usedHoldSelection ? holdRadiusPx : ANT_SELECTION_RADIUS_BASE_PX;
+        const selectionSummary = antSystem.selectPlayerAntsNearScreenPoint(
+          screenX,
+          screenY,
+          selectionRadius,
+          camera,
+          rect.width,
+          rect.height,
+        );
+        if (selectionSummary.total > 0) {
+          publishHud();
+          return;
+        }
+
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
@@ -861,41 +953,22 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const antHit = antSystem.findAntHit(raycaster);
         if (antHit) {
           const target = antHit.position.clone();
-          foodSystem.setFocusTarget(target, { type: 'enemy-ant', label: `${antHit.colonyId} ${antHit.role}` });
-          antSystem.setFocusTarget(target);
-          centerCameraOn(target);
-          onFocusAssigned?.(foodSystem.getFocusTarget());
-          publishHud();
-          return;
+          if (issueSelectedCommand(target, { type: 'enemy-ant', label: `${antHit.colonyId} ${antHit.role}` })) return;
         }
 
         if (nestHit?.faction === 'enemy') {
-          foodSystem.setFocusTarget(nestHit.position, { type: 'enemy-nest', nestId: nestHit.id, label: nestHit.label });
-          antSystem.setFocusTarget(nestHit.position);
-          centerCameraOn(nestHit.position);
-          onFocusAssigned?.(foodSystem.getFocusTarget());
-          publishHud();
-          return;
+          if (issueSelectedCommand(nestHit.position, { type: 'enemy-nest', nestId: nestHit.id, label: nestHit.label })) return;
         }
 
         const foodHit = foodSystem.findFoodHit(raycaster);
         if (foodHit) {
-          foodSystem.setFocusTarget(foodHit.position, { type: 'food', label: `food ${foodHit.id}` });
-          antSystem.setFocusTarget(foodHit.position);
-          centerCameraOn(foodHit.position);
-          onFocusAssigned?.(foodSystem.getFocusTarget());
-          publishHud();
-          return;
+          if (issueSelectedCommand(foodHit.position, { type: 'food', label: `food ${foodHit.id}` })) return;
         }
 
         const terrainHit = raycaster.intersectObject(terrain, true)[0];
         if (!terrainHit || !foodSystem.getSelectedNest()) return;
         const target = terrainHit.point;
-        foodSystem.setFocusTarget(target, { type: 'terrain', label: 'terrain' });
-        antSystem.setFocusTarget(target);
-        centerCameraOn(target);
-        onFocusAssigned?.(foodSystem.getFocusTarget());
-        publishHud();
+        issueSelectedCommand(target, { type: 'terrain', label: 'terrain' });
       };
       renderer.domElement.addEventListener('pointerdown', pointerDownHandler);
       renderer.domElement.addEventListener('pointermove', pointerMoveHandler);

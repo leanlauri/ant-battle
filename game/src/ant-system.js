@@ -58,6 +58,7 @@ export const ANT_CONFIG = Object.freeze({
   workerHp: 28,
   fighterHp: 46,
   deathVisualDuration: 0.32,
+  commandTargetReachDistance: 2.4,
   pheromoneTrailMinInterval: 0.12,
   pheromoneTrailMaxInterval: 0.34,
   pheromoneTrailSpeedSqThreshold: 0.04,
@@ -296,6 +297,23 @@ export const createAntVisual = (role = ANT_ROLE.worker, faction = ANT_FACTION.pl
     head.scale.setScalar(1.18);
   }
 
+  const selectionRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.34, 0.045, 10, 28),
+    new THREE.MeshBasicMaterial({
+      color: 0x66e47c,
+      transparent: true,
+      opacity: 0.96,
+      depthWrite: false,
+      depthTest: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  selectionRing.rotation.x = Math.PI / 2;
+  selectionRing.position.y = 0.03;
+  selectionRing.renderOrder = 30;
+  selectionRing.visible = false;
+  group.add(selectionRing);
+
   const legGeometry = new THREE.CapsuleGeometry(0.03, 0.4, 2, 6);
   for (let i = 0; i < 3; i += 1) {
     const z = -0.2 + i * 0.22;
@@ -324,6 +342,7 @@ export const createAntVisual = (role = ANT_ROLE.worker, faction = ANT_FACTION.pl
   });
 
   group.userData.legs = legs;
+  group.userData.selectionRing = selectionRing;
 
   return group;
 };
@@ -387,6 +406,8 @@ export const createAntState = (id, x, z, overrides = {}, random = DEFAULT_RANDOM
     combatTargetId: null,
     workerAggroTargetId: null,
     dead: false,
+    selected: false,
+    commandTarget: null,
     deathVisualTime: 0,
     deathVisualDuration: ANT_CONFIG.deathVisualDuration,
     deathTiltDirection: 1,
@@ -605,6 +626,15 @@ const updateBrain = (ant, distanceToCamera, foods, ants, pheromoneSystem, colony
   ant.logicInterval = getLogicIntervalForDistance(distanceToCamera);
 
   const homeNestPosition = getHomeNestPosition(ant, nestLookup);
+
+  if (ant.faction === ANT_FACTION.player && ant.commandTarget) {
+    const commandDistance = ant.position.distanceTo(ant.commandTarget);
+    if (commandDistance > ANT_CONFIG.commandTargetReachDistance) {
+      chooseFocusAction(ant, ant.commandTarget);
+      return;
+    }
+    ant.commandTarget = null;
+  }
 
   ant.workerAggroTargetId = null;
   if (ant.carryingFoodId != null) return;
@@ -1005,6 +1035,7 @@ export class AntSystem {
     this.groundSplats = [];
     this.groundSplatGroup = new THREE.Group();
     this.corpseRemains = [];
+    this.selectedPlayerAntIds = new Set();
     this.objective = objective;
     this.stats = {
       enemyAntsDefeated: 0,
@@ -1105,6 +1136,101 @@ export class AntSystem {
     }
     hits.sort((a, b) => a.distance - b.distance);
     return hits[0]?.ant ?? null;
+  }
+
+  getPlayerAntScreenCandidates(camera, width, height) {
+    if (!camera || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return [];
+    const candidates = [];
+    for (let i = 0; i < this.ants.length; i += 1) {
+      const ant = this.ants[i];
+      if (!ant || ant.dead || ant.faction !== ANT_FACTION.player) continue;
+      const projected = ant.position.clone().project(camera);
+      if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || projected.z < -1 || projected.z > 1) continue;
+      candidates.push({
+        ant,
+        x: ((projected.x + 1) / 2) * width,
+        y: ((-projected.y + 1) / 2) * height,
+      });
+    }
+    return candidates;
+  }
+
+  selectPlayerAntsNearScreenPoint(screenX, screenY, radiusPx, camera, width, height) {
+    const candidates = this.getPlayerAntScreenCandidates(camera, width, height);
+    if (!candidates.length) {
+      this.setSelectedPlayerAntIds([]);
+      return this.getSelectionSummary();
+    }
+
+    let anchor = null;
+    let bestDistanceSq = Number.POSITIVE_INFINITY;
+    for (const candidate of candidates) {
+      const dx = candidate.x - screenX;
+      const dy = candidate.y - screenY;
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq < bestDistanceSq) {
+        anchor = candidate;
+        bestDistanceSq = distanceSq;
+      }
+    }
+
+    const anchorRadiusSq = radiusPx * radiusPx;
+    if (!anchor || bestDistanceSq > anchorRadiusSq) {
+      this.setSelectedPlayerAntIds([]);
+      return this.getSelectionSummary();
+    }
+
+    const selectedIds = [];
+    for (const candidate of candidates) {
+      const dx = candidate.x - anchor.x;
+      const dy = candidate.y - anchor.y;
+      if ((dx * dx + dy * dy) <= anchorRadiusSq) selectedIds.push(candidate.ant.id);
+    }
+    this.setSelectedPlayerAntIds(selectedIds);
+    return this.getSelectionSummary();
+  }
+
+  setSelectedPlayerAntIds(antIds = []) {
+    const next = new Set(antIds);
+    this.selectedPlayerAntIds = next;
+    for (const ant of this.ants) {
+      ant.selected = !ant.dead && ant.faction === ANT_FACTION.player && next.has(ant.id);
+    }
+    return this.getSelectionSummary();
+  }
+
+  clearSelection() {
+    return this.setSelectedPlayerAntIds([]);
+  }
+
+  getSelectionSummary() {
+    let workers = 0;
+    let fighters = 0;
+    for (const ant of this.ants) {
+      if (!ant.selected || ant.dead || ant.faction !== ANT_FACTION.player) continue;
+      if (ant.role === ANT_ROLE.worker) workers += 1;
+      else if (ant.role === ANT_ROLE.fighter) fighters += 1;
+    }
+    return { total: workers + fighters, workers, fighters };
+  }
+
+  issueMoveCommandToSelected(target) {
+    if (!target) return 0;
+    const commandTarget = new THREE.Vector3(target.x, sampleHeight(target.x, target.z), target.z);
+    let commanded = 0;
+    for (const ant of this.ants) {
+      if (!ant.selected || ant.dead || ant.faction !== ANT_FACTION.player) continue;
+      clearAntAssignments(ant, this.foodSystem, this.foods);
+      ant.targetFoodId = null;
+      ant.carryingFoodId = null;
+      ant.assistingFoodId = null;
+      ant.queuedNestSlot = null;
+      ant.nestApproachStage = 'queue';
+      ant.commandTarget = commandTarget.clone();
+      chooseFocusAction(ant, ant.commandTarget);
+      commanded += 1;
+    }
+    return commanded;
   }
 
   spawnGroundSplat(position, colonyId, scale = 1) {
@@ -1226,6 +1352,8 @@ export class AntSystem {
   markAntDead(ant, { stampScale = 1 } = {}) {
     if (!ant || ant.dead) return false;
     ant.dead = true;
+    ant.selected = false;
+    this.selectedPlayerAntIds.delete(ant.id);
     clearAntAssignments(ant, this.foodSystem, this.foods);
     ant.velocity.setScalar(0);
     ant.desiredVelocity.setScalar(0);
@@ -1701,6 +1829,14 @@ export class AntSystem {
         mesh.rotation.z = rollZ;
         mesh.scale.setScalar(ant.hitFlashTime > 0 ? 1 + (ant.hitFlashTime / 0.2) * 0.08 : 1);
         animateAntLegs(mesh, ant);
+        const selectionRing = mesh.userData.selectionRing;
+        if (selectionRing) {
+          selectionRing.visible = !!ant.selected;
+          if (selectionRing.visible) {
+            const pulse = 1 + Math.sin((ant.gaitPhase ?? 0) * 0.65) * 0.08;
+            selectionRing.scale.setScalar(pulse);
+          }
+        }
       } else {
         mesh.visible = false;
       }
@@ -1801,6 +1937,7 @@ export class AntSystem {
       impostor: this.farInstanceCount,
       workers,
       fighters,
+      selected: this.getSelectionSummary(),
       enemyAntsDefeated: this.stats.enemyAntsDefeated,
       enemyNestsDestroyed: this.stats.enemyNestsDestroyed,
       playerNestsLost: this.stats.playerNestsLost,

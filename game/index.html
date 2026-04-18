@@ -359,6 +359,21 @@
       min-width: 56px;
       text-align: center;
     }
+    .antSelectionMeta {
+      margin-top: 6px;
+      pointer-events: none;
+      border-radius: 10px;
+      background: rgba(246, 250, 255, 0.86);
+      border: 1px solid rgba(22, 49, 77, 0.12);
+      box-shadow: 0 8px 20px rgba(19, 49, 77, 0.1);
+      backdrop-filter: blur(6px);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
     #nestFoodOverlay {
       position: fixed;
       inset: 0;
@@ -389,6 +404,18 @@
     .nestFoodBadge[data-selected="true"] {
       box-shadow: 0 10px 22px rgba(68, 180, 96, 0.2);
       border-color: rgba(68, 180, 96, 0.44);
+    }
+    #selectionRadiusIndicator {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid rgba(102, 228, 124, 0.9);
+      background: rgba(102, 228, 124, 0.12);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 11;
+      box-shadow: 0 0 0 1px rgba(19, 49, 77, 0.2) inset;
     }
     .statusLabel {
       display: block;
@@ -766,8 +793,10 @@
       <div class="topBarSide">
         <button id="cameraModeButton" type="button" class="topBarControl">Switch to battlefield camera</button>
         <div id="antCountValue" class="antCornerCount">0</div>
+        <div id="selectedAntBreakdown" class="antSelectionMeta">Sel W 0 • F 0</div>
       </div>
     </div>
+    <div id="selectionRadiusIndicator" hidden></div>
     <div id="nestFoodOverlay"></div>
     <div id="nestUpgradeOverlay">
       <div id="nestUpgradePanel" class="nestUpgradePanel" hidden>
