@@ -58,9 +58,9 @@ export const ANT_CONFIG = Object.freeze({
   workerHp: 28,
   fighterHp: 46,
   deathVisualDuration: 0.32,
-  pheromoneTrailMinInterval: 0.34,
-  pheromoneTrailMaxInterval: 0.92,
-  pheromoneTrailSpeedSqThreshold: 0.18,
+  pheromoneTrailMinInterval: 0.12,
+  pheromoneTrailMaxInterval: 0.34,
+  pheromoneTrailSpeedSqThreshold: 0.04,
 });
 
 export const ANT_LOD = Object.freeze({ near: 'near', mid: 'mid', far: 'far' });
@@ -395,7 +395,7 @@ export const createAntState = (id, x, z, overrides = {}, random = DEFAULT_RANDOM
     deathStampScale: 1,
     visible: true,
     lodBand: ANT_LOD.near,
-    pheromoneTrailCooldown: 0.24 + ((id % 7) / 7) * 0.42,
+    pheromoneTrailCooldown: 0.08 + ((id % 7) / 7) * 0.18,
     random,
     ...overrides,
   };
@@ -1192,7 +1192,7 @@ export class AntSystem {
   spawnPheromoneFootprint(ant, pheromoneType) {
     if (!ant || ant.dead) return;
     const color = pheromoneType === 'food' ? 0x8edb72 : 0x84b9ff;
-    const baseOpacity = pheromoneType === 'food' ? 0.14 : 0.1;
+    const baseOpacity = pheromoneType === 'food' ? 0.2 : 0.16;
     const forward = new THREE.Vector3(ant.heading.x, 0, ant.heading.z);
     if (forward.lengthSq() < 0.0001) forward.set(1, 0, 0);
     forward.normalize();
@@ -1210,9 +1210,9 @@ export class AntSystem {
     material.userData.baseOpacity = baseOpacity;
 
     for (const sideSign of [-1, 1]) {
-      const mark = new THREE.Mesh(new THREE.CircleGeometry(0.055, 10), material);
+      const mark = new THREE.Mesh(new THREE.CircleGeometry(0.068, 10), material);
       mark.rotation.x = -Math.PI / 2;
-      mark.scale.set(1.18, 0.66, 1);
+      mark.scale.set(1.26, 0.72, 1);
       mark.position.copy(side).multiplyScalar(sideSign * 0.075).addScaledVector(forward, strideOffset);
       group.add(mark);
     }
@@ -1220,7 +1220,7 @@ export class AntSystem {
     group.position.set(ant.position.x, sampleHeight(ant.position.x, ant.position.z) + 0.022, ant.position.z);
     group.rotation.y = Math.atan2(forward.x, forward.z);
     this.groundSplatGroup.add(group);
-    this.groundSplats.push({ mesh: group, life: 7.5, maxLife: 7.5, type: 'pheromone-trail' });
+    this.groundSplats.push({ mesh: group, life: 10.5, maxLife: 10.5, type: 'pheromone-trail' });
   }
 
   markAntDead(ant, { stampScale = 1 } = {}) {

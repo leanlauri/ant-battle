@@ -189,6 +189,9 @@ const snapshotEffectState = (antSystem) => ({
   })),
 });
 
+const hasNonPheromoneTrailSplat = (antSystem) => antSystem.groundSplats
+  .some((splat) => splat.type !== 'pheromone-trail');
+
 const simulateIntegratedEnemyEconomy = ({ economySeed, spawnSeed, steps = 40, dt = 1, stored, scenarioRules } = {}) => {
   const harness = createIntegrationHarness({ economySeed, spawnSeed, stored, scenarioRules });
   const timeline = [];
@@ -459,7 +462,7 @@ const simulateLiveDecisionEffectsIntegration = ({
     });
     harness.antSystem.update(dt);
 
-    if (!effectsSnapshot && (harness.antSystem.hitEffects.length || harness.antSystem.groundSplats.length || harness.antSystem.corpseRemains.length)) {
+    if (!effectsSnapshot && (harness.antSystem.hitEffects.length || hasNonPheromoneTrailSplat(harness.antSystem) || harness.antSystem.corpseRemains.length)) {
       effectsSnapshot = snapshotEffectState(harness.antSystem);
     }
 
