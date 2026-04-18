@@ -560,11 +560,17 @@ const choosePatrolAction = (ant, homeNestPosition, random = DEFAULT_RANDOM_SOURC
   ant.desiredVelocity.copy(direction).multiplyScalar(ANT_CONFIG.speed * speedFactor);
 };
 
+const distanceXZ = (a, b) => {
+  const dx = a.x - b.x;
+  const dz = a.z - b.z;
+  return Math.hypot(dx, dz);
+};
+
 const getCarryApproachTarget = (ant, nestPosition) => {
   if (!ant.queuedNestSlot) return nestPosition;
   if (ant.nestApproachStage !== 'entrance') {
-    const queueDistance = ant.position.distanceTo(ant.queuedNestSlot.queuePosition);
-    const nestDistance = ant.position.distanceTo(nestPosition);
+    const queueDistance = distanceXZ(ant.position, ant.queuedNestSlot.queuePosition);
+    const nestDistance = distanceXZ(ant.position, nestPosition);
     if (queueDistance <= 0.9 || nestDistance <= NEST_CONFIG.queueRadius + 0.45) {
       ant.nestApproachStage = 'entrance';
     }
@@ -1719,7 +1725,10 @@ export class AntSystem {
           ant.queuedNestSlot ??= this.foodSystem.reserveNestSlot(ant.id, ant.position, ant.homeNestId);
           const approachTarget = getCarryApproachTarget(ant, homeNestPosition);
           ant.target.set(approachTarget.x, 0, approachTarget.z);
-          if (ant.position.distanceTo(homeNestPosition) <= NEST_CONFIG.dropoffDistance) {
+          const dropoffDistance = ant.queuedNestSlot
+            ? distanceXZ(ant.position, ant.queuedNestSlot.entrancePosition)
+            : distanceXZ(ant.position, homeNestPosition);
+          if (dropoffDistance <= NEST_CONFIG.dropoffDistance) {
             const dropped = this.foodSystem.dropFoodInNest(ant.carryingFoodId, ant.id, ant.homeNestId);
             if (dropped) {
               this.spawnFoodGainText(homeNestPosition, carriedFood.weight);

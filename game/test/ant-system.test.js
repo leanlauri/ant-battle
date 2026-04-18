@@ -467,4 +467,45 @@ describe('ant system helpers', () => {
     expect(antSystem.foodSystem.queueAssignments.has(ant.id)).toBe(false);
     expect(ant.action).not.toBe('carry-food');
   });
+
+  test('allows nest drop-off using planar distance even when vertical offset is large', () => {
+    const antSystem = createSeededAntSystem();
+    const ant = antSystem.ants[0];
+    const nest = antSystem.foodSystem.getNestById('player-1');
+    const foodId = 777_001;
+    const carriedFood = {
+      id: foodId,
+      position: nest.position.clone(),
+      sizeScale: 1,
+      weight: 1,
+      requiredCarriers: 1,
+      claimedBy: ant.id,
+      claimedByColonyId: ant.colonyId,
+      carriedBy: ant.id,
+      carriedByColonyId: ant.colonyId,
+      supportAntIds: [ant.id],
+      delivered: false,
+      carried: true,
+      regrowAt: null,
+    };
+
+    antSystem.foods.push(carriedFood);
+    ant.action = 'carry-food';
+    ant.carryingFoodId = foodId;
+    ant.nestApproachStage = 'entrance';
+    ant.queuedNestSlot = {
+      nestId: nest.id,
+      index: 0,
+      queuePosition: nest.position.clone(),
+      entrancePosition: nest.position.clone(),
+    };
+    ant.position.set(nest.position.x, nest.position.y + 9, nest.position.z);
+    ant.logicCooldown = 0;
+
+    antSystem.update(0.2);
+
+    expect(carriedFood.delivered).toBe(true);
+    expect(ant.carryingFoodId).toBeNull();
+    expect(antSystem.foodSystem.getNestStored(nest.id)).toBeGreaterThan(0);
+  });
 });
