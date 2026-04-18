@@ -1191,8 +1191,8 @@ export class AntSystem {
 
   spawnPheromoneFootprint(ant, pheromoneType) {
     if (!ant || ant.dead) return;
-    const color = pheromoneType === 'food' ? 0x4fae3a : 0x3f74d8;
-    const baseOpacity = pheromoneType === 'food' ? 0.34 : 0.28;
+    const color = pheromoneType === 'food' ? 0x2f7f22 : 0x2f56b8;
+    const baseOpacity = pheromoneType === 'food' ? 0.5 : 0.42;
     const forward = new THREE.Vector3(ant.heading.x, 0, ant.heading.z);
     if (forward.lengthSq() < 0.0001) forward.set(1, 0, 0);
     forward.normalize();
@@ -1210,9 +1210,9 @@ export class AntSystem {
     material.userData.baseOpacity = baseOpacity;
 
     for (const sideSign of [-1, 1]) {
-      const mark = new THREE.Mesh(new THREE.CircleGeometry(0.068, 10), material);
+      const mark = new THREE.Mesh(new THREE.CircleGeometry(0.09, 10), material);
       mark.rotation.x = -Math.PI / 2;
-      mark.scale.set(1.26, 0.72, 1);
+      mark.scale.set(1.45, 0.86, 1);
       mark.position.copy(side).multiplyScalar(sideSign * 0.075).addScaledVector(forward, strideOffset);
       group.add(mark);
     }
