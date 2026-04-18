@@ -9,13 +9,17 @@ import { getLevelDefinition } from './level-definition.js';
 import { getObjectiveStatus } from './objective-rules.js';
 import { PheromoneSystem } from './pheromone-system.js';
 import { createSeededRandom, deriveSeed } from './seeded-random.js';
-import { createTerrainMesh, createTerrainOverlay, createTerrainUnderlay, getActiveTerrainProfile, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
+import { createTerrainHeightBandsMaterial, createTerrainMaterial, createTerrainMesh, createTerrainOverlay, createTerrainUnderlay, getActiveTerrainProfile, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
 
 const BUILD_ID_FALLBACK = '9ae531b';
 const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : BUILD_ID_FALLBACK;
 const CAMERA_MODE = {
   orbit: 'orbit',
   battlefield: 'battlefield',
+};
+const TERRAIN_SHADER_MODE = {
+  classic: 'classic',
+  heightBands: 'height-bands',
 };
 const DEFAULT_CAMERA_TARGET = new THREE.Vector3(0, 2, 0);
 const DEFAULT_CAMERA_POSITION = new THREE.Vector3(36, 26, 36);
@@ -320,6 +324,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let debugVisualsVisible = false;
   let battleResolved = false;
   let cameraMode = CAMERA_MODE.battlefield;
+  let terrainShaderMode = TERRAIN_SHADER_MODE.classic;
   let multiTouchGesture = false;
   let previousMultiTouchControlState = null;
   const activePointerIds = new Set();
@@ -394,6 +399,23 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       };
     }).filter(Boolean);
     onHudUpdate?.(summary);
+  };
+
+  const applyTerrainShaderMode = () => {
+    if (!terrain) return false;
+    const previousMaterial = terrain.material;
+    if (terrainShaderMode === TERRAIN_SHADER_MODE.heightBands) {
+      const profile = getActiveTerrainProfile();
+      const bounds = terrain.geometry?.boundingBox;
+      terrain.material = createTerrainHeightBandsMaterial({
+        minHeight: bounds?.min?.y ?? -profile.maxHeight,
+        maxHeight: bounds?.max?.y ?? profile.maxHeight,
+      });
+    } else {
+      terrain.material = createTerrainMaterial({ color: currentAtmosphereProfile.terrainTint });
+    }
+    previousMaterial?.dispose?.();
+    return true;
   };
 
   const getHoldSelectionRadius = (holdState, nowMs = performance.now()) => {
@@ -770,6 +792,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       scene.add(debugVisualsGroup);
 
       terrain = createTerrainMesh({ materialTint: currentAtmosphereProfile.terrainTint });
+      applyTerrainShaderMode();
       scene.add(createTerrainUnderlay({ color: currentAtmosphereProfile.underlay }));
       scene.add(terrain);
       scene.add(createTerrainOverlay(terrain.geometry));
@@ -1063,6 +1086,14 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     start,
     stop,
     setDebugVisualsVisible,
+    setTerrainShaderMode: (mode) => {
+      terrainShaderMode = mode === TERRAIN_SHADER_MODE.heightBands
+        ? TERRAIN_SHADER_MODE.heightBands
+        : TERRAIN_SHADER_MODE.classic;
+      applyTerrainShaderMode();
+      return terrainShaderMode;
+    },
+    getTerrainShaderMode: () => terrainShaderMode,
     setCameraMode: (nextCameraMode) => {
       cameraMode = nextCameraMode === CAMERA_MODE.battlefield ? CAMERA_MODE.battlefield : CAMERA_MODE.orbit;
       applyCameraMode();
@@ -1131,6 +1162,16 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       const nest = foodSystem.getNestById(nestId);
       if (!nest) return false;
       foodSystem.nestStoredById.set(nestId, Math.max(0, amount));
+      foodSystem.updateNestVisual();
+      publishHud();
+      return true;
+    },
+    addSelectedNestFood: (amount = 0) => {
+      if (!foodSystem) return false;
+      const nest = foodSystem.getSelectedNest?.();
+      if (!nest) return false;
+      const current = foodSystem.getNestStored(nest.id);
+      foodSystem.nestStoredById.set(nest.id, Math.max(0, current + amount));
       foodSystem.updateNestVisual();
       publishHud();
       return true;

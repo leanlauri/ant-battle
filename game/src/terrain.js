@@ -194,6 +194,55 @@ export const createTerrainMaterial = ({ color = 0xffffff } = {}) => new THREE.Me
   gradientMap: createToonGradient(),
 });
 
+export const createTerrainHeightBandsMaterial = ({
+  minHeight = -5,
+  maxHeight = 5,
+} = {}) => new THREE.ShaderMaterial({
+  uniforms: {
+    minHeight: { value: minHeight },
+    maxHeight: { value: maxHeight },
+  },
+  vertexShader: `
+    varying float vHeight;
+    varying vec3 vNormalW;
+    void main() {
+      vHeight = position.y;
+      vNormalW = normalize(normalMatrix * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying float vHeight;
+    varying vec3 vNormalW;
+    uniform float minHeight;
+    uniform float maxHeight;
+
+    vec3 bandColor(float t) {
+      vec3 c0 = vec3(0.46, 0.47, 0.45); // gray
+      vec3 c1 = vec3(0.44, 0.31, 0.19); // brown
+      vec3 c2 = vec3(0.76, 0.67, 0.33); // yellow
+      vec3 c3 = vec3(0.29, 0.57, 0.24); // green
+      if (t < 0.33) {
+        return mix(c0, c1, smoothstep(0.0, 0.33, t));
+      }
+      if (t < 0.66) {
+        return mix(c1, c2, smoothstep(0.33, 0.66, t));
+      }
+      return mix(c2, c3, smoothstep(0.66, 1.0, t));
+    }
+
+    void main() {
+      float span = max(0.0001, maxHeight - minHeight);
+      float t = clamp((vHeight - minHeight) / span, 0.0, 1.0);
+      vec3 base = bandColor(t);
+      vec3 lightDir = normalize(vec3(0.35, 0.9, 0.45));
+      float diff = clamp(dot(normalize(vNormalW), lightDir), 0.0, 1.0);
+      float shade = 0.68 + diff * 0.38;
+      gl_FragColor = vec4(base * shade, 1.0);
+    }
+  `,
+});
+
 export const createTerrainOverlay = (geometry) => {
   const wireframe = new THREE.LineSegments(
     new THREE.WireframeGeometry(geometry),

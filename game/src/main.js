@@ -78,6 +78,8 @@ const refs = {
   debugCameraOrbitButton: document.getElementById('debugCameraOrbitButton'),
   debugCameraBattlefieldButton: document.getElementById('debugCameraBattlefieldButton'),
   debugVisualsButton: document.getElementById('debugVisualsButton'),
+  debugTerrainShaderButton: document.getElementById('debugTerrainShaderButton'),
+  debugCheatFoodButton: document.getElementById('debugCheatFoodButton'),
   victoryKicker: document.getElementById('victoryKicker'),
   victoryLevelLabel: document.getElementById('victoryLevelLabel'),
   victorySummary: document.getElementById('victorySummary'),
@@ -105,6 +107,7 @@ const app = {
   selectedUpgradeId: null,
   upgradeFeedback: null,
   debugVisualsEnabled: false,
+  debugTerrainShaderMode: 'classic',
   debugMenuVisible: false,
   cameraMode: CAMERA_MODE.battlefield,
 };
@@ -148,6 +151,12 @@ const renderDebugMenu = () => {
     refs.debugVisualsButton.dataset.active = String(app.debugVisualsEnabled);
     refs.debugVisualsButton.textContent = app.debugVisualsEnabled ? 'Debug visuals on' : 'Debug visuals off';
   }
+  if (refs.debugTerrainShaderButton) {
+    const isHeightBands = app.debugTerrainShaderMode === 'height-bands';
+    refs.debugTerrainShaderButton.dataset.active = String(isHeightBands);
+    refs.debugTerrainShaderButton.textContent = isHeightBands ? 'Terrain shader: height bands' : 'Terrain shader: classic';
+  }
+  if (app.screen === APP_SCREEN.levelSelect) renderLevelGrid();
 };
 
 const closeUpgradePanel = () => {
@@ -311,12 +320,13 @@ const renderLevelGrid = () => {
   refs.levelGrid.replaceChildren();
 
   for (const level of levels) {
+    const effectiveState = app.debugMenuVisible && level.state === 'locked' ? 'open' : level.state;
     const definition = getLevelDefinition(level.levelNumber);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'levelCard';
-    button.dataset.state = level.state;
-    button.disabled = level.state === 'locked';
+    button.dataset.state = effectiveState;
+    button.disabled = effectiveState === 'locked';
     button.dataset.level = String(level.levelNumber);
     button.dataset.boss = level.isBossLevel ? 'true' : 'false';
     button.innerHTML = `
@@ -326,10 +336,10 @@ const renderLevelGrid = () => {
         <span class="levelCardMeta">${level.isBossLevel ? (definition.boss?.shellLabel ?? 'Boss level') : definition.timeOfDay}</span>
       </span>
       <span>${definition.label}</span>
-      <span class="levelCardState">${level.state}</span>
+      <span class="levelCardState">${effectiveState}</span>
     `;
     button.addEventListener('click', () => {
-      if (level.state === 'locked') return;
+      if (effectiveState === 'locked') return;
       launchLevel(level.levelNumber);
     });
     refs.levelGrid.appendChild(button);
@@ -337,7 +347,9 @@ const renderLevelGrid = () => {
 
   const range = getPageRange(app.currentPage, TOTAL_LEVELS);
   refs.levelPageLabel.textContent = `Levels ${range.start}–${range.end}`;
-  refs.levelProgressLabel.textContent = `Unlocked ${app.progress.unlockedLevel} / ${TOTAL_LEVELS}`;
+  refs.levelProgressLabel.textContent = app.debugMenuVisible
+    ? `Debug mode: all ${TOTAL_LEVELS} levels open`
+    : `Unlocked ${app.progress.unlockedLevel} / ${TOTAL_LEVELS}`;
   refs.previousPageButton.disabled = app.currentPage === 0;
   refs.nextPageButton.disabled = app.currentPage >= getPageCount(TOTAL_LEVELS) - 1;
 };
@@ -379,6 +391,7 @@ const changeScreen = async (nextScreen, { restartGameplay = false } = {}) => {
   if (shouldShowGameplay && (!wasGameplayVisible || restartGameplay)) {
     await gameplaySession.start(app.currentLevel);
     gameplaySession.setDebugVisualsVisible(app.debugVisualsEnabled);
+    gameplaySession.setTerrainShaderMode(app.debugTerrainShaderMode);
     gameplaySession.setCameraMode(app.cameraMode);
   }
 };
@@ -473,6 +486,14 @@ refs.debugVisualsButton?.addEventListener('click', () => {
   gameplaySession.setDebugVisualsVisible(app.debugVisualsEnabled);
   renderDebugMenu();
 });
+refs.debugTerrainShaderButton?.addEventListener('click', () => {
+  app.debugTerrainShaderMode = app.debugTerrainShaderMode === 'height-bands' ? 'classic' : 'height-bands';
+  gameplaySession.setTerrainShaderMode(app.debugTerrainShaderMode);
+  renderDebugMenu();
+});
+refs.debugCheatFoodButton?.addEventListener('click', () => {
+  gameplaySession.addSelectedNestFood(100);
+});
 
 window.__ANT_BATTLE_TEST_API__ = {
   forceOutcome(outcome) {
@@ -552,6 +573,15 @@ window.__ANT_BATTLE_DEV_API__ = {
   },
   getCameraMode() {
     return app.cameraMode;
+  },
+  setTerrainShaderMode(mode) {
+    app.debugTerrainShaderMode = mode === 'height-bands' ? 'height-bands' : 'classic';
+    gameplaySession.setTerrainShaderMode(app.debugTerrainShaderMode);
+    renderDebugMenu();
+    return app.debugTerrainShaderMode;
+  },
+  getTerrainShaderMode() {
+    return app.debugTerrainShaderMode;
   },
 };
 
