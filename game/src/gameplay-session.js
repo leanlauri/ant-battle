@@ -38,8 +38,8 @@ const ANT_SELECTION_RADIUS_BASE_PX = 36;
 const ANT_SELECTION_RADIUS_MAX_PX = 180;
 const ANT_SELECTION_HOLD_DELAY_MS = 170;
 const ANT_SELECTION_GROW_PX_PER_SEC = 130;
-const ANT_SELECTION_DOUBLE_TAP_WINDOW_MS = 320;
-const ANT_SELECTION_DOUBLE_TAP_RADIUS_PX = 34;
+const ANT_SELECTION_DOUBLE_TAP_WINDOW_MS = 420;
+const ANT_SELECTION_DOUBLE_TAP_RADIUS_PX = 48;
 const ATMOSPHERE_DEFAULTS = Object.freeze({
   background: 0xdbe7f4,
   fog: 0xdbe7f4,
@@ -927,6 +927,8 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const holdDurationMs = Math.max(0, performance.now() - (pointerHoldSelection?.startedAtMs ?? performance.now()));
         const holdRadiusPx = getHoldSelectionRadius(pointerHoldSelection, performance.now());
         const usedHoldSelection = !!pointerHoldSelection?.active && holdDurationMs >= ANT_SELECTION_HOLD_DELAY_MS;
+        const isDoubleTapNow = (performance.now() - lastTapTimeMs) <= ANT_SELECTION_DOUBLE_TAP_WINDOW_MS
+          && Math.hypot(event.clientX - lastTapX, event.clientY - lastTapY) <= ANT_SELECTION_DOUBLE_TAP_RADIUS_PX;
         pointerDown = null;
         pointerHoldSelection = null;
         if (selectionIndicator) selectionIndicator.hidden = true;
@@ -954,7 +956,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
           return;
         }
 
-        if (selectionGestureArmed) {
+        if (selectionGestureArmed || isDoubleTapNow) {
           const selectionRadius = usedHoldSelection ? holdRadiusPx : ANT_SELECTION_RADIUS_BASE_PX;
           antSystem.selectPlayerAntsNearScreenPoint(
             screenX,
