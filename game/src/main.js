@@ -147,7 +147,6 @@ const renderDebugMenu = () => {
     ? 'Switch to orbit camera'
     : 'Switch to battlefield camera';
   if (!refs.debugMenu) return;
-  if (app.debugMenuVisible && refs.hud) refs.hud.open = true;
   refs.debugMenu.hidden = !app.debugMenuVisible;
   if (refs.debugCameraModeLabel) refs.debugCameraModeLabel.textContent = app.cameraMode === CAMERA_MODE.battlefield ? 'Battlefield camera' : 'Orbit camera';
   if (refs.debugCameraOrbitButton) refs.debugCameraOrbitButton.dataset.active = String(app.cameraMode === CAMERA_MODE.orbit);
@@ -366,6 +365,7 @@ const renderScreens = () => {
   refs.defeatScreen.hidden = app.screen !== APP_SCREEN.defeat;
   refs.gameplayHud.hidden = !isGameplayVisible();
   refs.gameCanvasHost.hidden = !isGameplayVisible();
+  if (refs.hud) refs.hud.hidden = !app.debugModeEnabled;
   if (!isGameplayVisible() && refs.nestUpgradePanel) refs.nestUpgradePanel.hidden = true;
   if (!isGameplayVisible()) closeUpgradePanel();
   document.body.dataset.screen = app.screen;
