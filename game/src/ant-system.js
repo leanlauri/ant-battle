@@ -1161,30 +1161,12 @@ export class AntSystem {
       this.setSelectedPlayerAntIds([]);
       return this.getSelectionSummary();
     }
-
-    let anchor = null;
-    let bestDistanceSq = Number.POSITIVE_INFINITY;
+    const selectedIds = [];
+    const selectRadiusSq = radiusPx * radiusPx;
     for (const candidate of candidates) {
       const dx = candidate.x - screenX;
       const dy = candidate.y - screenY;
-      const distanceSq = dx * dx + dy * dy;
-      if (distanceSq < bestDistanceSq) {
-        anchor = candidate;
-        bestDistanceSq = distanceSq;
-      }
-    }
-
-    const anchorRadiusSq = radiusPx * radiusPx;
-    if (!anchor || bestDistanceSq > anchorRadiusSq) {
-      this.setSelectedPlayerAntIds([]);
-      return this.getSelectionSummary();
-    }
-
-    const selectedIds = [];
-    for (const candidate of candidates) {
-      const dx = candidate.x - anchor.x;
-      const dy = candidate.y - anchor.y;
-      if ((dx * dx + dy * dy) <= anchorRadiusSq) selectedIds.push(candidate.ant.id);
+      if ((dx * dx + dy * dy) <= selectRadiusSq) selectedIds.push(candidate.ant.id);
     }
     this.setSelectedPlayerAntIds(selectedIds);
     return this.getSelectionSummary();
