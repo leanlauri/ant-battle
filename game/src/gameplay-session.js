@@ -819,10 +819,9 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       if (selectionIndicator) selectionIndicator.hidden = true;
       const issueSelectedCommand = (target, meta) => {
         if (!target || !foodSystem || !antSystem) return false;
-        const commanded = antSystem.issueMoveCommandToSelected(target);
+        antSystem.issueMoveCommandToSelected(target);
         foodSystem.setFocusTarget(target, meta);
         antSystem.setFocusTarget(null);
-        if (commanded > 0) centerCameraOn(target);
         onFocusAssigned?.(foodSystem.getFocusTarget());
         publishHud();
         return true;
@@ -844,15 +843,13 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const deltaMs = nowMs - lastTapTimeMs;
         const deltaPx = Math.hypot(event.clientX - lastTapX, event.clientY - lastTapY);
         selectionGestureArmed = deltaMs <= ANT_SELECTION_DOUBLE_TAP_WINDOW_MS && deltaPx <= ANT_SELECTION_DOUBLE_TAP_RADIUS_PX;
-        pointerHoldSelection = selectionGestureArmed
-          ? {
-            pointerId: event.pointerId,
-            x: event.clientX,
-            y: event.clientY,
-            startedAtMs: nowMs,
-            active: true,
-          }
-          : null;
+        pointerHoldSelection = {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          startedAtMs: nowMs,
+          active: true,
+        };
         renderSelectionIndicator();
       };
       pointerMoveHandler = (event) => {
@@ -860,7 +857,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const previousPositions = new Map(pointerPositions);
         pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
-        if (selectionGestureArmed && pointerHoldSelection?.active && pointerHoldSelection.pointerId === event.pointerId && activePointerIds.size === 1) {
+        if (pointerHoldSelection?.active && pointerHoldSelection.pointerId === event.pointerId && activePointerIds.size === 1) {
           const dragDistance = Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y);
           if (dragDistance > 20) {
             pointerHoldSelection.active = false;
@@ -929,7 +926,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const travel = Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y);
         const holdDurationMs = Math.max(0, performance.now() - (pointerHoldSelection?.startedAtMs ?? performance.now()));
         const holdRadiusPx = getHoldSelectionRadius(pointerHoldSelection, performance.now());
-        const usedHoldSelection = selectionGestureArmed && !!pointerHoldSelection?.active && holdDurationMs >= ANT_SELECTION_HOLD_DELAY_MS;
+        const usedHoldSelection = !!pointerHoldSelection?.active && holdDurationMs >= ANT_SELECTION_HOLD_DELAY_MS;
         pointerDown = null;
         pointerHoldSelection = null;
         if (selectionIndicator) selectionIndicator.hidden = true;
@@ -943,6 +940,20 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const rect = renderer.domElement.getBoundingClientRect();
         const screenX = event.clientX - rect.left;
         const screenY = event.clientY - rect.top;
+        if (usedHoldSelection) {
+          antSystem.selectPlayerAntsNearScreenPoint(
+            screenX,
+            screenY,
+            holdRadiusPx,
+            camera,
+            rect.width,
+            rect.height,
+          );
+          publishHud();
+          selectionGestureArmed = false;
+          return;
+        }
+
         if (selectionGestureArmed) {
           const selectionRadius = usedHoldSelection ? holdRadiusPx : ANT_SELECTION_RADIUS_BASE_PX;
           const selectionSummary = antSystem.selectPlayerAntsNearScreenPoint(
@@ -962,6 +973,20 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
+
+        const antHitAny = antSystem.findAntHit(raycaster, { includePlayer: true });
+        if (antHitAny?.faction === 'player') {
+          antSystem.selectPlayerAntsNearScreenPoint(
+            screenX,
+            screenY,
+            ANT_SELECTION_RADIUS_BASE_PX,
+            camera,
+            rect.width,
+            rect.height,
+          );
+          publishHud();
+          return;
+        }
 
         const nestHit = foodSystem.findNestHit(raycaster);
         if (nestHit?.faction === 'player') {
