@@ -956,7 +956,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
 
         if (selectionGestureArmed) {
           const selectionRadius = usedHoldSelection ? holdRadiusPx : ANT_SELECTION_RADIUS_BASE_PX;
-          const selectionSummary = antSystem.selectPlayerAntsNearScreenPoint(
+          antSystem.selectPlayerAntsNearScreenPoint(
             screenX,
             screenY,
             selectionRadius,
@@ -966,7 +966,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
           );
           publishHud();
           selectionGestureArmed = false;
-          if (selectionSummary.total > 0) return;
+          return;
         }
         selectionGestureArmed = false;
 
