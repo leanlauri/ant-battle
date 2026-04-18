@@ -1787,7 +1787,7 @@ export class AntSystem {
       const rollZ = Math.sin(ant.gaitPhase) * 0.05;
 
       updateVisibility(ant, mesh, distanceToCamera, this.frustum);
-      const useFullMesh = ant.visible && distanceToCamera <= ANT_CONFIG.fullMeshDistance;
+      const useFullMesh = ant.visible && (distanceToCamera <= ANT_CONFIG.fullMeshDistance || ant.selected);
       if (useFullMesh) {
         mesh.visible = true;
         mesh.position.copy(ant.position);

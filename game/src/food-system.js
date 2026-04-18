@@ -26,10 +26,10 @@ export const NEST_CONFIG = Object.freeze({
 
 export const UPGRADE_CONFIG = Object.freeze({
   repairNest: Object.freeze({ id: 'repair-nest', cost: 10, repairHp: 70, label: 'Repair Nest' }),
-  spawnWorkers: Object.freeze({ id: 'spawn-workers', cost: 12, count: 6, label: 'Call Workers' }),
-  spawnFighters: Object.freeze({ id: 'spawn-fighters', cost: 16, count: 3, label: 'Call Fighters' }),
-  broodChambers: Object.freeze({ id: 'brood-chambers', cost: 18, extraWorkers: 4, label: 'Brood Chambers' }),
-  warNest: Object.freeze({ id: 'war-nest', cost: 22, extraFighters: 2, label: 'War Nest' }),
+  spawnWorkers: Object.freeze({ id: 'spawn-workers', cost: 12, count: 12, label: 'Call Workers' }),
+  spawnFighters: Object.freeze({ id: 'spawn-fighters', cost: 16, count: 6, label: 'Call Fighters' }),
+  broodChambers: Object.freeze({ id: 'brood-chambers', cost: 18, extraWorkers: 8, label: 'Brood Chambers' }),
+  warNest: Object.freeze({ id: 'war-nest', cost: 22, extraFighters: 4, label: 'War Nest' }),
   fortifyNest: Object.freeze({ id: 'fortify-nest', cost: 20, extraMaxHp: 90, label: 'Fortify Nest' }),
 });
 
