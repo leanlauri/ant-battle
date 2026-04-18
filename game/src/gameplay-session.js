@@ -308,6 +308,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let lastTapTimeMs = -Infinity;
   let lastTapX = 0;
   let lastTapY = 0;
+  let pendingSingleTapTimer = 0;
   let selectionIndicator = null;
   let pointerDownHandler = null;
   let pointerMoveHandler = null;
@@ -414,6 +415,13 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     selectionIndicator.style.top = `${pointerHoldSelection.y}px`;
     selectionIndicator.style.width = `${radius * 2}px`;
     selectionIndicator.style.height = `${radius * 2}px`;
+  };
+
+  const clearPendingSingleTap = () => {
+    if (pendingSingleTapTimer) {
+      window.clearTimeout(pendingSingleTapTimer);
+      pendingSingleTapTimer = 0;
+    }
   };
 
   const setMultiTouchControlLock = (locked) => {
@@ -620,6 +628,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     pointerDown = null;
     pointerHoldSelection = null;
     selectionGestureArmed = false;
+    clearPendingSingleTap();
     if (selectionIndicator) selectionIndicator.hidden = true;
     multiTouchGesture = false;
     setMultiTouchControlLock(false);
@@ -843,6 +852,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const deltaMs = nowMs - lastTapTimeMs;
         const deltaPx = Math.hypot(event.clientX - lastTapX, event.clientY - lastTapY);
         selectionGestureArmed = deltaMs <= ANT_SELECTION_DOUBLE_TAP_WINDOW_MS && deltaPx <= ANT_SELECTION_DOUBLE_TAP_RADIUS_PX;
+        if (selectionGestureArmed) clearPendingSingleTap();
         pointerHoldSelection = {
           pointerId: event.pointerId,
           x: event.clientX,
@@ -933,15 +943,17 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         pointerHoldSelection = null;
         if (selectionIndicator) selectionIndicator.hidden = true;
         if (travel > 8) return;
+        const tapClientX = event.clientX;
+        const tapClientY = event.clientY;
 
         const nowMs = performance.now();
         lastTapTimeMs = nowMs;
-        lastTapX = event.clientX;
-        lastTapY = event.clientY;
+        lastTapX = tapClientX;
+        lastTapY = tapClientY;
 
         const rect = renderer.domElement.getBoundingClientRect();
-        const screenX = event.clientX - rect.left;
-        const screenY = event.clientY - rect.top;
+        const screenX = tapClientX - rect.left;
+        const screenY = tapClientY - rect.top;
         if (usedHoldSelection) {
           antSystem.selectPlayerAntsNearScreenPoint(
             screenX,
@@ -972,52 +984,62 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         }
         selectionGestureArmed = false;
 
-        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(pointer, camera);
+        const runSingleTapAction = () => {
+          if (!running || !camera || !terrain || !foodSystem || !antSystem || !renderer) return;
+          const actionRect = renderer.domElement.getBoundingClientRect();
+          pointer.x = ((tapClientX - actionRect.left) / actionRect.width) * 2 - 1;
+          pointer.y = -((tapClientY - actionRect.top) / actionRect.height) * 2 + 1;
+          raycaster.setFromCamera(pointer, camera);
 
-        const antHitAny = antSystem.findAntHit(raycaster, { includePlayer: true });
-        if (antHitAny?.faction === 'player') {
-          antSystem.selectPlayerAntsNearScreenPoint(
-            screenX,
-            screenY,
-            ANT_SELECTION_RADIUS_BASE_PX,
-            camera,
-            rect.width,
-            rect.height,
-          );
-          publishHud();
-          return;
-        }
+          const antHitAny = antSystem.findAntHit(raycaster, { includePlayer: true });
+          if (antHitAny?.faction === 'player') {
+            antSystem.selectPlayerAntsNearScreenPoint(
+              screenX,
+              screenY,
+              ANT_SELECTION_RADIUS_BASE_PX,
+              camera,
+              actionRect.width,
+              actionRect.height,
+            );
+            publishHud();
+            return;
+          }
 
-        const nestHit = foodSystem.findNestHit(raycaster);
-        if (nestHit?.faction === 'player') {
-          foodSystem.setSelectedNest(nestHit.id);
-          centerCameraOn(nestHit.position);
-          onNestSelected?.(nestHit);
-          publishHud();
-          return;
-        }
+          const nestHit = foodSystem.findNestHit(raycaster);
+          if (nestHit?.faction === 'player') {
+            foodSystem.setSelectedNest(nestHit.id);
+            centerCameraOn(nestHit.position);
+            onNestSelected?.(nestHit);
+            publishHud();
+            return;
+          }
 
-        const antHit = antSystem.findAntHit(raycaster);
-        if (antHit) {
-          const target = antHit.position.clone();
-          if (issueSelectedCommand(target, { type: 'enemy-ant', label: `${antHit.colonyId} ${antHit.role}` })) return;
-        }
+          const antHit = antSystem.findAntHit(raycaster);
+          if (antHit) {
+            const target = antHit.position.clone();
+            if (issueSelectedCommand(target, { type: 'enemy-ant', label: `${antHit.colonyId} ${antHit.role}` })) return;
+          }
 
-        if (nestHit?.faction === 'enemy') {
-          if (issueSelectedCommand(nestHit.position, { type: 'enemy-nest', nestId: nestHit.id, label: nestHit.label })) return;
-        }
+          if (nestHit?.faction === 'enemy') {
+            if (issueSelectedCommand(nestHit.position, { type: 'enemy-nest', nestId: nestHit.id, label: nestHit.label })) return;
+          }
 
-        const foodHit = foodSystem.findFoodHit(raycaster);
-        if (foodHit) {
-          if (issueSelectedCommand(foodHit.position, { type: 'food', label: `food ${foodHit.id}` })) return;
-        }
+          const foodHit = foodSystem.findFoodHit(raycaster);
+          if (foodHit) {
+            if (issueSelectedCommand(foodHit.position, { type: 'food', label: `food ${foodHit.id}` })) return;
+          }
 
-        const terrainHit = raycaster.intersectObject(terrain, true)[0];
-        if (!terrainHit || !foodSystem.getSelectedNest()) return;
-        const target = terrainHit.point;
-        issueSelectedCommand(target, { type: 'terrain', label: 'terrain' });
+          const terrainHit = raycaster.intersectObject(terrain, true)[0];
+          if (!terrainHit || !foodSystem.getSelectedNest()) return;
+          const target = terrainHit.point;
+          issueSelectedCommand(target, { type: 'terrain', label: 'terrain' });
+        };
+
+        clearPendingSingleTap();
+        pendingSingleTapTimer = window.setTimeout(() => {
+          pendingSingleTapTimer = 0;
+          runSingleTapAction();
+        }, ANT_SELECTION_DOUBLE_TAP_WINDOW_MS + 5);
       };
       renderer.domElement.addEventListener('pointerdown', pointerDownHandler);
       renderer.domElement.addEventListener('pointermove', pointerMoveHandler);
