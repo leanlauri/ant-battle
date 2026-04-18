@@ -38,6 +38,8 @@ const ANT_SELECTION_RADIUS_BASE_PX = 36;
 const ANT_SELECTION_RADIUS_MAX_PX = 180;
 const ANT_SELECTION_HOLD_DELAY_MS = 170;
 const ANT_SELECTION_GROW_PX_PER_SEC = 130;
+const ANT_SELECTION_DOUBLE_TAP_WINDOW_MS = 320;
+const ANT_SELECTION_DOUBLE_TAP_RADIUS_PX = 34;
 const ATMOSPHERE_DEFAULTS = Object.freeze({
   background: 0xdbe7f4,
   fog: 0xdbe7f4,
@@ -302,6 +304,10 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
   let resizeHandler = null;
   let pointerDown = null;
   let pointerHoldSelection = null;
+  let selectionGestureArmed = false;
+  let lastTapTimeMs = -Infinity;
+  let lastTapX = 0;
+  let lastTapY = 0;
   let selectionIndicator = null;
   let pointerDownHandler = null;
   let pointerMoveHandler = null;
@@ -613,6 +619,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
     pointerUpHandler = null;
     pointerDown = null;
     pointerHoldSelection = null;
+    selectionGestureArmed = false;
     if (selectionIndicator) selectionIndicator.hidden = true;
     multiTouchGesture = false;
     setMultiTouchControlLock(false);
@@ -828,17 +835,24 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
           setMultiTouchControlLock(true);
           pointerDown = null;
           pointerHoldSelection = null;
+          selectionGestureArmed = false;
           if (selectionIndicator) selectionIndicator.hidden = true;
           return;
         }
         pointerDown = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
-        pointerHoldSelection = {
-          pointerId: event.pointerId,
-          x: event.clientX,
-          y: event.clientY,
-          startedAtMs: performance.now(),
-          active: true,
-        };
+        const nowMs = performance.now();
+        const deltaMs = nowMs - lastTapTimeMs;
+        const deltaPx = Math.hypot(event.clientX - lastTapX, event.clientY - lastTapY);
+        selectionGestureArmed = deltaMs <= ANT_SELECTION_DOUBLE_TAP_WINDOW_MS && deltaPx <= ANT_SELECTION_DOUBLE_TAP_RADIUS_PX;
+        pointerHoldSelection = selectionGestureArmed
+          ? {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            startedAtMs: nowMs,
+            active: true,
+          }
+          : null;
         renderSelectionIndicator();
       };
       pointerMoveHandler = (event) => {
@@ -846,7 +860,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const previousPositions = new Map(pointerPositions);
         pointerPositions.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
-        if (pointerHoldSelection?.active && pointerHoldSelection.pointerId === event.pointerId && activePointerIds.size === 1) {
+        if (selectionGestureArmed && pointerHoldSelection?.active && pointerHoldSelection.pointerId === event.pointerId && activePointerIds.size === 1) {
           const dragDistance = Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y);
           if (dragDistance > 20) {
             pointerHoldSelection.active = false;
@@ -907,6 +921,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
           }
           pointerDown = null;
           pointerHoldSelection = null;
+          selectionGestureArmed = false;
           if (selectionIndicator) selectionIndicator.hidden = true;
           return;
         }
@@ -914,28 +929,35 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
         const travel = Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y);
         const holdDurationMs = Math.max(0, performance.now() - (pointerHoldSelection?.startedAtMs ?? performance.now()));
         const holdRadiusPx = getHoldSelectionRadius(pointerHoldSelection, performance.now());
-        const usedHoldSelection = !!pointerHoldSelection?.active && holdDurationMs >= ANT_SELECTION_HOLD_DELAY_MS;
+        const usedHoldSelection = selectionGestureArmed && !!pointerHoldSelection?.active && holdDurationMs >= ANT_SELECTION_HOLD_DELAY_MS;
         pointerDown = null;
         pointerHoldSelection = null;
         if (selectionIndicator) selectionIndicator.hidden = true;
         if (travel > 8) return;
 
+        const nowMs = performance.now();
+        lastTapTimeMs = nowMs;
+        lastTapX = event.clientX;
+        lastTapY = event.clientY;
+
         const rect = renderer.domElement.getBoundingClientRect();
         const screenX = event.clientX - rect.left;
         const screenY = event.clientY - rect.top;
-        const selectionRadius = usedHoldSelection ? holdRadiusPx : ANT_SELECTION_RADIUS_BASE_PX;
-        const selectionSummary = antSystem.selectPlayerAntsNearScreenPoint(
-          screenX,
-          screenY,
-          selectionRadius,
-          camera,
-          rect.width,
-          rect.height,
-        );
-        if (selectionSummary.total > 0) {
+        if (selectionGestureArmed) {
+          const selectionRadius = usedHoldSelection ? holdRadiusPx : ANT_SELECTION_RADIUS_BASE_PX;
+          const selectionSummary = antSystem.selectPlayerAntsNearScreenPoint(
+            screenX,
+            screenY,
+            selectionRadius,
+            camera,
+            rect.width,
+            rect.height,
+          );
           publishHud();
-          return;
+          selectionGestureArmed = false;
+          if (selectionSummary.total > 0) return;
         }
+        selectionGestureArmed = false;
 
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
