@@ -1191,8 +1191,8 @@ export class AntSystem {
 
   spawnPheromoneFootprint(ant, pheromoneType) {
     if (!ant || ant.dead) return;
-    const color = pheromoneType === 'food' ? 0x8edb72 : 0x84b9ff;
-    const baseOpacity = pheromoneType === 'food' ? 0.2 : 0.16;
+    const color = pheromoneType === 'food' ? 0x4fae3a : 0x3f74d8;
+    const baseOpacity = pheromoneType === 'food' ? 0.34 : 0.28;
     const forward = new THREE.Vector3(ant.heading.x, 0, ant.heading.z);
     if (forward.lengthSq() < 0.0001) forward.set(1, 0, 0);
     forward.normalize();
