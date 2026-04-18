@@ -23,6 +23,13 @@ const APP_SCREEN = {
   defeat: 'defeat',
 };
 
+const isDebugModeFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('debug') === '1';
+};
+
+const DEBUG_MODE_ENABLED = isDebugModeFromUrl();
+
 const showFatalError = (error) => {
   const overlay = document.getElementById('fatalOverlay');
   const message = document.getElementById('fatalMessage');
@@ -108,7 +115,8 @@ const app = {
   upgradeFeedback: null,
   debugVisualsEnabled: false,
   debugTerrainShaderMode: 'classic',
-  debugMenuVisible: false,
+  debugMenuVisible: DEBUG_MODE_ENABLED,
+  debugModeEnabled: DEBUG_MODE_ENABLED,
   cameraMode: CAMERA_MODE.battlefield,
 };
 
@@ -131,10 +139,7 @@ const UPGRADE_TITLE = {
 };
 
 const getCurrentLevelDefinition = () => getLevelDefinition(app.currentLevel);
-const shouldAutoStartDebugLevel = () => {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('debug') === '1';
-};
+const shouldAutoStartDebugLevel = () => DEBUG_MODE_ENABLED;
 
 const renderDebugMenu = () => {
   if (refs.cameraModeValue) refs.cameraModeValue.textContent = app.cameraMode === CAMERA_MODE.battlefield ? 'Battlefield camera' : 'Orbit camera';
@@ -320,7 +325,7 @@ const renderLevelGrid = () => {
   refs.levelGrid.replaceChildren();
 
   for (const level of levels) {
-    const effectiveState = app.debugMenuVisible && level.state === 'locked' ? 'open' : level.state;
+    const effectiveState = app.debugModeEnabled && level.state === 'locked' ? 'open' : level.state;
     const definition = getLevelDefinition(level.levelNumber);
     const button = document.createElement('button');
     button.type = 'button';
@@ -347,7 +352,7 @@ const renderLevelGrid = () => {
 
   const range = getPageRange(app.currentPage, TOTAL_LEVELS);
   refs.levelPageLabel.textContent = `Levels ${range.start}–${range.end}`;
-  refs.levelProgressLabel.textContent = app.debugMenuVisible
+  refs.levelProgressLabel.textContent = app.debugModeEnabled
     ? `Debug mode: all ${TOTAL_LEVELS} levels open`
     : `Unlocked ${app.progress.unlockedLevel} / ${TOTAL_LEVELS}`;
   refs.previousPageButton.disabled = app.currentPage === 0;
