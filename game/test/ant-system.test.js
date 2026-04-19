@@ -538,6 +538,30 @@ describe('ant system helpers', () => {
     expect(ant.selected).toBe(false);
   });
 
+  test('issues enemy-nest commands with per-ant formation targets instead of one stacked point', () => {
+    const antSystem = createSeededAntSystem();
+    antSystem.spawnAntBatch({ nestId: 'player-1', role: ANT_ROLE.fighter, count: 1 });
+
+    const selectable = antSystem.ants.filter((ant) => !ant.dead && ant.faction === 'player').slice(0, 2);
+    expect(selectable).toHaveLength(2);
+
+    antSystem.setSelectedPlayerAntIds(selectable.map((ant) => ant.id));
+    const target = new THREE.Vector3(6, 0, -4);
+    const commanded = antSystem.issueMoveCommandToSelected(target, { type: 'enemy-nest' });
+
+    expect(commanded).toBe(2);
+    const [first, second] = selectable;
+    expect(first.commandTarget).toBeTruthy();
+    expect(second.commandTarget).toBeTruthy();
+
+    const separation = first.commandTarget.distanceTo(second.commandTarget);
+    expect(separation).toBeGreaterThan(1);
+    const firstPlanarDistance = Math.hypot(first.commandTarget.x - target.x, first.commandTarget.z - target.z);
+    const secondPlanarDistance = Math.hypot(second.commandTarget.x - target.x, second.commandTarget.z - target.z);
+    expect(firstPlanarDistance).toBeLessThanOrEqual(3.2);
+    expect(secondPlanarDistance).toBeLessThanOrEqual(3.2);
+  });
+
   test('allows nest drop-off using planar distance even when vertical offset is large', () => {
     const antSystem = createSeededAntSystem();
     const ant = antSystem.ants[0];

@@ -853,7 +853,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       if (selectionIndicator) selectionIndicator.hidden = true;
       const issueSelectedCommand = (target, meta) => {
         if (!target || !foodSystem || !antSystem) return false;
-        antSystem.issueMoveCommandToSelected(target);
+        antSystem.issueMoveCommandToSelected(target, meta);
         foodSystem.setFocusTarget(target, meta);
         antSystem.setFocusTarget(null);
         onFocusAssigned?.(foodSystem.getFocusTarget());

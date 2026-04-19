@@ -634,7 +634,7 @@ const updateBrain = (ant, distanceToCamera, foods, ants, pheromoneSystem, colony
   const homeNestPosition = getHomeNestPosition(ant, nestLookup);
 
   if (ant.faction === ANT_FACTION.player && ant.commandTarget) {
-    const commandDistance = ant.position.distanceTo(ant.commandTarget);
+    const commandDistance = distanceXZ(ant.position, ant.commandTarget);
     if (commandDistance > ANT_CONFIG.commandTargetReachDistance) {
       chooseFocusAction(ant, ant.commandTarget);
       return;
@@ -1216,19 +1216,33 @@ export class AntSystem {
     return { total: workers + fighters, workers, fighters };
   }
 
-  issueMoveCommandToSelected(target) {
+  issueMoveCommandToSelected(target, options = {}) {
     if (!target) return 0;
     const commandTarget = new THREE.Vector3(target.x, sampleHeight(target.x, target.z), target.z);
+    const selectedAnts = this.ants.filter((ant) => ant.selected && !ant.dead && ant.faction === ANT_FACTION.player);
+    if (!selectedAnts.length) return 0;
+
+    const useNestFormation = options?.type === 'enemy-nest';
+    const formationRadius = Math.max(1.3, ANT_CONFIG.fighterNestAttackRange * 0.9);
     let commanded = 0;
-    for (const ant of this.ants) {
-      if (!ant.selected || ant.dead || ant.faction !== ANT_FACTION.player) continue;
+    for (let index = 0; index < selectedAnts.length; index += 1) {
+      const ant = selectedAnts[index];
       clearAntAssignments(ant, this.foodSystem, this.foods);
       ant.targetFoodId = null;
       ant.carryingFoodId = null;
       ant.assistingFoodId = null;
       ant.queuedNestSlot = null;
       ant.nestApproachStage = 'queue';
-      ant.commandTarget = commandTarget.clone();
+
+      let antCommandTarget = commandTarget;
+      if (useNestFormation) {
+        const angle = ((index / Math.max(1, selectedAnts.length)) * Math.PI * 2) + ant.id * 0.17;
+        const x = clampToTerrainBounds(commandTarget.x + Math.cos(angle) * formationRadius, TERRAIN_CONFIG.width);
+        const z = clampToTerrainBounds(commandTarget.z + Math.sin(angle) * formationRadius, TERRAIN_CONFIG.depth);
+        antCommandTarget = new THREE.Vector3(x, sampleHeight(x, z), z);
+      }
+
+      ant.commandTarget = antCommandTarget.clone();
       chooseFocusAction(ant, ant.commandTarget);
       commanded += 1;
     }
