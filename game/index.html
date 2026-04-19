@@ -219,23 +219,24 @@
     }
     #levelGrid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
     }
     .levelCard {
-      padding: 14px 10px;
+      padding: 10px 6px;
       background: var(--panel-strong);
       border: 1px solid var(--border);
       display: flex;
-      flex-direction: column;
-      gap: 4px;
-      align-items: flex-start;
-      text-align: left;
-      min-height: 92px;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 52px;
+      border-radius: 12px;
     }
     .levelCardNumber {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 800;
+      line-height: 1;
     }
     .levelCardMeta,
     .levelCardState {
@@ -671,7 +672,7 @@
       .heroPanel,
       .overlayPanel,
       .levelSelectPanel { width: min(100vw - 20px, 560px); }
-      #levelGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      #levelGrid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
       .levelSelectHeader,
       .levelSelectFooter {
         flex-wrap: wrap;

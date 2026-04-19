@@ -36,10 +36,9 @@ test('boots through title, level select, gameplay, and victory progression flow'
 
   await page.locator('#startButton').click();
   await expect(page.locator('#levelPageLabel')).toHaveText('Levels 1–20');
-  await expect(page.locator('[data-level="1"]')).toContainText('open');
-  await expect(page.locator('[data-level="2"]')).toContainText('locked');
-  await expect(page.locator('[data-level="10"]')).toContainText('Boss Level 10');
-  await expect(page.locator('[data-level="10"] .levelBossBadge')).toContainText('Boss 1');
+  await expect(page.locator('[data-level="1"]')).toHaveAttribute('data-state', 'open');
+  await expect(page.locator('[data-level="2"]')).toHaveAttribute('data-state', 'locked');
+  await expect(page.locator('[data-level="10"]')).toHaveAttribute('data-boss', 'true');
 
   await page.locator('[data-level="1"]').click();
 
@@ -113,8 +112,8 @@ test('boots through title, level select, gameplay, and victory progression flow'
   await expect(page.locator('#nextLevelButton')).toContainText('Play Level 2');
 
   await page.locator('#victoryLevelSelectButton').click({ force: true });
-  await expect(page.locator('[data-level="1"]')).toContainText('completed');
-  await expect(page.locator('[data-level="2"]')).toContainText('open');
+  await expect(page.locator('[data-level="1"]')).toHaveAttribute('data-state', 'completed');
+  await expect(page.locator('[data-level="2"]')).toHaveAttribute('data-state', 'open');
 
   expect(pageErrors, `Unhandled page errors: ${pageErrors.join('\n')}`).toEqual([]);
   expect(consoleErrors, `Console errors: ${consoleErrors.join('\n')}`).toEqual([]);
@@ -149,7 +148,9 @@ test('upgrade overlay shows clear shortfall and success feedback on a mobile-siz
   const panelBox = await page.locator('#nestUpgradePanel').boundingBox();
   expect(panelBox).not.toBeNull();
   expect(panelBox.x).toBeGreaterThanOrEqual(0);
-  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(390);
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(viewport.width);
 
   await page.evaluate(() => {
     window.__ANT_BATTLE_TEST_API__?.setNestStored?.('player-1', 20);

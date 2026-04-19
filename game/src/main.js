@@ -215,12 +215,14 @@ const renderUpgradeCards = (summary) => {
   }
 
   refs.nestUpgradePanel.hidden = false;
-  const clampedX = Math.min(window.innerWidth - 12, Math.max(12, anchor.x));
-  const clampedY = Math.min(window.innerHeight - 12, Math.max(72, anchor.y));
+  const panelRect = refs.nestUpgradePanel.getBoundingClientRect();
+  const panelWidth = Math.max(140, panelRect.width || Math.min(300, Math.max(140, window.innerWidth - 24)));
+  const panelHeight = Math.max(120, panelRect.height || 220);
+  const clampedX = Math.min(window.innerWidth - (panelWidth * 0.5) - 8, Math.max((panelWidth * 0.5) + 8, anchor.x));
+  const clampedY = Math.min(window.innerHeight - 8, Math.max(Math.max(panelHeight + 8, 72), anchor.y));
   refs.nestUpgradePanel.style.left = `${clampedX}px`;
   refs.nestUpgradePanel.style.top = `${clampedY}px`;
 
-  const panelWidth = Math.min(300, Math.max(140, window.innerWidth - 24));
   const buttonFootprint = 80;
   const fitsSingleRow = options.length * buttonFootprint <= panelWidth;
   refs.upgradeCards.dataset.wrap = fitsSingleRow ? 'false' : 'true';
@@ -325,7 +327,6 @@ const renderLevelGrid = () => {
 
   for (const level of levels) {
     const effectiveState = app.debugModeEnabled && level.state === 'locked' ? 'open' : level.state;
-    const definition = getLevelDefinition(level.levelNumber);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'levelCard';
@@ -333,15 +334,8 @@ const renderLevelGrid = () => {
     button.disabled = effectiveState === 'locked';
     button.dataset.level = String(level.levelNumber);
     button.dataset.boss = level.isBossLevel ? 'true' : 'false';
-    button.innerHTML = `
-      <span class="levelCardNumber">${level.levelNumber}</span>
-      <span class="levelCardMetaRow">
-        ${level.isBossLevel ? `<span class="levelBossBadge">${definition.boss?.icon ?? '👑'} ${definition.boss?.levelCardLabel ?? 'Boss'}</span>` : ''}
-        <span class="levelCardMeta">${level.isBossLevel ? (definition.boss?.shellLabel ?? 'Boss level') : definition.timeOfDay}</span>
-      </span>
-      <span>${definition.label}</span>
-      <span class="levelCardState">${effectiveState}</span>
-    `;
+    button.setAttribute('aria-label', `Level ${level.levelNumber} (${effectiveState})`);
+    button.innerHTML = `<span class="levelCardNumber">${level.levelNumber}</span>`;
     button.addEventListener('click', () => {
       if (effectiveState === 'locked') return;
       launchLevel(level.levelNumber);
