@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
 import { ANT_CONFIG, ANT_LOD, ANT_ROLE, AntSystem, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash, resolveNestCollapse } from '../src/ant-system.js';
-import { COLONY, FoodSystem } from '../src/food-system.js';
+import { COLONY, FoodSystem, NEST_CONFIG } from '../src/food-system.js';
 import { createSeededRandom, deriveSeed } from '../src/seeded-random.js';
 import { TERRAIN_CONFIG } from '../src/terrain.js';
 
@@ -16,9 +16,10 @@ const createSeededAntSystem = ({
   spawnSeed = 'test-spawn',
   decisionSeed = 'test-runtime',
   effectSeed = 'test-effects',
+  enemyNestCount = 0,
 } = {}) => {
   const scene = new THREE.Scene();
-  const foodSystem = new FoodSystem({ scene, count: 0, enemyNestCount: 0 });
+  const foodSystem = new FoodSystem({ scene, count: 0, enemyNestCount });
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
   camera.position.set(0, 16, 18);
   camera.lookAt(0, 0, 0);
@@ -560,6 +561,32 @@ describe('ant system helpers', () => {
     const secondPlanarDistance = Math.hypot(second.commandTarget.x - target.x, second.commandTarget.z - target.z);
     expect(firstPlanarDistance).toBeLessThanOrEqual(3.2);
     expect(secondPlanarDistance).toBeLessThanOrEqual(3.2);
+  });
+
+  test('fighters hold siege positions on nest edge and can still damage the nest', () => {
+    const antSystem = createSeededAntSystem({ enemyNestCount: 1 });
+    const enemyNest = antSystem.foodSystem.getNestById('enemy-1');
+    expect(enemyNest).toBeTruthy();
+
+    antSystem.spawnAntBatch({ nestId: 'player-1', role: ANT_ROLE.fighter, count: 1 });
+    const fighter = [...antSystem.ants].reverse().find((ant) => !ant.dead && ant.faction === 'player' && ant.role === ANT_ROLE.fighter);
+    expect(fighter).toBeTruthy();
+
+    fighter.position.set(enemyNest.position.x + 4.1, fighter.position.y, enemyNest.position.z + 0.2);
+    fighter.target.set(fighter.position.x, 0, fighter.position.z);
+    fighter.brainCooldown = 0;
+    fighter.logicCooldown = 0;
+    fighter.attackCooldownRemaining = 0;
+    const hpBefore = enemyNest.hp;
+
+    antSystem.update(0.2);
+
+    const targetDistanceFromNestCenter = Math.hypot(
+      fighter.target.x - enemyNest.position.x,
+      fighter.target.z - enemyNest.position.z,
+    );
+    expect(targetDistanceFromNestCenter).toBeGreaterThanOrEqual(NEST_CONFIG.radius * 1.15);
+    expect(enemyNest.hp).toBeLessThan(hpBefore);
   });
 
   test('allows nest drop-off using planar distance even when vertical offset is large', () => {

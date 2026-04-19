@@ -192,6 +192,18 @@ const getNestImpactPoint = (ant, nest) => {
   return new THREE.Vector3(x, sampleHeight(x, z) + 0.18, z);
 };
 
+const getNestSiegeEdgeTarget = (ant, nest) => {
+  const offset = new THREE.Vector3(ant.position.x - nest.position.x, 0, ant.position.z - nest.position.z);
+  if (offset.lengthSq() <= 0.0001) {
+    const fallbackAngle = ant.id * 0.73;
+    offset.set(Math.cos(fallbackAngle), 0, Math.sin(fallbackAngle));
+  }
+  offset.normalize().multiplyScalar(NEST_CONFIG.radius * 1.24);
+  const x = clampToTerrainBounds(nest.position.x + offset.x, TERRAIN_CONFIG.width);
+  const z = clampToTerrainBounds(nest.position.z + offset.z, TERRAIN_CONFIG.depth);
+  return new THREE.Vector3(x, sampleHeight(x, z), z);
+};
+
 const getAntPalette = (role, faction) => {
   const colonyPalette = ANT_COLONY_PALETTES[faction] ?? ANT_COLONY_PALETTES[COLONY.player];
   return colonyPalette[role] ?? colonyPalette[ANT_ROLE.worker];
@@ -1660,8 +1672,9 @@ export class AntSystem {
                 ant.combatTargetId = null;
               } else {
                 ant.combatTargetId = siegeNest.id;
-                ant.target.set(siegeNest.position.x, 0, siegeNest.position.z);
-                const siegeDistance = ant.position.distanceTo(siegeNest.position);
+                const siegeTarget = getNestSiegeEdgeTarget(ant, siegeNest);
+                ant.target.set(siegeTarget.x, 0, siegeTarget.z);
+                const siegeDistance = distanceXZ(ant.position, siegeTarget);
                 if (siegeDistance <= ANT_CONFIG.fighterNestAttackRange) {
                   ant.action = 'attack-nest';
                   ant.desiredVelocity.setScalar(0);
