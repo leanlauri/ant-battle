@@ -1147,15 +1147,29 @@ export class AntSystem {
   getPlayerAntScreenCandidates(camera, width, height) {
     if (!camera || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return [];
     const candidates = [];
+    const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
+    const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
     for (let i = 0; i < this.ants.length; i += 1) {
       const ant = this.ants[i];
       if (!ant || ant.dead || ant.faction !== ANT_FACTION.player) continue;
       const projected = ant.position.clone().project(camera);
       if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || projected.z < -1 || projected.z > 1) continue;
+
+      const radiusWorld = Math.max(ant.radius ?? ANT_CONFIG.bodyRadius, ANT_CONFIG.bodyRadius * 0.9);
+      const projectedRight = ant.position.clone().addScaledVector(cameraRight, radiusWorld).project(camera);
+      const projectedUp = ant.position.clone().addScaledVector(cameraUp, radiusWorld).project(camera);
+      const rightRadiusPx = (Number.isFinite(projectedRight.x) && Number.isFinite(projectedRight.y))
+        ? Math.hypot((projectedRight.x - projected.x) * width * 0.5, (projectedRight.y - projected.y) * height * 0.5)
+        : 0;
+      const upRadiusPx = (Number.isFinite(projectedUp.x) && Number.isFinite(projectedUp.y))
+        ? Math.hypot((projectedUp.x - projected.x) * width * 0.5, (projectedUp.y - projected.y) * height * 0.5)
+        : 0;
+
       candidates.push({
         ant,
         x: ((projected.x + 1) / 2) * width,
         y: ((-projected.y + 1) / 2) * height,
+        radiusPx: Math.max(1.5, rightRadiusPx, upRadiusPx),
       });
     }
     return candidates;
@@ -1168,11 +1182,11 @@ export class AntSystem {
       return this.getSelectionSummary();
     }
     const selectedIds = [];
-    const selectRadiusSq = radiusPx * radiusPx;
     for (const candidate of candidates) {
       const dx = candidate.x - screenX;
       const dy = candidate.y - screenY;
-      if ((dx * dx + dy * dy) <= selectRadiusSq) selectedIds.push(candidate.ant.id);
+      const effectiveRadius = Math.max(0, radiusPx) + Math.max(0, candidate.radiusPx ?? 0);
+      if ((dx * dx + dy * dy) <= (effectiveRadius * effectiveRadius)) selectedIds.push(candidate.ant.id);
     }
     this.setSelectedPlayerAntIds(selectedIds);
     return this.getSelectionSummary();

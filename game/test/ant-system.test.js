@@ -468,6 +468,76 @@ describe('ant system helpers', () => {
     expect(ant.action).not.toBe('carry-food');
   });
 
+  test('selects ants when the selection circle overlaps their projected body', () => {
+    const antSystem = createSeededAntSystem();
+    const ant = antSystem.ants[0];
+    ant.radius = 2.2;
+    ant.position.set(0, ant.position.y, 0);
+
+    antSystem.camera.position.set(0, 4.2, 5.2);
+    antSystem.camera.lookAt(0, 0, 0);
+    antSystem.camera.updateProjectionMatrix();
+    antSystem.camera.updateMatrixWorld(true);
+
+    const width = 800;
+    const height = 600;
+    const candidate = antSystem.getPlayerAntScreenCandidates(antSystem.camera, width, height)
+      .find((entry) => entry.ant.id === ant.id);
+
+    expect(candidate).toBeTruthy();
+    expect(candidate.radiusPx).toBeGreaterThan(4);
+
+    const selectionRadius = 3;
+    const tapX = candidate.x + selectionRadius + candidate.radiusPx - 0.25;
+    const tapY = candidate.y;
+
+    const selection = antSystem.selectPlayerAntsNearScreenPoint(
+      tapX,
+      tapY,
+      selectionRadius,
+      antSystem.camera,
+      width,
+      height,
+    );
+
+    expect(selection.total).toBe(1);
+    expect(ant.selected).toBe(true);
+  });
+
+  test('does not select ants when the selection circle does not overlap projected body', () => {
+    const antSystem = createSeededAntSystem();
+    const ant = antSystem.ants[0];
+    ant.radius = 1.6;
+    ant.position.set(0, ant.position.y, 0);
+
+    antSystem.camera.position.set(0, 4.2, 5.2);
+    antSystem.camera.lookAt(0, 0, 0);
+    antSystem.camera.updateProjectionMatrix();
+    antSystem.camera.updateMatrixWorld(true);
+
+    const width = 800;
+    const height = 600;
+    const candidate = antSystem.getPlayerAntScreenCandidates(antSystem.camera, width, height)
+      .find((entry) => entry.ant.id === ant.id);
+
+    expect(candidate).toBeTruthy();
+    const selectionRadius = 3;
+    const tapX = candidate.x + selectionRadius + candidate.radiusPx + 10;
+    const tapY = candidate.y;
+
+    const selection = antSystem.selectPlayerAntsNearScreenPoint(
+      tapX,
+      tapY,
+      selectionRadius,
+      antSystem.camera,
+      width,
+      height,
+    );
+
+    expect(selection.total).toBe(0);
+    expect(ant.selected).toBe(false);
+  });
+
   test('allows nest drop-off using planar distance even when vertical offset is large', () => {
     const antSystem = createSeededAntSystem();
     const ant = antSystem.ants[0];
