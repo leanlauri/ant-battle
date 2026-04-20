@@ -782,7 +782,7 @@ const updateActionVelocity = (ant, foodSystem, foods) => {
   }
 
   let navigationTarget = ant.target;
-  const shouldRouteAcrossBridge = !!ant.commandTarget || ant.action === 'carry-food' || ant.action === 'assist-carry';
+  const shouldRouteAcrossBridge = ant.action !== 'idle' && ant.action !== 'attack' && ant.action !== 'attack-nest';
   if (shouldRouteAcrossBridge && segmentCrossesWater(ant.position, ant.target)) {
     const bridgeTarget = findNearestBridgePosition(ant.position.x, ant.position.z, { target: ant.target });
     if (bridgeTarget) {

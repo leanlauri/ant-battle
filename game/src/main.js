@@ -223,6 +223,19 @@ const renderUpgradeCards = (summary) => {
   refs.nestUpgradePanel.style.left = `${clampedX}px`;
   refs.nestUpgradePanel.style.top = `${clampedY}px`;
 
+  const clampUpgradePanelToViewport = () => {
+    const rect = refs.nestUpgradePanel.getBoundingClientRect();
+    if (!Number.isFinite(rect.left) || !Number.isFinite(rect.right)) return;
+    let nextLeft = clampedX;
+    let nextTop = clampedY;
+    if (rect.left < 8) nextLeft += 8 - rect.left;
+    if (rect.right > window.innerWidth - 8) nextLeft -= rect.right - (window.innerWidth - 8);
+    if (rect.top < 8) nextTop += 8 - rect.top;
+    if (rect.bottom > window.innerHeight - 8) nextTop -= rect.bottom - (window.innerHeight - 8);
+    refs.nestUpgradePanel.style.left = `${Math.round(nextLeft)}px`;
+    refs.nestUpgradePanel.style.top = `${Math.round(nextTop)}px`;
+  };
+
   const buttonFootprint = 80;
   const fitsSingleRow = options.length * buttonFootprint <= panelWidth;
   refs.upgradeCards.dataset.wrap = fitsSingleRow ? 'false' : 'true';
@@ -251,6 +264,7 @@ const renderUpgradeCards = (summary) => {
   if (!selectedOption || !refs.upgradeDetail) {
     refs.upgradeDetail.hidden = true;
     if (refs.upgradeFeedbackToast) refs.upgradeFeedbackToast.hidden = true;
+    clampUpgradePanelToViewport();
     return;
   }
 
@@ -273,6 +287,8 @@ const renderUpgradeCards = (summary) => {
   if (refs.upgradeFeedbackToast) {
     refs.upgradeFeedbackToast.hidden = true;
   }
+
+  clampUpgradePanelToViewport();
 };
 
 const gameplaySession = createGameplaySession({

@@ -650,4 +650,25 @@ describe('ant system helpers', () => {
 
     expect(segmentCrossesWater({ x: before.x, z: before.z }, { x: after.x, z: after.z })).toBe(false);
   });
+
+  test('ants route toward a bridge when their target is across water', () => {
+    const antSystem = createSeededAntSystem();
+    const ant = antSystem.ants[0];
+    const bridge = findNearestBridgePosition(0, 0);
+    expect(bridge).toBeTruthy();
+
+    ant.position.set(bridge.x - 6.2, ant.position.y, bridge.z);
+    ant.target.set(bridge.x + 6.2, 0, bridge.z);
+    ant.action = 'focus-target';
+    ant.logicCooldown = 0;
+    ant.brainCooldown = 999;
+    ant.velocity.setScalar(0);
+    ant.desiredVelocity.setScalar(0);
+
+    const beforeDistanceToBridge = Math.hypot(ant.position.x - bridge.x, ant.position.z - bridge.z);
+    antSystem.update(0.2);
+    const afterDistanceToBridge = Math.hypot(ant.position.x - bridge.x, ant.position.z - bridge.z);
+
+    expect(afterDistanceToBridge).toBeLessThan(beforeDistanceToBridge);
+  });
 });
