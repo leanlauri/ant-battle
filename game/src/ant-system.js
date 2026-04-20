@@ -62,6 +62,8 @@ export const ANT_CONFIG = Object.freeze({
   pheromoneTrailMinInterval: 0.12,
   pheromoneTrailMaxInterval: 0.34,
   pheromoneTrailSpeedSqThreshold: 0.04,
+  terrainCrossingBridgeMargin: 0.58,
+  terrainCrossingPassMargin: 0.5,
 });
 
 export const ANT_LOD = Object.freeze({ near: 'near', mid: 'mid', far: 'far' });
@@ -783,7 +785,10 @@ const updateActionVelocity = (ant, foodSystem, foods) => {
 
   let navigationTarget = ant.target;
   const shouldRouteAcrossBridge = ant.action !== 'idle' && ant.action !== 'attack' && ant.action !== 'attack-nest';
-  if (shouldRouteAcrossBridge && segmentCrossesTerrainBarrier(ant.position, ant.target)) {
+  if (shouldRouteAcrossBridge && segmentCrossesTerrainBarrier(ant.position, ant.target, {
+    bridgeMargin: ANT_CONFIG.terrainCrossingBridgeMargin,
+    passMargin: ANT_CONFIG.terrainCrossingPassMargin,
+  })) {
     const crossingTarget = findTerrainRouteTarget(ant.position, ant.target);
     if (crossingTarget) {
       navigationTarget = crossingTarget;
@@ -1815,9 +1820,18 @@ export class AntSystem {
       const currentZ = ant.position.z;
       let nextX = clampToTerrainBounds(currentX + ant.velocity.x * dt, TERRAIN_CONFIG.width);
       let nextZ = clampToTerrainBounds(currentZ + ant.velocity.z * dt, TERRAIN_CONFIG.depth);
-      if (segmentCrossesTerrainBarrier({ x: currentX, z: currentZ }, { x: nextX, z: nextZ })) {
-        const xOnlyBlocked = segmentCrossesTerrainBarrier({ x: currentX, z: currentZ }, { x: nextX, z: currentZ });
-        const zOnlyBlocked = segmentCrossesTerrainBarrier({ x: currentX, z: currentZ }, { x: currentX, z: nextZ });
+      if (segmentCrossesTerrainBarrier({ x: currentX, z: currentZ }, { x: nextX, z: nextZ }, {
+        bridgeMargin: ANT_CONFIG.terrainCrossingBridgeMargin,
+        passMargin: ANT_CONFIG.terrainCrossingPassMargin,
+      })) {
+        const xOnlyBlocked = segmentCrossesTerrainBarrier({ x: currentX, z: currentZ }, { x: nextX, z: currentZ }, {
+          bridgeMargin: ANT_CONFIG.terrainCrossingBridgeMargin,
+          passMargin: ANT_CONFIG.terrainCrossingPassMargin,
+        });
+        const zOnlyBlocked = segmentCrossesTerrainBarrier({ x: currentX, z: currentZ }, { x: currentX, z: nextZ }, {
+          bridgeMargin: ANT_CONFIG.terrainCrossingBridgeMargin,
+          passMargin: ANT_CONFIG.terrainCrossingPassMargin,
+        });
         if (!xOnlyBlocked && zOnlyBlocked) {
           nextZ = currentZ;
         } else if (xOnlyBlocked && !zOnlyBlocked) {

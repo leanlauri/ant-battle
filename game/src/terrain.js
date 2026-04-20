@@ -334,6 +334,7 @@ const getRiverDistanceInfo = (x, z, rivers, { width, depth } = activeTerrainProf
 
 export const isPointOnBridge = (x, z, {
   rivers = getTerrainRivers(),
+  margin = 0,
 } = {}) => {
   for (const river of rivers) {
     for (const bridge of river.bridges) {
@@ -341,7 +342,7 @@ export const isPointOnBridge = (x, z, {
       const dz = z - bridge.center.z;
       const along = dx * bridge.tangent.x + dz * bridge.tangent.y;
       const across = dx * bridge.normal.x + dz * bridge.normal.y;
-      if (Math.abs(along) <= bridge.halfLength && Math.abs(across) <= bridge.halfWidth) return true;
+      if (Math.abs(along) <= bridge.halfLength + margin && Math.abs(across) <= bridge.halfWidth + margin) return true;
     }
   }
   return false;
@@ -360,6 +361,7 @@ export const isPointInLake = (x, z, {
 
 export const isPointOnRidgePass = (x, z, {
   ridges = getTerrainRidges(),
+  margin = 0,
 } = {}) => {
   for (const ridge of ridges) {
     for (const pass of ridge.passes) {
@@ -367,7 +369,7 @@ export const isPointOnRidgePass = (x, z, {
       const dz = z - pass.center.z;
       const along = dx * pass.tangent.x + dz * pass.tangent.y;
       const across = dx * pass.normal.x + dz * pass.normal.y;
-      if (Math.abs(along) <= pass.halfLength && Math.abs(across) <= pass.halfWidth) return true;
+      if (Math.abs(along) <= pass.halfLength + margin && Math.abs(across) <= pass.halfWidth + margin) return true;
     }
   }
   return false;
@@ -376,8 +378,9 @@ export const isPointOnRidgePass = (x, z, {
 export const isPointOnRidgeBarrier = (x, z, {
   ridges = getTerrainRidges(),
   margin = 0,
+  passMargin = 0,
 } = {}) => {
-  if (isPointOnRidgePass(x, z, { ridges })) return false;
+  if (isPointOnRidgePass(x, z, { ridges, margin: passMargin })) return false;
   for (const ridge of ridges) {
     const flow = ridge.axis === 'x' ? x : z;
     if (flow < ridge.flowRange.min - 0.001 || flow > ridge.flowRange.max + 0.001) continue;
@@ -394,8 +397,9 @@ export const isPointInWater = (x, z, {
   rivers = getTerrainRivers(),
   lakes = getTerrainLakes(),
   margin = 0,
+  bridgeMargin = 0,
 } = {}) => {
-  if (isPointOnBridge(x, z, { rivers })) return false;
+  if (isPointOnBridge(x, z, { rivers, margin: bridgeMargin })) return false;
   if (isPointInLake(x, z, { lakes })) return true;
   const nearest = getRiverDistanceInfo(x, z, rivers);
   if (!nearest) return false;
@@ -405,6 +409,7 @@ export const isPointInWater = (x, z, {
 export const segmentCrossesWater = (from, to, {
   rivers = getTerrainRivers(),
   lakes = getTerrainLakes(),
+  bridgeMargin = 0,
 } = {}) => {
   if (!from || !to) return false;
   const dx = (to.x ?? 0) - (from.x ?? 0);
@@ -415,13 +420,14 @@ export const segmentCrossesWater = (from, to, {
     const t = i / samples;
     const x = (from.x ?? 0) + dx * t;
     const z = (from.z ?? 0) + dz * t;
-    if (isPointInWater(x, z, { rivers, lakes })) return true;
+    if (isPointInWater(x, z, { rivers, lakes, bridgeMargin })) return true;
   }
   return false;
 };
 
 export const segmentCrossesRidgeBarrier = (from, to, {
   ridges = getTerrainRidges(),
+  passMargin = 0,
 } = {}) => {
   if (!from || !to) return false;
   const dx = (to.x ?? 0) - (from.x ?? 0);
@@ -432,7 +438,7 @@ export const segmentCrossesRidgeBarrier = (from, to, {
     const t = i / samples;
     const x = (from.x ?? 0) + dx * t;
     const z = (from.z ?? 0) + dz * t;
-    if (isPointOnRidgeBarrier(x, z, { ridges })) return true;
+    if (isPointOnRidgeBarrier(x, z, { ridges, passMargin })) return true;
   }
   return false;
 };
@@ -441,7 +447,9 @@ export const segmentCrossesTerrainBarrier = (from, to, {
   rivers = getTerrainRivers(),
   lakes = getTerrainLakes(),
   ridges = getTerrainRidges(),
-} = {}) => segmentCrossesWater(from, to, { rivers, lakes }) || segmentCrossesRidgeBarrier(from, to, { ridges });
+  bridgeMargin = 0,
+  passMargin = 0,
+} = {}) => segmentCrossesWater(from, to, { rivers, lakes, bridgeMargin }) || segmentCrossesRidgeBarrier(from, to, { ridges, passMargin });
 
 export const findNearestBridgePosition = (x, z, {
   target = null,

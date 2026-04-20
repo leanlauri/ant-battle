@@ -100,6 +100,9 @@ describe('terrain bootstrap helpers', () => {
     const nearBankA = { x: centerX - 4.1, z: flow };
     const nearBankB = { x: centerX + 4.1, z: flow };
     expect(segmentCrossesWater(nearBankA, nearBankB)).toBe(true);
+
+    const forgivingPassable = isPointInWater(bridge.x + 1.9, bridge.z, { bridgeMargin: 0.58 });
+    expect(forgivingPassable).toBe(false);
   });
 
   test('rivers terminate into lakes and expose crossing points for barriers', () => {
