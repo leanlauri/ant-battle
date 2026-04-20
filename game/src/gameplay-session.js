@@ -9,7 +9,7 @@ import { getLevelDefinition } from './level-definition.js';
 import { getObjectiveStatus } from './objective-rules.js';
 import { PheromoneSystem } from './pheromone-system.js';
 import { createSeededRandom, deriveSeed } from './seeded-random.js';
-import { createTerrainHeightBandsMaterial, createTerrainMaterial, createTerrainMesh, createTerrainOverlay, createTerrainUnderlay, getActiveTerrainProfile, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
+import { createTerrainHeightBandsMaterial, createTerrainMaterial, createTerrainMesh, createTerrainOverlay, createTerrainRivers, createTerrainUnderlay, getActiveTerrainProfile, resetActiveTerrainProfile, sampleHeight, setActiveTerrainProfile } from './terrain.js';
 
 const BUILD_ID_FALLBACK = '9ae531b';
 const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : BUILD_ID_FALLBACK;
@@ -795,6 +795,7 @@ export const createGameplaySession = ({ mount, onHudUpdate, onFatalError, onNest
       applyTerrainShaderMode();
       scene.add(createTerrainUnderlay({ color: currentAtmosphereProfile.underlay }));
       scene.add(terrain);
+      scene.add(createTerrainRivers());
       scene.add(createTerrainOverlay(terrain.geometry));
       resetLevelRandomStreams();
 

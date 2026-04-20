@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createRandomRange } from './seeded-random.js';
-import { TERRAIN_CONFIG, sampleHeight } from './terrain.js';
+import { TERRAIN_CONFIG, isPointInWater, sampleHeight } from './terrain.js';
 
 export const FOOD_CONFIG = Object.freeze({
   count: 28,
@@ -88,8 +88,22 @@ const deriveFoodWeight = (sizeScale) => {
 
 const randomFoodPosition = (sizeScale = 1, random = Math.random) => {
   const randomRange = randomRangeWith(random);
-  const x = randomRange(-TERRAIN_CONFIG.width / 2 + 2, TERRAIN_CONFIG.width / 2 - 2);
-  const z = randomRange(-TERRAIN_CONFIG.depth / 2 + 2, TERRAIN_CONFIG.depth / 2 - 2);
+  let x = 0;
+  let z = 0;
+  let placed = false;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const candidateX = randomRange(-TERRAIN_CONFIG.width / 2 + 2, TERRAIN_CONFIG.width / 2 - 2);
+    const candidateZ = randomRange(-TERRAIN_CONFIG.depth / 2 + 2, TERRAIN_CONFIG.depth / 2 - 2);
+    if (isPointInWater(candidateX, candidateZ, { margin: FOOD_CONFIG.size * sizeScale * 0.65 })) continue;
+    x = candidateX;
+    z = candidateZ;
+    placed = true;
+    break;
+  }
+  if (!placed) {
+    x = randomRange(-TERRAIN_CONFIG.width / 2 + 2, TERRAIN_CONFIG.width / 2 - 2);
+    z = randomRange(-TERRAIN_CONFIG.depth / 2 + 2, TERRAIN_CONFIG.depth / 2 - 2);
+  }
   const y = sampleHeight(x, z) + FOOD_CONFIG.size * sizeScale * 0.55;
   return new THREE.Vector3(x, y, z);
 };
@@ -153,6 +167,7 @@ export const createNestDefinitions = ({
   const maxZ = TERRAIN_CONFIG.depth / 2 - NEST_CONFIG.edgePadding;
   const minDistanceSq = NEST_CONFIG.minNestDistance * NEST_CONFIG.minNestDistance;
   const canPlace = (x, z, points) => points.every((point) => {
+    if (isPointInWater(x, z, { margin: NEST_CONFIG.radius * 0.95 })) return false;
     const dx = point.x - x;
     const dz = point.z - z;
     return (dx * dx + dz * dz) >= minDistanceSq;

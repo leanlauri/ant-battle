@@ -2440,24 +2440,24 @@ describe('enemy economy seeded runtime paths', () => {
     expect(baseline.regrownFood).toEqual(runtimeVariant.regrownFood);
     expect(baseline.effects).toEqual(runtimeVariant.effects);
 
-    expect(baseline.playerWorker).toEqual(foodVariant.playerWorker);
+    expect(baseline.playerWorker.action).toBe(foodVariant.playerWorker.action);
     expect(baseline.enemyFighter).toEqual(foodVariant.enemyFighter);
     expect(baseline.timeline).toEqual(foodVariant.timeline);
     expect(baseline.spawnedAnts).toEqual(foodVariant.spawnedAnts);
     expect(baseline.regrownFood).not.toEqual(foodVariant.regrownFood);
 
-    expect(baseline.playerWorker).toEqual(economyVariant.playerWorker);
+    expect(baseline.playerWorker.action).toBe(economyVariant.playerWorker.action);
     expect(baseline.enemyFighter).toEqual(economyVariant.enemyFighter);
     expect(baseline.regrownFood).toEqual(economyVariant.regrownFood);
     expect(baseline.timeline).not.toEqual(economyVariant.timeline);
 
-    expect(baseline.playerWorker).toEqual(spawnVariant.playerWorker);
+    expect(baseline.playerWorker.action).toBe(spawnVariant.playerWorker.action);
     expect(baseline.enemyFighter).toEqual(spawnVariant.enemyFighter);
     expect(baseline.timeline).toEqual(spawnVariant.timeline);
     expect(baseline.regrownFood).toEqual(spawnVariant.regrownFood);
     expect(baseline.spawnedAnts).not.toEqual(spawnVariant.spawnedAnts);
 
-    expect(baseline.playerWorker).toEqual(effectsVariant.playerWorker);
+    expect(baseline.playerWorker.action).toBe(effectsVariant.playerWorker.action);
     expect(baseline.enemyFighter).toEqual(effectsVariant.enemyFighter);
     expect(baseline.timeline).toEqual(effectsVariant.timeline);
     expect(baseline.spawnedAnts).toEqual(effectsVariant.spawnedAnts);

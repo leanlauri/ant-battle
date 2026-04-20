@@ -10,6 +10,7 @@ export const TERRAIN_CONFIG = Object.freeze({
   octaves: 4,
   edgeFadeStart: 0.76,
   edgeHeightScale: 0.22,
+  riverDepthScale: 1,
 });
 
 const TERRAIN_COLOR_CONFIG = Object.freeze({
@@ -24,6 +25,36 @@ const TERRAIN_COLOR_CONFIG = Object.freeze({
 });
 
 let activeTerrainProfile = { ...TERRAIN_CONFIG };
+
+const RIVER_LAYOUT_CONFIG = Object.freeze({
+  edgePadding: 8,
+  bridgeHalfLength: 3.2,
+});
+
+const BASE_RIVER_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    id: 'river-north-fork',
+    axis: 'z',
+    offsetRatio: -0.16,
+    amplitudeRatio: 0.065,
+    frequency: 0.09,
+    phase: 0.42,
+    width: 2.35,
+    depth: 1.15,
+    bridgeRatios: Object.freeze([-0.24, 0, 0.26]),
+  }),
+  Object.freeze({
+    id: 'river-east-fork',
+    axis: 'x',
+    offsetRatio: 0.18,
+    amplitudeRatio: 0.055,
+    frequency: 0.084,
+    phase: 1.63,
+    width: 2.05,
+    depth: 1.0,
+    bridgeRatios: Object.freeze([-0.21, 0.09, 0.31]),
+  }),
+]);
 
 export const setActiveTerrainProfile = (profile = {}) => {
   activeTerrainProfile = {
@@ -98,6 +129,171 @@ const fractalNoise2D = (x, z, { octaves }) => {
   return totalAmplitude > 0 ? sum / totalAmplitude : 0;
 };
 
+const getFlowRangeForRiver = (river, { width, depth }) => {
+  if (river.axis === 'x') {
+    const half = width / 2;
+    return {
+      min: -half + RIVER_LAYOUT_CONFIG.edgePadding,
+      max: half - RIVER_LAYOUT_CONFIG.edgePadding,
+    };
+  }
+  const half = depth / 2;
+  return {
+    min: -half + RIVER_LAYOUT_CONFIG.edgePadding,
+    max: half - RIVER_LAYOUT_CONFIG.edgePadding,
+  };
+};
+
+const getRiverCenterAtFlow = (river, flowValue, { width, depth }) => {
+  const extent = river.axis === 'x' ? depth : width;
+  const offset = extent * river.offsetRatio;
+  const amplitude = extent * river.amplitudeRatio;
+  const wave = Math.sin(flowValue * river.frequency + river.phase) * amplitude;
+  if (river.axis === 'x') {
+    return { x: flowValue, z: offset + wave };
+  }
+  return { x: offset + wave, z: flowValue };
+};
+
+const getRiverTangentAtFlow = (river, flowValue, { width, depth }) => {
+  const extent = river.axis === 'x' ? depth : width;
+  const amplitude = extent * river.amplitudeRatio;
+  const dWave = Math.cos(flowValue * river.frequency + river.phase) * amplitude * river.frequency;
+  const tangent = river.axis === 'x'
+    ? new THREE.Vector2(1, dWave)
+    : new THREE.Vector2(dWave, 1);
+  return tangent.normalize();
+};
+
+export const getTerrainRivers = ({
+  width = activeTerrainProfile.width,
+  depth = activeTerrainProfile.depth,
+} = {}) => BASE_RIVER_DEFINITIONS.map((river) => {
+  const flowRange = getFlowRangeForRiver(river, { width, depth });
+  const bridgeHalfWidth = Math.max((river.width * 0.5) + 0.55, 1.7);
+  const bridges = river.bridgeRatios.map((ratio) => {
+    const flow = THREE.MathUtils.lerp(flowRange.min, flowRange.max, (ratio + 1) * 0.5);
+    const center = getRiverCenterAtFlow(river, flow, { width, depth });
+    const tangent = getRiverTangentAtFlow(river, flow, { width, depth });
+    return {
+      flow,
+      center,
+      tangent,
+      normal: new THREE.Vector2(-tangent.y, tangent.x),
+      halfLength: RIVER_LAYOUT_CONFIG.bridgeHalfLength,
+      halfWidth: bridgeHalfWidth,
+    };
+  });
+
+  return {
+    ...river,
+    flowRange,
+    bridges,
+  };
+});
+
+const getRiverDistanceInfo = (x, z, rivers, { width, depth } = activeTerrainProfile) => {
+  let nearest = null;
+  for (const river of rivers) {
+    const flow = river.axis === 'x' ? x : z;
+    if (flow < river.flowRange.min - 0.001 || flow > river.flowRange.max + 0.001) continue;
+    const center = getRiverCenterAtFlow(river, flow, { width, depth });
+    const across = river.axis === 'x'
+      ? Math.abs(z - center.z)
+      : Math.abs(x - center.x);
+    if (!nearest || across < nearest.across) {
+      nearest = { river, flow, center, across };
+    }
+  }
+  return nearest;
+};
+
+export const isPointOnBridge = (x, z, {
+  rivers = getTerrainRivers(),
+} = {}) => {
+  for (const river of rivers) {
+    for (const bridge of river.bridges) {
+      const dx = x - bridge.center.x;
+      const dz = z - bridge.center.z;
+      const along = dx * bridge.tangent.x + dz * bridge.tangent.y;
+      const across = dx * bridge.normal.x + dz * bridge.normal.y;
+      if (Math.abs(along) <= bridge.halfLength && Math.abs(across) <= bridge.halfWidth) return true;
+    }
+  }
+  return false;
+};
+
+export const isPointInWater = (x, z, {
+  rivers = getTerrainRivers(),
+  margin = 0,
+} = {}) => {
+  if (isPointOnBridge(x, z, { rivers })) return false;
+  const nearest = getRiverDistanceInfo(x, z, rivers);
+  if (!nearest) return false;
+  return nearest.across <= (nearest.river.width * 0.5 + margin);
+};
+
+export const segmentCrossesWater = (from, to, {
+  rivers = getTerrainRivers(),
+} = {}) => {
+  if (!from || !to) return false;
+  const dx = (to.x ?? 0) - (from.x ?? 0);
+  const dz = (to.z ?? 0) - (from.z ?? 0);
+  const distance = Math.hypot(dx, dz);
+  const samples = Math.max(2, Math.min(24, Math.ceil(distance / 0.65)));
+  for (let i = 0; i <= samples; i += 1) {
+    const t = i / samples;
+    const x = (from.x ?? 0) + dx * t;
+    const z = (from.z ?? 0) + dz * t;
+    if (isPointInWater(x, z, { rivers })) return true;
+  }
+  return false;
+};
+
+export const findNearestBridgePosition = (x, z, {
+  target = null,
+  rivers = getTerrainRivers(),
+} = {}) => {
+  let best = null;
+  for (const river of rivers) {
+    for (const bridge of river.bridges) {
+      const dx = bridge.center.x - x;
+      const dz = bridge.center.z - z;
+      const distanceSq = dx * dx + dz * dz;
+      const targetBias = target
+        ? ((bridge.center.x - target.x) ** 2 + (bridge.center.z - target.z) ** 2) * 0.28
+        : 0;
+      const score = distanceSq + targetBias;
+      if (!best || score < best.score) {
+        best = { score, center: bridge.center };
+      }
+    }
+  }
+  if (!best) return null;
+  return new THREE.Vector3(best.center.x, sampleHeight(best.center.x, best.center.z), best.center.z);
+};
+
+const getRiverDepthAtPoint = (x, z, {
+  rivers,
+  width,
+  depth,
+  riverDepthScale = activeTerrainProfile.riverDepthScale,
+} = {}) => {
+  let depthValue = 0;
+  for (const river of rivers) {
+    const flow = river.axis === 'x' ? x : z;
+    if (flow < river.flowRange.min - 0.001 || flow > river.flowRange.max + 0.001) continue;
+    const center = getRiverCenterAtFlow(river, flow, { width, depth });
+    const across = river.axis === 'x'
+      ? Math.abs(z - center.z)
+      : Math.abs(x - center.x);
+    const bank = THREE.MathUtils.smoothstep(across, river.width * 0.5, river.width * 1.35);
+    const channel = 1 - THREE.MathUtils.clamp(across / Math.max(0.001, river.width * 0.5), 0, 1);
+    depthValue = Math.max(depthValue, (channel ** 1.35) * river.depth * bank * riverDepthScale);
+  }
+  return depthValue;
+};
+
 export const getTerrainEdgeAttenuation = (x, z, {
   width = activeTerrainProfile.width,
   depth = activeTerrainProfile.depth,
@@ -123,7 +319,9 @@ export const sampleHeight = (x, z, {
   depth = activeTerrainProfile.depth,
   edgeFadeStart = activeTerrainProfile.edgeFadeStart,
   edgeHeightScale = activeTerrainProfile.edgeHeightScale,
+  riverDepthScale = activeTerrainProfile.riverDepthScale,
 } = {}) => {
+  const rivers = getTerrainRivers({ width, depth });
   const base = fractalNoise2D(x * noiseScale, z * noiseScale, { octaves });
   const attenuation = getTerrainEdgeAttenuation(x, z, {
     width,
@@ -131,7 +329,8 @@ export const sampleHeight = (x, z, {
     edgeFadeStart,
     edgeHeightScale,
   });
-  return THREE.MathUtils.clamp(base * maxHeight * attenuation, -maxHeight, maxHeight);
+  const riverDepth = getRiverDepthAtPoint(x, z, { rivers, width, depth, riverDepthScale });
+  return THREE.MathUtils.clamp((base * maxHeight * attenuation) - riverDepth, -maxHeight, maxHeight);
 };
 
 export const createTerrainGeometry = ({
@@ -197,10 +396,12 @@ export const createTerrainMaterial = ({ color = 0xffffff } = {}) => new THREE.Me
 export const createTerrainHeightBandsMaterial = ({
   minHeight = -5,
   maxHeight = 5,
+  greenStartOffsetMeters = 1,
 } = {}) => new THREE.ShaderMaterial({
   uniforms: {
     minHeight: { value: minHeight },
     maxHeight: { value: maxHeight },
+    greenStartT: { value: THREE.MathUtils.clamp(0.66 - (greenStartOffsetMeters / Math.max(0.001, maxHeight - minHeight)), 0.4, 0.66) },
   },
   vertexShader: `
     varying float vHeight;
@@ -216,6 +417,7 @@ export const createTerrainHeightBandsMaterial = ({
     varying vec3 vNormalW;
     uniform float minHeight;
     uniform float maxHeight;
+    uniform float greenStartT;
 
     vec3 bandColor(float t) {
       vec3 c0 = vec3(0.46, 0.47, 0.45); // gray
@@ -225,10 +427,10 @@ export const createTerrainHeightBandsMaterial = ({
       if (t < 0.33) {
         return mix(c0, c1, smoothstep(0.0, 0.33, t));
       }
-      if (t < 0.66) {
-        return mix(c1, c2, smoothstep(0.33, 0.66, t));
+      if (t < greenStartT) {
+        return mix(c1, c2, smoothstep(0.33, greenStartT, t));
       }
-      return mix(c2, c3, smoothstep(0.66, 1.0, t));
+      return mix(c2, c3, smoothstep(greenStartT, 1.0, t));
     }
 
     void main() {
@@ -274,6 +476,78 @@ export const createTerrainUnderlay = ({
   underlay.receiveShadow = false;
   underlay.castShadow = false;
   return underlay;
+};
+
+export const createTerrainRivers = ({
+  width = activeTerrainProfile.width,
+  depth = activeTerrainProfile.depth,
+} = {}) => {
+  const rivers = getTerrainRivers({ width, depth });
+  const group = new THREE.Group();
+  const waterMaterial = new THREE.MeshToonMaterial({
+    color: 0x5ea6cf,
+    transparent: true,
+    opacity: 0.78,
+    depthWrite: false,
+    gradientMap: createToonGradient(),
+  });
+  const bridgeMaterial = new THREE.MeshToonMaterial({
+    color: 0x8f6a41,
+    gradientMap: createToonGradient(),
+  });
+
+  for (const river of rivers) {
+    const sampleCount = 64;
+    const positions = [];
+    const indices = [];
+    for (let i = 0; i <= sampleCount; i += 1) {
+      const t = i / sampleCount;
+      const flow = THREE.MathUtils.lerp(river.flowRange.min, river.flowRange.max, t);
+      const center = getRiverCenterAtFlow(river, flow, { width, depth });
+      const tangent = getRiverTangentAtFlow(river, flow, { width, depth });
+      const normal = new THREE.Vector2(-tangent.y, tangent.x);
+      const leftX = center.x + normal.x * river.width * 0.52;
+      const leftZ = center.z + normal.y * river.width * 0.52;
+      const rightX = center.x - normal.x * river.width * 0.52;
+      const rightZ = center.z - normal.y * river.width * 0.52;
+      const leftY = sampleHeight(leftX, leftZ) + 0.05;
+      const rightY = sampleHeight(rightX, rightZ) + 0.05;
+      positions.push(leftX, leftY, leftZ, rightX, rightY, rightZ);
+      if (i < sampleCount) {
+        const base = i * 2;
+        indices.push(base, base + 2, base + 1, base + 1, base + 2, base + 3);
+      }
+    }
+
+    const riverGeometry = new THREE.BufferGeometry();
+    riverGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    riverGeometry.setIndex(indices);
+    riverGeometry.computeVertexNormals();
+    const riverMesh = new THREE.Mesh(riverGeometry, waterMaterial);
+    riverMesh.receiveShadow = false;
+    riverMesh.castShadow = false;
+    group.add(riverMesh);
+
+    for (const bridge of river.bridges) {
+      const bridgeWidth = bridge.halfWidth * 2 + 0.7;
+      const bridgeLength = bridge.halfLength * 2;
+      const bridgeMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(bridgeWidth, 0.24, bridgeLength),
+        bridgeMaterial,
+      );
+      bridgeMesh.position.set(
+        bridge.center.x,
+        sampleHeight(bridge.center.x, bridge.center.z) + 0.18,
+        bridge.center.z,
+      );
+      bridgeMesh.rotation.y = Math.atan2(bridge.tangent.x, bridge.tangent.y);
+      bridgeMesh.castShadow = true;
+      bridgeMesh.receiveShadow = true;
+      group.add(bridgeMesh);
+    }
+  }
+
+  return group;
 };
 
 export const createTerrainMesh = (options = {}) => {

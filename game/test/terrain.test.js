@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
-import { TERRAIN_CONFIG, createTerrainGeometry, createTerrainMaterial, createTerrainOverlay, getTerrainEdgeAttenuation, getTriangleCount, sampleHeight } from '../src/terrain.js';
+import { TERRAIN_CONFIG, createTerrainGeometry, createTerrainHeightBandsMaterial, createTerrainMaterial, createTerrainOverlay, createTerrainRivers, findNearestBridgePosition, getTerrainEdgeAttenuation, getTerrainRivers, getTriangleCount, isPointInWater, sampleHeight, segmentCrossesWater } from '../src/terrain.js';
 
 describe('terrain bootstrap helpers', () => {
   test('creates a densely triangulated X/Z ground plane', () => {
@@ -76,5 +76,36 @@ describe('terrain bootstrap helpers', () => {
 
     expect(overlay.type).toBe('LineSegments');
     expect(overlay.material.opacity).toBeGreaterThan(0);
+  });
+
+  test('height-band shader starts green band lower by about one meter', () => {
+    const material = createTerrainHeightBandsMaterial({ minHeight: -5, maxHeight: 5 });
+    expect(material.uniforms.greenStartT.value).toBeCloseTo(0.56, 2);
+  });
+
+  test('builds small rivers with bridge crossings and blocks direct water crossing', () => {
+    const rivers = getTerrainRivers();
+    expect(rivers.length).toBeGreaterThanOrEqual(2);
+    expect(rivers.some((river) => river.bridges.length > 0)).toBe(true);
+
+    const bridge = findNearestBridgePosition(0, 0);
+    expect(bridge).toBeTruthy();
+    expect(isPointInWater(bridge.x, bridge.z)).toBe(false);
+
+    const river = rivers.find((entry) => entry.axis === 'z') ?? rivers[0];
+    const flow = THREE.MathUtils.lerp(river.flowRange.min, river.flowRange.max, 0.14);
+    const extent = TERRAIN_CONFIG.width;
+    const centerX = extent * river.offsetRatio
+      + Math.sin(flow * river.frequency + river.phase) * extent * river.amplitudeRatio;
+    const nearBankA = { x: centerX - 4.1, z: flow };
+    const nearBankB = { x: centerX + 4.1, z: flow };
+    expect(segmentCrossesWater(nearBankA, nearBankB)).toBe(true);
+  });
+
+  test('creates visible river and bridge meshes', () => {
+    const riversGroup = createTerrainRivers();
+    expect(riversGroup.children.length).toBeGreaterThan(3);
+    const hasBridgeBox = riversGroup.children.some((child) => child.geometry?.type === 'BoxGeometry');
+    expect(hasBridgeBox).toBe(true);
   });
 });

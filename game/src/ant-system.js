@@ -4,7 +4,7 @@ import { createEnemyRolePicker, normalizeLevelSetup } from './level-setup.js';
 import { PHEROMONE_CONFIG } from './pheromone-system.js';
 import { resolveObjectiveOutcome } from './objective-rules.js';
 import { createRandomRange, createSeededRandom, deriveSeed, DEFAULT_RANDOM_SOURCE } from './seeded-random.js';
-import { TERRAIN_CONFIG, sampleHeight } from './terrain.js';
+import { TERRAIN_CONFIG, findNearestBridgePosition, sampleHeight, segmentCrossesWater } from './terrain.js';
 
 export const ANT_CONFIG = Object.freeze({
   count: 200,
@@ -781,7 +781,16 @@ const updateActionVelocity = (ant, foodSystem, foods) => {
     );
   }
 
-  const toTarget = new THREE.Vector3(ant.target.x - ant.position.x, 0, ant.target.z - ant.position.z);
+  let navigationTarget = ant.target;
+  const shouldRouteAcrossBridge = !!ant.commandTarget || ant.action === 'carry-food' || ant.action === 'assist-carry';
+  if (shouldRouteAcrossBridge && segmentCrossesWater(ant.position, ant.target)) {
+    const bridgeTarget = findNearestBridgePosition(ant.position.x, ant.position.z, { target: ant.target });
+    if (bridgeTarget) {
+      navigationTarget = bridgeTarget;
+    }
+  }
+
+  const toTarget = new THREE.Vector3(navigationTarget.x - ant.position.x, 0, navigationTarget.z - ant.position.z);
   if (toTarget.lengthSq() < 0.8 * 0.8) {
     if (ant.action === 'seek-food' || ant.action === 'carry-food' || ant.action === 'assist-carry') return;
     chooseNextAction(ant, ant.random);
@@ -1795,8 +1804,24 @@ export class AntSystem {
       ant.velocity.lerp(ant.desiredVelocity, ant.lodBand === ANT_LOD.near ? 0.16 : ant.lodBand === ANT_LOD.mid ? 0.12 : 0.08);
       ant.attackVisualTime = Math.max(0, (ant.attackVisualTime ?? 0) - dt);
       ant.hitFlashTime = Math.max(0, (ant.hitFlashTime ?? 0) - dt);
-      ant.position.x = clampToTerrainBounds(ant.position.x + ant.velocity.x * dt, TERRAIN_CONFIG.width);
-      ant.position.z = clampToTerrainBounds(ant.position.z + ant.velocity.z * dt, TERRAIN_CONFIG.depth);
+      const currentX = ant.position.x;
+      const currentZ = ant.position.z;
+      let nextX = clampToTerrainBounds(currentX + ant.velocity.x * dt, TERRAIN_CONFIG.width);
+      let nextZ = clampToTerrainBounds(currentZ + ant.velocity.z * dt, TERRAIN_CONFIG.depth);
+      if (segmentCrossesWater({ x: currentX, z: currentZ }, { x: nextX, z: nextZ })) {
+        const xOnlyBlocked = segmentCrossesWater({ x: currentX, z: currentZ }, { x: nextX, z: currentZ });
+        const zOnlyBlocked = segmentCrossesWater({ x: currentX, z: currentZ }, { x: currentX, z: nextZ });
+        if (!xOnlyBlocked && zOnlyBlocked) {
+          nextZ = currentZ;
+        } else if (xOnlyBlocked && !zOnlyBlocked) {
+          nextX = currentX;
+        } else {
+          nextX = currentX;
+          nextZ = currentZ;
+        }
+      }
+      ant.position.x = nextX;
+      ant.position.z = nextZ;
       ant.position.y = sampleHeight(ant.position.x, ant.position.z) + ant.radius;
 
       if (ant.action === 'assist-carry' && ant.assistingFoodId != null) {

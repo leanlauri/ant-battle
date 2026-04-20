@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { ANT_CONFIG, ANT_LOD, ANT_ROLE, AntSystem, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash, resolveNestCollapse } from '../src/ant-system.js';
 import { COLONY, FoodSystem, NEST_CONFIG } from '../src/food-system.js';
 import { createSeededRandom, deriveSeed } from '../src/seeded-random.js';
-import { TERRAIN_CONFIG } from '../src/terrain.js';
+import { TERRAIN_CONFIG, findNearestBridgePosition, segmentCrossesWater } from '../src/terrain.js';
 
 const createTestPheromoneSystem = () => ({
   update() {},
@@ -628,5 +628,26 @@ describe('ant system helpers', () => {
     expect(carriedFood.delivered).toBe(true);
     expect(ant.carryingFoodId).toBeNull();
     expect(antSystem.foodSystem.getNestStored(nest.id)).toBeGreaterThan(0);
+  });
+
+  test('ants do not step directly across river water when not on a bridge', () => {
+    const antSystem = createSeededAntSystem();
+    const ant = antSystem.ants[0];
+    const bridge = findNearestBridgePosition(0, 0);
+    expect(bridge).toBeTruthy();
+
+    ant.position.set(bridge.x - 3.8, ant.position.y, bridge.z);
+    ant.target.set(bridge.x + 3.8, 0, bridge.z);
+    ant.action = 'focus';
+    ant.logicCooldown = 0;
+    ant.brainCooldown = 999;
+    ant.velocity.set(8, 0, 0);
+    ant.desiredVelocity.set(8, 0, 0);
+
+    const before = ant.position.clone();
+    antSystem.update(0.24);
+    const after = ant.position.clone();
+
+    expect(segmentCrossesWater({ x: before.x, z: before.z }, { x: after.x, z: after.z })).toBe(false);
   });
 });
