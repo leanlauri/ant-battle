@@ -4,7 +4,7 @@ import { createEnemyRolePicker, normalizeLevelSetup } from './level-setup.js';
 import { PHEROMONE_CONFIG } from './pheromone-system.js';
 import { resolveObjectiveOutcome } from './objective-rules.js';
 import { createRandomRange, createSeededRandom, deriveSeed, DEFAULT_RANDOM_SOURCE } from './seeded-random.js';
-import { TERRAIN_CONFIG, findNearestTerrainCrossingPosition, sampleHeight, segmentCrossesTerrainBarrier } from './terrain.js';
+import { TERRAIN_CONFIG, findTerrainRouteTarget, sampleHeight, segmentCrossesTerrainBarrier } from './terrain.js';
 
 export const ANT_CONFIG = Object.freeze({
   count: 200,
@@ -784,9 +784,16 @@ const updateActionVelocity = (ant, foodSystem, foods) => {
   let navigationTarget = ant.target;
   const shouldRouteAcrossBridge = ant.action !== 'idle' && ant.action !== 'attack' && ant.action !== 'attack-nest';
   if (shouldRouteAcrossBridge && segmentCrossesTerrainBarrier(ant.position, ant.target)) {
-    const crossingTarget = findNearestTerrainCrossingPosition(ant.position.x, ant.position.z, { target: ant.target });
+    const crossingTarget = findTerrainRouteTarget(ant.position, ant.target);
     if (crossingTarget) {
       navigationTarget = crossingTarget;
+    } else {
+      if (ant.action === 'seek-food' && ant.targetFoodId != null) {
+        ant.targetFoodId = null;
+        chooseNextAction(ant, ant.random);
+      }
+      ant.desiredVelocity.multiplyScalar(0.4);
+      return;
     }
   }
 

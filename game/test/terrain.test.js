@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
-import { TERRAIN_CONFIG, createTerrainGeometry, createTerrainHeightBandsMaterial, createTerrainMaterial, createTerrainOverlay, createTerrainRivers, findNearestBridgePosition, findNearestTerrainCrossingPosition, getTerrainEdgeAttenuation, getTerrainLakes, getTerrainRidges, getTerrainRivers, getTriangleCount, isPointInLake, isPointInWater, isPointOnRidgePass, sampleHeight, segmentCrossesTerrainBarrier, segmentCrossesWater } from '../src/terrain.js';
+import { TERRAIN_CONFIG, createTerrainGeometry, createTerrainHeightBandsMaterial, createTerrainMaterial, createTerrainOverlay, createTerrainRivers, findNearestBridgePosition, findNearestTerrainCrossingPosition, findTerrainRouteTarget, getTerrainEdgeAttenuation, getTerrainLakes, getTerrainRidges, getTerrainRivers, getTriangleCount, isPointInLake, isPointInWater, isPointOnRidgePass, sampleHeight, segmentCrossesTerrainBarrier, segmentCrossesWater } from '../src/terrain.js';
 
 describe('terrain bootstrap helpers', () => {
   test('creates a densely triangulated X/Z ground plane', () => {
@@ -121,6 +121,8 @@ describe('terrain bootstrap helpers', () => {
   test('terrain barriers block straight traversals that cut across ridge/water partitions', () => {
     const blocked = segmentCrossesTerrainBarrier({ x: -40, z: 26 }, { x: 34, z: 26 });
     expect(blocked).toBe(true);
+    const route = findTerrainRouteTarget({ x: -40, z: 26 }, { x: 34, z: 26 });
+    expect(route).toBeTruthy();
   });
 
   test('creates visible river and bridge meshes', () => {

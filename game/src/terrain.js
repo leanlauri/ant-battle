@@ -47,7 +47,7 @@ const BASE_RIVER_DEFINITIONS = Object.freeze([
     phase: 0.42,
     width: 2.35,
     depth: 1.15,
-    bridgeRatios: Object.freeze([-0.24, 0, 0.26]),
+    bridgeRatios: Object.freeze([-0.32, -0.08, 0.14, 0.34]),
   }),
   Object.freeze({
     id: 'river-east-fork',
@@ -58,7 +58,7 @@ const BASE_RIVER_DEFINITIONS = Object.freeze([
     phase: 1.63,
     width: 2.05,
     depth: 1.0,
-    bridgeRatios: Object.freeze([-0.21, 0.09, 0.31]),
+    bridgeRatios: Object.freeze([-0.34, -0.1, 0.08, 0.3]),
   }),
 ]);
 
@@ -72,7 +72,7 @@ const BASE_RIDGE_DEFINITIONS = Object.freeze([
     phase: 0.86,
     width: 2.7,
     height: 4.9,
-    passRatios: Object.freeze([-0.22, 0.19]),
+    passRatios: Object.freeze([-0.34, -0.06, 0.24]),
   }),
   Object.freeze({
     id: 'ridge-south-spine',
@@ -83,7 +83,7 @@ const BASE_RIDGE_DEFINITIONS = Object.freeze([
     phase: 2.11,
     width: 2.5,
     height: 4.4,
-    passRatios: Object.freeze([-0.28, 0.08]),
+    passRatios: Object.freeze([-0.32, -0.04, 0.2]),
   }),
 ]);
 
@@ -493,6 +493,89 @@ export const findNearestTerrainCrossingPosition = (x, z, {
 
   if (!best) return null;
   return new THREE.Vector3(best.crossing.x, sampleHeight(best.crossing.x, best.crossing.z), best.crossing.z);
+};
+
+const getTerrainCrossings = ({
+  rivers = getTerrainRivers(),
+  ridges = getTerrainRidges(),
+} = {}) => {
+  const crossings = [];
+  for (const river of rivers) {
+    for (const bridge of river.bridges) {
+      crossings.push({ id: `bridge:${river.id}:${bridge.flow.toFixed(3)}`, x: bridge.center.x, z: bridge.center.z });
+    }
+  }
+  for (const ridge of ridges) {
+    for (const pass of ridge.passes) {
+      crossings.push({ id: `pass:${ridge.id}:${pass.flow.toFixed(3)}`, x: pass.center.x, z: pass.center.z });
+    }
+  }
+  return crossings;
+};
+
+export const findTerrainRouteTarget = (from, to, {
+  rivers = getTerrainRivers(),
+  lakes = getTerrainLakes(),
+  ridges = getTerrainRidges(),
+} = {}) => {
+  if (!from || !to) return null;
+  if (!segmentCrossesTerrainBarrier(from, to, { rivers, lakes, ridges })) {
+    return new THREE.Vector3(to.x, sampleHeight(to.x, to.z), to.z);
+  }
+
+  const crossings = getTerrainCrossings({ rivers, ridges });
+  if (!crossings.length) return null;
+
+  const isOpen = (a, b) => !segmentCrossesTerrainBarrier(a, b, { rivers, lakes, ridges });
+  const startNodes = crossings.filter((node) => isOpen(from, node));
+  const endNodeIds = new Set(crossings.filter((node) => isOpen(node, to)).map((node) => node.id));
+
+  if (!startNodes.length) {
+    const fallback = findNearestTerrainCrossingPosition(from.x, from.z, { target: to, rivers, ridges });
+    return fallback;
+  }
+
+  const byId = new Map(crossings.map((node) => [node.id, node]));
+  const distances = new Map();
+  const previous = new Map();
+  const queue = [];
+
+  for (const node of crossings) distances.set(node.id, Number.POSITIVE_INFINITY);
+  for (const node of startNodes) {
+    const d = Math.hypot(node.x - from.x, node.z - from.z);
+    distances.set(node.id, d);
+    queue.push(node.id);
+  }
+
+  while (queue.length) {
+    queue.sort((a, b) => (distances.get(a) ?? Infinity) - (distances.get(b) ?? Infinity));
+    const currentId = queue.shift();
+    const current = byId.get(currentId);
+    if (!current) continue;
+    if (endNodeIds.has(currentId)) {
+      let cursor = currentId;
+      while (previous.has(cursor) && startNodes.every((node) => node.id !== cursor)) {
+        cursor = previous.get(cursor);
+      }
+      const nextNode = byId.get(cursor);
+      if (!nextNode) return null;
+      return new THREE.Vector3(nextNode.x, sampleHeight(nextNode.x, nextNode.z), nextNode.z);
+    }
+
+    for (const neighbor of crossings) {
+      if (neighbor.id === currentId) continue;
+      if (!isOpen(current, neighbor)) continue;
+      const edge = Math.hypot(neighbor.x - current.x, neighbor.z - current.z);
+      const candidate = (distances.get(currentId) ?? Infinity) + edge;
+      if (candidate < (distances.get(neighbor.id) ?? Infinity)) {
+        distances.set(neighbor.id, candidate);
+        previous.set(neighbor.id, currentId);
+        if (!queue.includes(neighbor.id)) queue.push(neighbor.id);
+      }
+    }
+  }
+
+  return findNearestTerrainCrossingPosition(from.x, from.z, { target: to, rivers, ridges });
 };
 
 const getRiverDepthAtPoint = (x, z, {

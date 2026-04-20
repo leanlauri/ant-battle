@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { ANT_CONFIG, ANT_LOD, ANT_ROLE, AntSystem, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash, resolveNestCollapse } from '../src/ant-system.js';
 import { COLONY, FoodSystem, NEST_CONFIG } from '../src/food-system.js';
 import { createSeededRandom, deriveSeed } from '../src/seeded-random.js';
-import { TERRAIN_CONFIG, findNearestTerrainCrossingPosition, segmentCrossesTerrainBarrier } from '../src/terrain.js';
+import { TERRAIN_CONFIG, findTerrainRouteTarget, segmentCrossesTerrainBarrier } from '../src/terrain.js';
 
 const createTestPheromoneSystem = () => ({
   update() {},
@@ -633,7 +633,7 @@ describe('ant system helpers', () => {
   test('ants do not step directly across river water when not on a bridge', () => {
     const antSystem = createSeededAntSystem();
     const ant = antSystem.ants[0];
-    const crossing = findNearestTerrainCrossingPosition(0, 0);
+    const crossing = findTerrainRouteTarget({ x: -12, z: 0 }, { x: 12, z: 0 });
     expect(crossing).toBeTruthy();
 
     ant.position.set(crossing.x - 3.8, ant.position.y, crossing.z);
@@ -654,7 +654,7 @@ describe('ant system helpers', () => {
   test('ants route toward a bridge when their target is across water', () => {
     const antSystem = createSeededAntSystem();
     const ant = antSystem.ants[0];
-    const bridge = findNearestTerrainCrossingPosition(0, 0);
+    const bridge = findTerrainRouteTarget({ x: -12, z: 0 }, { x: 12, z: 0 });
     expect(bridge).toBeTruthy();
 
     ant.position.set(bridge.x - 6.2, ant.position.y, bridge.z);
