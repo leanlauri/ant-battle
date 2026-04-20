@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { ANT_CONFIG, ANT_LOD, ANT_ROLE, AntSystem, PLAYER_STARTING_COUNTS, buildSpatialHash, createAntVisual, createRandomAntStates, findCombatTarget, findSiegeTargetNest, getBrainIntervalForDistance, getLodBandForDistance, getMaxHpForRole, querySpatialHash, resolveNestCollapse } from '../src/ant-system.js';
 import { COLONY, FoodSystem, NEST_CONFIG } from '../src/food-system.js';
 import { createSeededRandom, deriveSeed } from '../src/seeded-random.js';
-import { TERRAIN_CONFIG, findNearestBridgePosition, segmentCrossesWater } from '../src/terrain.js';
+import { TERRAIN_CONFIG, findNearestTerrainCrossingPosition, segmentCrossesTerrainBarrier } from '../src/terrain.js';
 
 const createTestPheromoneSystem = () => ({
   update() {},
@@ -633,11 +633,11 @@ describe('ant system helpers', () => {
   test('ants do not step directly across river water when not on a bridge', () => {
     const antSystem = createSeededAntSystem();
     const ant = antSystem.ants[0];
-    const bridge = findNearestBridgePosition(0, 0);
-    expect(bridge).toBeTruthy();
+    const crossing = findNearestTerrainCrossingPosition(0, 0);
+    expect(crossing).toBeTruthy();
 
-    ant.position.set(bridge.x - 3.8, ant.position.y, bridge.z);
-    ant.target.set(bridge.x + 3.8, 0, bridge.z);
+    ant.position.set(crossing.x - 3.8, ant.position.y, crossing.z);
+    ant.target.set(crossing.x + 3.8, 0, crossing.z);
     ant.action = 'focus';
     ant.logicCooldown = 0;
     ant.brainCooldown = 999;
@@ -648,13 +648,13 @@ describe('ant system helpers', () => {
     antSystem.update(0.24);
     const after = ant.position.clone();
 
-    expect(segmentCrossesWater({ x: before.x, z: before.z }, { x: after.x, z: after.z })).toBe(false);
+    expect(segmentCrossesTerrainBarrier({ x: before.x, z: before.z }, { x: after.x, z: after.z })).toBe(false);
   });
 
   test('ants route toward a bridge when their target is across water', () => {
     const antSystem = createSeededAntSystem();
     const ant = antSystem.ants[0];
-    const bridge = findNearestBridgePosition(0, 0);
+    const bridge = findNearestTerrainCrossingPosition(0, 0);
     expect(bridge).toBeTruthy();
 
     ant.position.set(bridge.x - 6.2, ant.position.y, bridge.z);

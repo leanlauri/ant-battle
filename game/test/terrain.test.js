@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import * as THREE from 'three';
-import { TERRAIN_CONFIG, createTerrainGeometry, createTerrainHeightBandsMaterial, createTerrainMaterial, createTerrainOverlay, createTerrainRivers, findNearestBridgePosition, getTerrainEdgeAttenuation, getTerrainRivers, getTriangleCount, isPointInWater, sampleHeight, segmentCrossesWater } from '../src/terrain.js';
+import { TERRAIN_CONFIG, createTerrainGeometry, createTerrainHeightBandsMaterial, createTerrainMaterial, createTerrainOverlay, createTerrainRivers, findNearestBridgePosition, findNearestTerrainCrossingPosition, getTerrainEdgeAttenuation, getTerrainLakes, getTerrainRidges, getTerrainRivers, getTriangleCount, isPointInLake, isPointInWater, isPointOnRidgePass, sampleHeight, segmentCrossesTerrainBarrier, segmentCrossesWater } from '../src/terrain.js';
 
 describe('terrain bootstrap helpers', () => {
   test('creates a densely triangulated X/Z ground plane', () => {
@@ -100,6 +100,27 @@ describe('terrain bootstrap helpers', () => {
     const nearBankA = { x: centerX - 4.1, z: flow };
     const nearBankB = { x: centerX + 4.1, z: flow };
     expect(segmentCrossesWater(nearBankA, nearBankB)).toBe(true);
+  });
+
+  test('rivers terminate into lakes and expose crossing points for barriers', () => {
+    const lakes = getTerrainLakes();
+    const ridges = getTerrainRidges();
+    expect(lakes.length).toBeGreaterThanOrEqual(4);
+    expect(ridges.length).toBeGreaterThanOrEqual(2);
+    expect(ridges.every((ridge) => ridge.passes.length >= 2)).toBe(true);
+
+    const lake = lakes[0];
+    expect(isPointInLake(lake.x, lake.z)).toBe(true);
+    const crossing = findNearestTerrainCrossingPosition(0, 0, { target: { x: 20, z: 20 } });
+    expect(crossing).toBeTruthy();
+    const onPass = isPointOnRidgePass(crossing.x, crossing.z);
+    const onBridge = !isPointInWater(crossing.x, crossing.z);
+    expect(onPass || onBridge).toBe(true);
+  });
+
+  test('terrain barriers block straight traversals that cut across ridge/water partitions', () => {
+    const blocked = segmentCrossesTerrainBarrier({ x: -40, z: 26 }, { x: 34, z: 26 });
+    expect(blocked).toBe(true);
   });
 
   test('creates visible river and bridge meshes', () => {

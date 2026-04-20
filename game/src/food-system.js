@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createRandomRange } from './seeded-random.js';
-import { TERRAIN_CONFIG, isPointInWater, sampleHeight } from './terrain.js';
+import { TERRAIN_CONFIG, isPointInWater, isPointOnRidgeBarrier, sampleHeight } from './terrain.js';
 
 export const FOOD_CONFIG = Object.freeze({
   count: 28,
@@ -95,6 +95,7 @@ const randomFoodPosition = (sizeScale = 1, random = Math.random) => {
     const candidateX = randomRange(-TERRAIN_CONFIG.width / 2 + 2, TERRAIN_CONFIG.width / 2 - 2);
     const candidateZ = randomRange(-TERRAIN_CONFIG.depth / 2 + 2, TERRAIN_CONFIG.depth / 2 - 2);
     if (isPointInWater(candidateX, candidateZ, { margin: FOOD_CONFIG.size * sizeScale * 0.65 })) continue;
+    if (isPointOnRidgeBarrier(candidateX, candidateZ, { margin: 0.3 })) continue;
     x = candidateX;
     z = candidateZ;
     placed = true;
@@ -168,6 +169,7 @@ export const createNestDefinitions = ({
   const minDistanceSq = NEST_CONFIG.minNestDistance * NEST_CONFIG.minNestDistance;
   const canPlace = (x, z, points) => points.every((point) => {
     if (isPointInWater(x, z, { margin: NEST_CONFIG.radius * 0.95 })) return false;
+    if (isPointOnRidgeBarrier(x, z, { margin: NEST_CONFIG.radius * 0.7 })) return false;
     const dx = point.x - x;
     const dz = point.z - z;
     return (dx * dx + dz * dz) >= minDistanceSq;

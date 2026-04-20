@@ -4,7 +4,7 @@ import { createEnemyRolePicker, normalizeLevelSetup } from './level-setup.js';
 import { PHEROMONE_CONFIG } from './pheromone-system.js';
 import { resolveObjectiveOutcome } from './objective-rules.js';
 import { createRandomRange, createSeededRandom, deriveSeed, DEFAULT_RANDOM_SOURCE } from './seeded-random.js';
-import { TERRAIN_CONFIG, findNearestBridgePosition, sampleHeight, segmentCrossesWater } from './terrain.js';
+import { TERRAIN_CONFIG, findNearestTerrainCrossingPosition, sampleHeight, segmentCrossesTerrainBarrier } from './terrain.js';
 
 export const ANT_CONFIG = Object.freeze({
   count: 200,
@@ -783,10 +783,10 @@ const updateActionVelocity = (ant, foodSystem, foods) => {
 
   let navigationTarget = ant.target;
   const shouldRouteAcrossBridge = ant.action !== 'idle' && ant.action !== 'attack' && ant.action !== 'attack-nest';
-  if (shouldRouteAcrossBridge && segmentCrossesWater(ant.position, ant.target)) {
-    const bridgeTarget = findNearestBridgePosition(ant.position.x, ant.position.z, { target: ant.target });
-    if (bridgeTarget) {
-      navigationTarget = bridgeTarget;
+  if (shouldRouteAcrossBridge && segmentCrossesTerrainBarrier(ant.position, ant.target)) {
+    const crossingTarget = findNearestTerrainCrossingPosition(ant.position.x, ant.position.z, { target: ant.target });
+    if (crossingTarget) {
+      navigationTarget = crossingTarget;
     }
   }
 
@@ -1808,9 +1808,9 @@ export class AntSystem {
       const currentZ = ant.position.z;
       let nextX = clampToTerrainBounds(currentX + ant.velocity.x * dt, TERRAIN_CONFIG.width);
       let nextZ = clampToTerrainBounds(currentZ + ant.velocity.z * dt, TERRAIN_CONFIG.depth);
-      if (segmentCrossesWater({ x: currentX, z: currentZ }, { x: nextX, z: nextZ })) {
-        const xOnlyBlocked = segmentCrossesWater({ x: currentX, z: currentZ }, { x: nextX, z: currentZ });
-        const zOnlyBlocked = segmentCrossesWater({ x: currentX, z: currentZ }, { x: currentX, z: nextZ });
+      if (segmentCrossesTerrainBarrier({ x: currentX, z: currentZ }, { x: nextX, z: nextZ })) {
+        const xOnlyBlocked = segmentCrossesTerrainBarrier({ x: currentX, z: currentZ }, { x: nextX, z: currentZ });
+        const zOnlyBlocked = segmentCrossesTerrainBarrier({ x: currentX, z: currentZ }, { x: currentX, z: nextZ });
         if (!xOnlyBlocked && zOnlyBlocked) {
           nextZ = currentZ;
         } else if (xOnlyBlocked && !zOnlyBlocked) {
