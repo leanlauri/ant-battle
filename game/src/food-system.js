@@ -175,6 +175,25 @@ export const createNestDefinitions = ({
     return (dx * dx + dz * dz) >= minDistanceSq;
   });
 
+  const findValidPositionNear = (seedX, seedZ, points) => {
+    const clampedSeedX = THREE.MathUtils.clamp(seedX, minX, maxX);
+    const clampedSeedZ = THREE.MathUtils.clamp(seedZ, minZ, maxZ);
+    if (canPlace(clampedSeedX, clampedSeedZ, points)) return { x: clampedSeedX, z: clampedSeedZ };
+
+    const maxRadius = Math.max(maxX - minX, maxZ - minZ);
+    for (let radius = 2; radius <= maxRadius; radius += 1.5) {
+      const steps = 12 + Math.floor(radius * 3.2);
+      for (let i = 0; i < steps; i += 1) {
+        const angle = (i / steps) * Math.PI * 2;
+        const x = THREE.MathUtils.clamp(clampedSeedX + Math.cos(angle) * radius, minX, maxX);
+        const z = THREE.MathUtils.clamp(clampedSeedZ + Math.sin(angle) * radius, minZ, maxZ);
+        if (canPlace(x, z, points)) return { x, z };
+      }
+    }
+
+    return null;
+  };
+
   const basePositions = randomizePositions
     ? (() => {
       const points = [];
@@ -191,10 +210,13 @@ export const createNestDefinitions = ({
           break;
         }
         if (!placed) {
-          points.push({
-            x: THREE.MathUtils.clamp(i % 2 === 0 ? -26 : 28, minX, maxX),
-            z: THREE.MathUtils.clamp(i % 2 === 0 ? -18 : 22, minZ, maxZ),
-          });
+          const fallback = findValidPositionNear(i % 2 === 0 ? -26 : 28, i % 2 === 0 ? -18 : 22, points)
+            ?? findValidPositionNear(0, 0, points)
+            ?? {
+              x: THREE.MathUtils.clamp(i % 2 === 0 ? -26 : 28, minX, maxX),
+              z: THREE.MathUtils.clamp(i % 2 === 0 ? -18 : 22, minZ, maxZ),
+            };
+          points.push(fallback);
         }
       }
 
@@ -204,11 +226,22 @@ export const createNestDefinitions = ({
         enemy2: points[2] ?? { x: 28, z: 22 },
       };
     })()
-    : {
-      player: { x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z },
-      enemy1: { x: -26, z: -18 },
-      enemy2: { x: 28, z: 22 },
-    };
+    : (() => {
+      const points = [];
+      const player = findValidPositionNear(NEST_CONFIG.position.x, NEST_CONFIG.position.z, points)
+        ?? { x: NEST_CONFIG.position.x, z: NEST_CONFIG.position.z };
+      points.push(player);
+      const enemy1 = findValidPositionNear(-26, -18, points)
+        ?? { x: -26, z: -18 };
+      points.push(enemy1);
+      const enemy2 = findValidPositionNear(28, 22, points)
+        ?? { x: 28, z: 22 };
+      return {
+        player,
+        enemy1,
+        enemy2,
+      };
+    })();
 
   const allNests = [
     withOverride({ id: 'player-1', x: basePositions.player.x, z: basePositions.player.z, faction: FACTION.player, colonyId: COLONY.player, label: 'Home Nest', maxHp: NEST_CONFIG.maxHp }),

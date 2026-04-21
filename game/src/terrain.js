@@ -45,8 +45,8 @@ const BASE_RIVER_DEFINITIONS = Object.freeze([
     amplitudeRatio: 0.065,
     frequency: 0.09,
     phase: 0.42,
-    width: 2.35,
-    depth: 1.15,
+    width: 3.06,
+    depth: 1.45,
     bridgeRatios: Object.freeze([-0.32, -0.08, 0.14, 0.34]),
   }),
   Object.freeze({
@@ -56,8 +56,8 @@ const BASE_RIVER_DEFINITIONS = Object.freeze([
     amplitudeRatio: 0.055,
     frequency: 0.084,
     phase: 1.63,
-    width: 2.05,
-    depth: 1.0,
+    width: 2.67,
+    depth: 1.28,
     bridgeRatios: Object.freeze([-0.34, -0.1, 0.08, 0.3]),
   }),
 ]);
@@ -603,7 +603,7 @@ const getRiverDepthAtPoint = (x, z, {
       : Math.abs(x - center.x);
     const bank = THREE.MathUtils.smoothstep(across, river.width * 0.4, river.width * 1.5);
     const channel = 1 - THREE.MathUtils.clamp(across / Math.max(0.001, river.width * 0.5), 0, 1);
-    depthValue = Math.max(depthValue, (channel ** 2.2) * river.depth * 2.15 * bank * riverDepthScale);
+    depthValue = Math.max(depthValue, (channel ** 2.2) * river.depth * 2.8 * bank * riverDepthScale);
   }
 
   for (const lake of lakes ?? []) {
@@ -613,7 +613,7 @@ const getRiverDepthAtPoint = (x, z, {
     if (ellipse > 1.35) continue;
     const centerFalloff = 1 - THREE.MathUtils.clamp(ellipse, 0, 1);
     const bank = THREE.MathUtils.smoothstep(ellipse, 1, 0.25);
-    depthValue = Math.max(depthValue, (centerFalloff ** 1.7) * lake.depth * bank * riverDepthScale);
+    depthValue = Math.max(depthValue, (centerFalloff ** 1.7) * lake.depth * 1.35 * bank * riverDepthScale);
   }
   return depthValue;
 };

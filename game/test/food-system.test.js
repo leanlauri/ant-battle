@@ -4,7 +4,7 @@ import { Scene } from 'three';
 import { COLONY, FACTION, FOOD_CONFIG, NEST_CONFIG, UPGRADE_CONFIG, createFoodItems, createNestDefinitions, findNearestCarryAssistFood, findNearestFood, getFoodById, getFoodCarryFactor, getNestPosition } from '../src/food-system.js';
 import { FoodSystem } from '../src/food-system.js';
 import { createSeededRandom, deriveSeed } from '../src/seeded-random.js';
-import { TERRAIN_CONFIG } from '../src/terrain.js';
+import { TERRAIN_CONFIG, isPointInWater } from '../src/terrain.js';
 
 const simplifyFood = (food) => ({
   delivered: food.delivered,
@@ -156,6 +156,19 @@ describe('food system helpers', () => {
     expect(nests.find((nest) => nest.id === 'enemy-2')).toMatchObject({
       label: 'Escort Nest',
     });
+  });
+
+  test('keeps nests out of rivers in both default and randomized layouts', () => {
+    const defaults = createNestDefinitions({ enemyNestCount: 2 });
+    for (const nest of defaults) {
+      expect(isPointInWater(nest.position.x, nest.position.z)).toBe(false);
+    }
+
+    const random = createSeededRandom(deriveSeed('nest-river-guard', 'v1'));
+    const randomNests = createNestDefinitions({ enemyNestCount: 2, randomizePositions: true, random });
+    for (const nest of randomNests) {
+      expect(isPointInWater(nest.position.x, nest.position.z)).toBe(false);
+    }
   });
 
   test('reserves queue slots and stores food against the requested nest', () => {
